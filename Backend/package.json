@@ -9,21 +9,28 @@
     "start": "node dist/index.ts"
   },
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@neon/config": "^1.8.2",
+    "@neon/env": "^1.4.7",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
-    "dotenv": "^18.0.1",
+    "dotenv": "^18.0.4",
     "express": "^5.2.1",
+    "joi": "^18.2.9",
     "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.24.4",
     "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1"
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.2",
+    "signale": "^1.4.0",
+    "typeorm": "^1.1.1"
   },
   "allowScripts": {
-    "bcrypt@6.0.0": true
+    "bcrypt@6.0.0": true,
+    "esbuild@0.28.2": true
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -32,6 +39,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.2",
+    "nodemon": "^3.1.14",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
