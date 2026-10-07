@@ -1,36 +1,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
-}
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5.5rem;
   }
-}
 
-@media (min-width: 1024px) {
   body {
-    display: flex;
-    place-items: center;
+    @apply bg-brand-bg font-sans text-brand-ink antialiased;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1328px] px-6;
   }
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+  .section-title {
+    @apply font-serif text-3xl text-brand-ink;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center rounded-sm px-5 py-3 text-sm transition-colors;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-accent text-white hover:bg-brand-accentInk;
+  }
+
+  .btn-outline {
+    @apply btn border border-brand-line bg-brand-surface text-brand-ink hover:border-brand-inkSoft;
   }
 }

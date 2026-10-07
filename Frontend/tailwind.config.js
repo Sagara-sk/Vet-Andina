@@ -17,7 +17,11 @@ export default {
           accentSoft: '#e7eee3',
           accentInk: '#1f3323',
         }
-      }
+      },
+      fontFamily: {
+        serif: ['Georgia', 'Cambria', '"Times New Roman"', 'serif'],
+        sans: ['Arial', '"Helvetica Neue"', 'Helvetica', 'sans-serif'],
+      },
     },
   },
   plugins: [],
