@@ -81,26 +81,6 @@ function showUnavailable(feature: string) {
           Crear una cuenta
         </button>
       </p>
-
-      <div class="mt-8 border-t border-brand-line pt-5">
-        <p class="text-xs text-brand-inkSoft">Accesos del prototipo</p>
-        <div class="mt-2 grid gap-2">
-          <button
-            type="button"
-            class="w-full rounded-[3px] border border-brand-line px-3 py-2.5 text-left text-xs text-brand-ink transition-colors hover:border-brand-accent hover:bg-brand-accentSoft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/30"
-            @click="showUnavailable('El acceso de cliente')"
-          >
-            Entrar como cliente — Pedro
-          </button>
-          <button
-            type="button"
-            class="w-full rounded-[3px] border border-brand-line px-3 py-2.5 text-left text-xs text-brand-ink transition-colors hover:border-brand-accent hover:bg-brand-accentSoft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/30"
-            @click="showUnavailable('El acceso de veterinario')"
-          >
-            Entrar como veterinario — Julián
-          </button>
-        </div>
-      </div>
     </div>
   </section>
 </template>
