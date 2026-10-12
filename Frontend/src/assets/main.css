@@ -1,36 +1,128 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
-}
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+@layer base {
+  html {
+    min-width: 320px;
+    scroll-behavior: smooth;
   }
-}
 
-@media (min-width: 1024px) {
   body {
-    display: flex;
-    place-items: center;
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background-color: theme('colors.brand.bg');
+    color: theme('colors.brand.ink');
+    font-family: theme('fontFamily.sans');
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: 1210px;
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+
+  .section-title {
+    font-family: theme('fontFamily.serif');
+    font-size: 1.875rem;
+    line-height: 1.2;
+    color: theme('colors.brand.ink');
+  }
+
+  .btn-primary,
+  .btn-outline {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid theme('colors.brand.accent');
+    border-radius: 3px;
+    padding: 0.625rem 1.125rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    text-align: center;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease;
+  }
+
+  .btn-primary {
+    background-color: theme('colors.brand.accent');
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    border-color: theme('colors.brand.accentInk');
+    background-color: theme('colors.brand.accentInk');
+  }
+
+  .btn-outline {
+    background-color: transparent;
+    color: theme('colors.brand.ink');
+  }
+
+  .btn-outline:hover {
+    background-color: theme('colors.brand.accentSoft');
+  }
+}
+
+@media (min-width: 768px) {
+  .container-page {
+    padding-inline: 3rem;
+  }
+}
+
+@keyframes login-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-login-enter {
+  animation: login-enter 350ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
