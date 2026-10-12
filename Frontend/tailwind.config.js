@@ -16,11 +16,11 @@ export default {
           accent: '#34503a',
           accentSoft: '#e7eee3',
           accentInk: '#1f3323',
-        },
+        }
       },
       fontFamily: {
-        sans: ['IBM Plex Sans', 'sans-serif'],
-        serif: ['Fraunces', 'Georgia', 'serif'],
+        serif: ['Georgia', 'Cambria', '"Times New Roman"', 'serif'],
+        sans: ['Arial', '"Helvetica Neue"', 'Helvetica', 'sans-serif'],
       },
     },
   },
