@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import BrandPanel from '../components/auth/BrandPanel.vue'
-import LoginForm from '../components/auth/LoginForm.vue'
+import BrandPanel from '../components/login/BrandPanel.vue'
+import LoginForm from '../components/login/LoginForm.vue'
 </script>
 
 <template>
