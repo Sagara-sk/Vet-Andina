@@ -14,9 +14,12 @@ const router = createRouter({
       children: [
         { path: '', name: 'home', component: HomeView },
         { path: 'turnos', name: 'turnos', component: () => import('../views/TurnosView.vue') },
-        { path: 'login', name: 'login', component: () => import('../views/LoginView.vue') },
       ],
-      redirect: '/login',
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
     },
     {
       path: '/panel',
@@ -48,11 +51,6 @@ const router = createRouter({
     if (to.hash) return { el: to.hash, behavior: 'smooth' }
     return { top: 0 }
   },
-      path: '/login',
-      name: 'login',
-      component: LoginView,
-    },
-  ],
 })
 
 export default router
