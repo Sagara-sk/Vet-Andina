@@ -3,6 +3,7 @@ import PublicLayout from '../layouts/PublicLayout.vue'
 import HomeView from '../views/HomeView.vue'
 
 const PanelPlaceholderView = () => import('../views/panel/PanelPlaceholderView.vue')
+import LoginView from '../views/LoginView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,6 +16,7 @@ const router = createRouter({
         { path: 'turnos', name: 'turnos', component: () => import('../views/TurnosView.vue') },
         { path: 'login', name: 'login', component: () => import('../views/LoginView.vue') },
       ],
+      redirect: '/login',
     },
     {
       path: '/panel',
@@ -46,6 +48,11 @@ const router = createRouter({
     if (to.hash) return { el: to.hash, behavior: 'smooth' }
     return { top: 0 }
   },
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+    },
+  ],
 })
 
 export default router
