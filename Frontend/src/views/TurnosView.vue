@@ -16,7 +16,7 @@ import { site } from '@/config/site'
           <a :href="site.phone.whatsapp" target="_blank" rel="noopener" class="btn-primary">
             Pedir turno por WhatsApp
           </a>
-          <RouterLink to="/" class="btn-outline">Volver al inicio</RouterLink>
+          <RouterLink to="/inicio" class="btn-outline">Volver al inicio</RouterLink>
         </div>
       </div>
     </div>
