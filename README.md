@@ -16,6 +16,8 @@ Aplicación web para la gestión de atención veterinaria. El repositorio contie
 - [Base de datos](#base-de-datos)
 - [Variables de entorno y seguridad](#variables-de-entorno-y-seguridad)
 - [Estado funcional actual](#estado-funcional-actual)
+- [Contexto y planificación](#contexto-y-planificación)
+- [Roles y reglas pendientes](#roles-y-reglas-pendientes)
 
 ## Arquitectura
 
@@ -35,6 +37,7 @@ El frontend y el backend son aplicaciones independientes: cada uno tiene su prop
 ```text
 Vet Andina/
 ├── README.md
+├── AGENTS.md
 ├── .gitignore
 ├── Frontend/
 │   ├── .env.example
@@ -88,7 +91,10 @@ Vet Andina/
 │       └── models/owner.model.ts
 └── utilidades/
     └── documentación/
-        └── Estructura y configuración.md
+        ├── Estructura y configuración.md
+        ├── Planificación del proyecto.md
+        ├── Matriz de roles y acciones.md
+        └── Registro de incógnitas.md
 ```
 
 ### Frontend
@@ -127,6 +133,10 @@ El backend sigue una separación por capas:
 
 - `Backend/.env.example` y `Frontend/.env.example`: nombres y ejemplos de variables necesarias, sin credenciales reales.
 - `utilidades/documentación/Estructura y configuración.md`: guía adicional sobre instalación y convenciones del repositorio.
+- `AGENTS.md`: contexto permanente, objetivos y pautas del producto para el trabajo de desarrollo asistido.
+- `utilidades/documentación/Planificación del proyecto.md`: compromiso del Sprint 3 y propuesta de continuidad.
+- `utilidades/documentación/Matriz de roles y acciones.md`: permisos propuestos por rol, con separación entre acceso clínico y administrativo.
+- `utilidades/documentación/Registro de incógnitas.md`: preguntas de negocio y permisos que requieren validación antes de implementarse.
 - `.gitignore`: excluye dependencias, compilados, cachés, logs y archivos `.env`; mantiene versionados los `.env.example`.
 
 ## Requisitos
@@ -263,3 +273,13 @@ El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de
 - **Implementado:** navegación pública, página de registro conectada, alta transaccional de usuarios/dueños, hash de contraseñas y endpoints de salud.
 - **Pendiente:** autenticación e inicio de sesión, emisión/verificación de JWT o sesión, autorización del panel, endpoints para mascotas/fichas/visitas/turnos/evoluciones y validación de los marcadores de posición.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
+
+## Contexto y planificación
+
+- [Contexto permanente del proyecto](AGENTS.md)
+- [Planificación del proyecto y Sprint 3](utilidades/documentación/Planificación%20del%20proyecto.md)
+
+## Roles y reglas pendientes
+
+- [Matriz de roles y acciones](utilidades/documentación/Matriz%20de%20roles%20y%20acciones.md)
+- [Registro de incógnitas](utilidades/documentación/Registro%20de%20inc%C3%B3gnitas.md)
