@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { API_BASE_URL } from '@/config/api'
 
 // un contenedor para almacenar los datos del formulario
 const formData = reactive({
@@ -29,7 +30,7 @@ const envioFormulario = async () => {
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/auth/register`,
+      `${API_BASE_URL}/api/auth/register`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
