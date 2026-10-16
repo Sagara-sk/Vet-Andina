@@ -221,9 +221,9 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | ----------------- | ----------------------------------------- | -------------------------------------------------------------------- |
 | `/`               | `HomeView.vue` con `PublicLayout.vue`     | Página pública.                                                      |
 | `/turnos`         | `TurnosView.vue` con `PublicLayout.vue`   | Vista de turnos.                                                     |
-| `/login`          | `LoginView.vue`                           | Formulario visual; el inicio de sesión no está conectado al backend. |
+| `/login`          | `LoginView.vue`                           | Inicia sesión mediante la API y establece una cookie HttpOnly.       |
 | `/registro`       | `RegistroView.vue`                        | Envía el registro de un cliente a la API.                            |
-| `/panel`          | `PanelHomeView.vue` con `PanelLayout.vue` | Resumen con datos de ejemplo.                                        |
+| `/panel`          | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.             |
 | `/panel/mascotas` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
 | `/panel/reservar` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
 | `/panel/turnos`   | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
@@ -235,6 +235,9 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `GET`  | `/api/health`        | Confirma que la API responde.                               |
 | `GET`  | `/api/db/health`     | Ejecuta `SELECT 1` para comprobar la conexión a PostgreSQL. |
 | `POST` | `/api/auth/register` | Valida e inserta un nuevo usuario y su perfil de dueño.     |
+| `POST` | `/api/auth/login`    | Valida credenciales y establece una cookie de sesión HttpOnly. |
+| `GET`  | `/api/auth/session`  | Valida la cookie y devuelve el identificador y rol de la sesión. |
+| `POST` | `/api/auth/logout`   | Elimina la cookie de sesión del navegador.                  |
 
 El cuerpo del registro debe ser JSON:
 
@@ -248,7 +251,7 @@ El cuerpo del registro debe ser JSON:
 }
 ```
 
-Una solicitud correcta devuelve `201`; datos inválidos devuelven `400`; un correo duplicado devuelve `409`; un error inesperado devuelve `500`. El registro no inicia sesión automáticamente ni emite un token.
+Una solicitud correcta devuelve `201`; datos inválidos devuelven `400`; un correo duplicado devuelve `409`; un error inesperado devuelve `500`. El registro no inicia sesión automáticamente. El login recibe `{ "email": "...", "contrasena": "..." }`, devuelve `401` si las credenciales no son válidas y establece una cookie `HttpOnly`; el JWT no se devuelve en el cuerpo ni se guarda en `localStorage`. La cookie dura ocho horas por defecto.
 
 ## Base de datos
 
@@ -264,14 +267,17 @@ El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de
 
 - Los archivos locales `.env` contienen secretos y no se deben subir al repositorio. Los archivos `.env.example` contienen solo ejemplos.
 - Configura `DATABASE_URL` únicamente en `Backend/.env` o en el gestor seguro de secretos del entorno de despliegue.
+- Configura `JWT_SECRET` con al menos 32 bytes aleatorios en `Backend/.env` o en el gestor de secretos. No reutilices ni publiques ese valor.
+- `AUTH_SESSION_TTL_SECONDS` define la duración de la sesión (por defecto, 28800; rango permitido: 300 a 2592000 segundos). `AUTH_COOKIE_SAME_SITE` acepta `strict`, `lax` o `none`; `none` exige HTTPS y `NODE_ENV=production`.
 - El Pool de PostgreSQL exige validación TLS del certificado.
 - La contraseña del cliente se valida en el controlador y se almacena como hash mediante bcrypt en el servicio de registro; nunca se guarda en texto plano.
 - Express limita CORS a las URL configuradas mediante `FRONTEND_URL`; si no está definida, permite los orígenes locales indicados en `Backend/src/app.ts`.
 
 ## Estado funcional actual
 
-- **Implementado:** navegación pública, página de registro conectada, alta transaccional de usuarios/dueños, hash de contraseñas y endpoints de salud.
-- **Pendiente:** autenticación e inicio de sesión, emisión/verificación de JWT o sesión, autorización del panel, endpoints para mascotas/fichas/visitas/turnos/evoluciones y validación de los marcadores de posición.
+- **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guard frontend para `/panel` y endpoints de salud.
+- **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`/cookie del entorno de despliegue.
+- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable, rate limiting y validación de los marcadores de posición.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 
 ## Contexto y planificación

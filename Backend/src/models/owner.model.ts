@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { db } from "../config/database";
 
 export interface OwnerAccountInput {
   fullName: string;
@@ -14,6 +15,43 @@ export interface OwnerAccountRecord {
   fullName: string;
   email: string;
   role: "CLIENTE";
+}
+
+export interface UserCredentialsRecord {
+  userId: string;
+  fullName: string;
+  email: string;
+  passwordHash: string;
+  role: string;
+}
+
+export async function findUserCredentialsByEmail(
+  email: string,
+): Promise<UserCredentialsRecord | undefined> {
+  const result = await db.query<{
+    id_usuario: string;
+    nombre_completo: string;
+    email: string;
+    password_hash: string;
+    rol: string;
+  }>(
+    `SELECT id_usuario, nombre_completo, email, password_hash, rol
+     FROM usuario
+     WHERE email = $1
+     LIMIT 1`,
+    [email],
+  );
+  const user = result.rows[0];
+
+  if (!user) return undefined;
+
+  return {
+    userId: user.id_usuario,
+    fullName: user.nombre_completo,
+    email: user.email,
+    passwordHash: user.password_hash,
+    role: user.rol,
+  };
 }
 
 export async function insertOwnerAccount(

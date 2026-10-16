@@ -1,8 +1,14 @@
 import Joi from "joi";
 import type { RequestHandler } from "express";
 import {
+  authenticateUser,
+  createSessionToken,
+  InvalidCredentialsError,
   RegistrationConflictError,
   registerOwner,
+  SESSION_COOKIE_NAME,
+  sessionCookieOptions,
+  verifySessionToken,
 } from "../services/auth.service";
 
 const registerSchema = Joi.object({
@@ -19,6 +25,90 @@ const registerSchema = Joi.object({
     )
     .required(),
 }).unknown(false);
+
+const loginSchema = Joi.object({
+  email: Joi.string().trim().email().max(254).required(),
+  contrasena: Joi.string()
+    .min(1)
+    .custom((value: string, helpers) =>
+      Buffer.byteLength(value, "utf8") > 72
+        ? helpers.error("string.max")
+        : value,
+    )
+    .required(),
+}).unknown(false);
+
+function clearSessionCookie(response: Parameters<RequestHandler>[1]): void {
+  const { httpOnly, secure, sameSite, path } = sessionCookieOptions();
+  response.clearCookie(SESSION_COOKIE_NAME, {
+    httpOnly,
+    secure,
+    sameSite,
+    path,
+  });
+}
+
+export const postLogin: RequestHandler = async (request, response) => {
+  response.set("Cache-Control", "no-store");
+  const { error, value } = loginSchema.validate(request.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    response.status(400).json({
+      status: "error",
+      message: "Ingresá un email y una contraseña válidos.",
+    });
+    return;
+  }
+
+  try {
+    const user = await authenticateUser(value.email, value.contrasena);
+    const token = createSessionToken(user);
+
+    response.cookie(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    response.json({
+      status: "ok",
+      user: {
+        id: user.userId,
+        nombreCompleto: user.fullName,
+        email: user.email,
+        rol: user.role,
+      },
+    });
+  } catch (error) {
+    if (error instanceof InvalidCredentialsError) {
+      response.status(401).json({ status: "error", message: error.message });
+      return;
+    }
+
+    console.error("Error al iniciar sesión:", error);
+    response.status(500).json({
+      status: "error",
+      message: "No fue posible iniciar sesión.",
+    });
+  }
+};
+
+export const getSession: RequestHandler = (request, response) => {
+  response.set("Cache-Control", "no-store");
+  const token = request.cookies?.[SESSION_COOKIE_NAME];
+  const user = typeof token === "string" ? verifySessionToken(token) : undefined;
+
+  if (!user) {
+    clearSessionCookie(response);
+    response.status(401).json({ status: "error", message: "Sesión no válida." });
+    return;
+  }
+
+  response.json({ status: "ok", user: { id: user.userId, rol: user.role } });
+};
+
+export const postLogout: RequestHandler = (_request, response) => {
+  response.set("Cache-Control", "no-store");
+  clearSessionCookie(response);
+  response.json({ status: "ok", message: "Sesión cerrada." });
+};
 
 export const postRegister: RequestHandler = async (request, response) => {
   const { error, value } = registerSchema.validate(request.body, {

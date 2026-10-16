@@ -5,6 +5,7 @@ import HomeView from '../views/HomeView.vue'
 const PanelPlaceholderView = () => import('../views/panel/PanelPlaceholderView.vue')
 import LoginView from '../views/LoginView.vue'
 import RegistroView from '../views/RegistroView.vue'
+import { getAuthSession } from '@/services/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,6 +30,7 @@ const router = createRouter({
     },
     {
       path: '/panel',
+      meta: { requiresAuth: true },
       component: () => import('../layouts/PanelLayout.vue'),
       children: [
         { path: '', name: 'panel', component: () => import('../views/panel/PanelHomeView.vue') },
@@ -57,6 +59,26 @@ const router = createRouter({
     if (to.hash) return { el: to.hash, behavior: 'smooth' }
     return { top: 0 }
   },
+})
+
+router.beforeEach(async (to) => {
+  if (!to.matched.some((record) => record.meta.requiresAuth)) return true
+
+  try {
+    const user = await getAuthSession()
+
+    if (!user) {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+
+    if (user.rol === 'CLIENTE') return true
+
+    return { name: 'home' }
+  } catch {
+    // Sin una sesión verificable, las rutas privadas vuelven al login.
+  }
+
+  return { name: 'login', query: { redirect: to.fullPath } }
 })
 
 export default router

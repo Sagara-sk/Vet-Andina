@@ -1,13 +1,33 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { login } from '@/services/auth'
 
 const email = ref('')
 const password = ref('')
 const feedback = ref('')
+const isSubmitting = ref(false)
+const route = useRoute()
+const router = useRouter()
 
-function submitLogin() {
-  feedback.value = 'El inicio de sesión todavía no está conectado al servidor.'
+async function submitLogin() {
+  feedback.value = ''
+  isSubmitting.value = true
+
+  try {
+    await login(email.value, password.value)
+    const redirect = route.query.redirect
+    const destination =
+      typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
+        ? redirect
+        : '/panel'
+
+    await router.replace(destination)
+  } catch (error) {
+    feedback.value = error instanceof Error ? error.message : 'No fue posible iniciar sesión.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function showUnavailable(feature: string) {
@@ -62,9 +82,10 @@ function showUnavailable(feature: string) {
 
         <button
           type="submit"
-          class="mt-6 w-full rounded-[3px] bg-brand-accent py-3 text-sm font-medium text-white transition-colors hover:bg-brand-accentInk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2"
+          :disabled="isSubmitting"
+          class="mt-6 w-full rounded-[3px] bg-brand-accent py-3 text-sm font-medium text-white transition-colors hover:bg-brand-accentInk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
         >
-          Entrar
+          {{ isSubmitting ? 'Ingresando...' : 'Entrar' }}
         </button>
       </form>
 

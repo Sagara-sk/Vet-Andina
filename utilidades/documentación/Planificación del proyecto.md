@@ -8,7 +8,7 @@ Antes de planificar cada sprint, contrastar esta propuesta con el backlog y el e
 
 ## 2. Línea de base del producto
 
-El objetivo es centralizar tutores, animales/lotes, turnos y atención clínica para consultorio y campo, con acceso diferenciado por rol y uso offline rural. La base técnica existente descrita en el README incluye frontend Vue 3/TypeScript, API Express/TypeScript, PostgreSQL y registro de clientes. El login real, los guards/autorización, los módulos de negocio y la estrategia offline todavía requieren trabajo.
+El objetivo es centralizar tutores, animales/lotes, turnos y atención clínica para consultorio y campo, con acceso diferenciado por rol y uso offline rural. La base técnica existente descrita en el README incluye frontend Vue 3/TypeScript, API Express/TypeScript, PostgreSQL y registro de clientes. En `feature/erick-test` se implementaron login/logout con cookie HttpOnly y un guard frontend inicial; su integración contra Neon todavía no está verificada. La autorización backend por rol/propietario, los módulos de negocio y la estrategia offline todavía requieren trabajo.
 
 Por lo tanto, el Sprint 3 debe producir autenticación funcional y una decisión offline verificable; no se debe confundir el spike offline con una sincronización de producción ya implementada.
 
@@ -17,6 +17,15 @@ Por lo tanto, el Sprint 3 debe producir autenticación funcional y una decisión
 ### Objetivo y compromiso
 
 **Cerrar la autenticación inicial** (inicio de sesión, cierre de sesión, redirección al login, matriz de roles y contrato de autenticación) y **dejar documentada una solución offline** respaldada por una prueba en modo avión.
+
+### Estado técnico observado en `feature/erick-test`
+
+- Implementados en código: `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, firma/verificación JWT en cookie `HttpOnly`, guard del frontend y restricción del panel cliente al rol `CLIENTE`.
+- Pendiente para aceptar la integración: configurar `JWT_SECRET` y `DATABASE_URL` en un entorno seguro, probar login/registro contra Neon y revisar configuración de cookie/CORS para el dominio desplegado.
+- No implementado: autorización backend por rol/propietario para recursos de dominio y revocación inmediata de sesiones. El guard frontend no sustituye esos controles.
+- El soporte offline sigue siendo un spike técnico: hay almacenamiento IndexedDB y caché de app shell en la rama de prueba, pero faltan la decisión documentada, prueba reproducible en modo avión y validación de sincronización sin pérdida ni duplicación.
+
+Este estado describe código observado, no historias aceptadas. No considerar VET-1, VET-2, VET-3 o VET-11 cerradas hasta cumplir sus criterios de aceptación y revisión.
 
 | Historia | Entrega comprometida | Puntos |
 | --- | --- | ---: |
