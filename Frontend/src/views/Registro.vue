@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import {reactive, ref} from 'vue'
 
 // un contenedor para almacenar los datos del formulario
 const formData = reactive({
@@ -9,29 +9,28 @@ const formData = reactive({
   confirmarContraseña: ''
 })
 
-//los mensajes de error para cada campo del formulario
+//los mensajes de error para cada campo del formulario sm
 const mensajeError = ref('')
 const mensajeExito = ref('')
 
 //las funciones para procesar el envio del formulario
 const envioFormulario = () => {
-  // limpiar mensajes previos
-  mensajeError.value = ''
-  mensajeExito.value = ''
+//limpiar mensajes previos
+mensajeError.value = ''
+mensajeExito.value = ''
 
-  // validar que la contraseña coincida
-  if (formData.contraseña !== formData.confirmarContraseña) {
-    mensajeError.value = 'Las contraseñas no coinciden'
-    return
-  }
-
+// validar la contraseña si coinciden
+if (formData.contraseña !== formData.confirmarContraseña) {
+  mensajeError.value = 'Las contraseñas no coinciden'
+  return
+}
   mensajeExito.value = 'Cuenta creada con éxito.'
 
-  // limpiar el formulario después de un registro exitoso
-  formData.nombre = ''
-  formData.email = ''
-  formData.contraseña = ''
-  formData.confirmarContraseña = ''
+// limpiar el formulario después de un registro exitos sm
+formData.nombre = ''
+formData.email = ''
+formData.contraseña = ''
+formData.confirmarContraseña = ''
 }
 </script>
 
@@ -54,6 +53,8 @@ const envioFormulario = () => {
 
       <!-- formulario -->
       <form @submit.prevent="envioFormulario" class="space-y-4">
+
+    <!-- campo de nombre -->
         <div>
           <label for="nombre" class="block text-sm font-medium text-gray-700">Nombre</label>
           <input
@@ -66,6 +67,7 @@ const envioFormulario = () => {
           />
         </div>
 
+    <!-- campo de correo electrónico -->
         <div>
           <label for="email" class="block text-sm font-medium text-gray-700">Correo electrónico</label>
           <input
@@ -78,6 +80,7 @@ const envioFormulario = () => {
           />
         </div>
 
+    <!-- campo de contraseña -->
         <div>
           <label for="contraseña" class="block text-sm font-medium text-gray-700">Contraseña</label>
           <input
@@ -90,6 +93,7 @@ const envioFormulario = () => {
           />
         </div>
 
+    <!-- campo de confirmación de contraseña -->
         <div>
           <label for="confirmarContraseña" class="block text-sm font-medium text-gray-700">Confirmar contraseña</label>
           <input
@@ -102,6 +106,7 @@ const envioFormulario = () => {
           />
         </div>
 
+    <!-- botón de envío sm -->
         <button
           type="submit"
           class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition"
