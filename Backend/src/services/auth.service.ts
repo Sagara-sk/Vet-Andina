@@ -34,7 +34,7 @@ export class InvalidCredentialsError extends Error {
   }
 }
 
-function getJwtSecret(): string {
+export function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
 
   if (!secret || Buffer.byteLength(secret, "utf8") < 32) {

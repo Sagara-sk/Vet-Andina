@@ -25,6 +25,40 @@ export interface UserCredentialsRecord {
   role: string;
 }
 
+export interface AuthenticatedUserRecord {
+  userId: string;
+  fullName: string;
+  email: string;
+  role: string;
+}
+
+export async function findAuthenticatedUserById(
+  userId: string,
+): Promise<AuthenticatedUserRecord | undefined> {
+  const result = await db.query<{
+    id_usuario: string;
+    nombre_completo: string;
+    email: string;
+    rol: string;
+  }>(
+    `SELECT id_usuario, nombre_completo, email, rol
+     FROM usuario
+     WHERE id_usuario = $1
+     LIMIT 1`,
+    [userId],
+  );
+  const user = result.rows[0];
+
+  if (!user) return undefined;
+
+  return {
+    userId: user.id_usuario,
+    fullName: user.nombre_completo,
+    email: user.email,
+    role: user.rol,
+  };
+}
+
 export async function findUserCredentialsByEmail(
   email: string,
 ): Promise<UserCredentialsRecord | undefined> {

@@ -1,6 +1,8 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import passport from "passport";
+import "./config/passport";
 import authRouter from "./routes/auth.routes";
 import healthRouter from "./routes/health.routes";
 
@@ -12,6 +14,7 @@ const allowedOrigins = process.env.FRONTEND_URL?.split(",")
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(passport.initialize());
 app.use(
   cors({
     origin: allowedOrigins,

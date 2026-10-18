@@ -3,12 +3,12 @@ import type { RequestHandler } from "express";
 import {
   authenticateUser,
   createSessionToken,
+  type AuthenticatedUser,
   InvalidCredentialsError,
   RegistrationConflictError,
   registerOwner,
   SESSION_COOKIE_NAME,
   sessionCookieOptions,
-  verifySessionToken,
 } from "../services/auth.service";
 
 const registerSchema = Joi.object({
@@ -92,16 +92,12 @@ export const postLogin: RequestHandler = async (request, response) => {
 
 export const getSession: RequestHandler = (request, response) => {
   response.set("Cache-Control", "no-store");
-  const token = request.cookies?.[SESSION_COOKIE_NAME];
-  const user = typeof token === "string" ? verifySessionToken(token) : undefined;
+  const user = request.user as AuthenticatedUser;
 
-  if (!user) {
-    clearSessionCookie(response);
-    response.status(401).json({ status: "error", message: "Sesión no válida." });
-    return;
-  }
-
-  response.json({ status: "ok", user: { id: user.userId, rol: user.role } });
+  response.json({
+    status: "ok",
+    user: { id: user.userId, nombreCompleto: user.fullName, rol: user.role },
+  });
 };
 
 export const postLogout: RequestHandler = (_request, response) => {
