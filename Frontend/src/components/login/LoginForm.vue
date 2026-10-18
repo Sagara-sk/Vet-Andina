@@ -1,12 +1,34 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { login } from '@/services/auth'
 
 const email = ref('')
 const password = ref('')
 const feedback = ref('')
+const isSubmitting = ref(false)
+const route = useRoute()
+const router = useRouter()
 
-function submitLogin() {
-  feedback.value = 'El inicio de sesión todavía no está conectado al servidor.'
+async function submitLogin() {
+  feedback.value = ''
+  isSubmitting.value = true
+
+  try {
+    const user = await login(email.value, password.value)
+    const redirect = route.query.redirect
+    const defaultDestination = user.rol === 'VETERINARIO' ? '/panel-veterinario' : '/panel'
+    const destination =
+      typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
+        ? redirect
+        : defaultDestination
+
+    await router.replace(destination)
+  } catch (error) {
+    feedback.value = error instanceof Error ? error.message : 'No fue posible iniciar sesión.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function showUnavailable(feature: string) {
@@ -16,7 +38,7 @@ function showUnavailable(feature: string) {
 
 <template>
   <section class="flex flex-1 items-center justify-center px-7 py-12 sm:px-12">
-    <div class="animate-login-enter w-full max-w-[22rem]">
+    <div class="animate-login-enter w-full max-w-88">
       <h1 class="font-serif text-[1.65rem] leading-tight">Iniciar sesión</h1>
       <p class="mt-2 text-base text-brand-inkSoft">Ingresá con tu email y contraseña.</p>
 
@@ -32,7 +54,7 @@ function showUnavailable(feature: string) {
             placeholder="nombre@ejemplo.com"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
-          >
+          />
         </div>
 
         <div class="mt-5">
@@ -46,7 +68,7 @@ function showUnavailable(feature: string) {
             placeholder="Tu contraseña"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
-          >
+          />
         </div>
 
         <div class="mt-3 flex justify-end">
@@ -61,25 +83,29 @@ function showUnavailable(feature: string) {
 
         <button
           type="submit"
-          class="mt-6 w-full rounded-[3px] bg-brand-accent py-3 text-sm font-medium text-white transition-colors hover:bg-brand-accentInk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2"
+          :disabled="isSubmitting"
+          class="mt-6 w-full rounded-[3px] bg-brand-accent py-3 text-sm font-medium text-white transition-colors hover:bg-brand-accentInk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
         >
-          Entrar
+          {{ isSubmitting ? 'Ingresando...' : 'Entrar' }}
         </button>
       </form>
 
-      <p class="mt-2 min-h-5 text-center text-xs text-brand-inkSoft" role="status" aria-live="polite">
+      <p
+        class="mt-2 min-h-5 text-center text-xs text-brand-inkSoft"
+        role="status"
+        aria-live="polite"
+      >
         {{ feedback }}
       </p>
 
       <p class="mt-3 text-center text-sm text-brand-inkSoft">
         ¿No tenés cuenta?
-        <button
-          type="button"
+        <RouterLink
+          to="/registro"
           class="text-brand-ink underline underline-offset-2 hover:text-brand-accent"
-          @click="showUnavailable('El registro')"
         >
           Crear una cuenta
-        </button>
+        </RouterLink>
       </p>
     </div>
   </section>

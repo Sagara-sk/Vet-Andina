@@ -10,13 +10,9 @@ const petName = (id: number) => pets.find((p) => p.id === id)?.name ?? '—'
 
 const nextAppointment = computed(() =>
   appointments
-    .filter((a) => a.status !== 'realizado')
+    .filter((a) => a.status !== 'realizado' && a.date.getTime() >= Date.now())
     .sort((a, b) => a.date.getTime() - b.date.getTime())[0],
 )
-
-function cancelAppointment() {
-  // TODO: pedir confirmación y llamar al Backend para cancelar el turno.
-}
 </script>
 
 <template>
@@ -25,6 +21,9 @@ function cancelAppointment() {
       <div>
         <h1 class="font-serif text-3xl text-brand-ink">Hola, {{ currentUser.firstName }}</h1>
         <p class="mt-3 text-brand-inkSoft">Así está la agenda de tus mascotas.</p>
+        <p class="mt-2 text-xs text-brand-inkSoft" role="note">
+          Vista de demostración. Estos datos no provienen de una cuenta ni de la base de datos.
+        </p>
       </div>
       <RouterLink to="/panel/reservar" class="btn-primary">Reservar turno</RouterLink>
     </header>
@@ -43,11 +42,11 @@ function cancelAppointment() {
           {{ nextAppointment.vet }}
         </p>
       </div>
-      <div class="flex gap-3">
-        <button type="button" class="btn-outline" @click="cancelAppointment">Cancelar</button>
-        <RouterLink to="/panel/turnos" class="btn-primary">Ver detalle</RouterLink>
-      </div>
+      <RouterLink to="/panel/turnos" class="btn-primary">Ver detalle</RouterLink>
     </section>
+    <p v-else class="mt-9 border border-brand-line bg-brand-surface px-7 py-6 text-sm text-brand-inkSoft" role="status">
+      No hay próximos turnos en esta vista de demostración.
+    </p>
 
     <section class="mt-11">
       <div class="flex items-baseline justify-between">
@@ -90,12 +89,5 @@ function cancelAppointment() {
       </div>
     </section>
 
-    <RouterLink
-      to="/panel/reservar"
-      class="mt-7 block max-w-[598px] border border-brand-line bg-brand-surface px-5 py-6 transition-colors hover:border-brand-inkSoft"
-    >
-      <span class="block text-sm text-brand-ink">Reservar turno</span>
-      <span class="mt-1.5 block text-xs text-brand-inkSoft">Elegí día, horario y mascota.</span>
-    </RouterLink>
   </div>
 </template>

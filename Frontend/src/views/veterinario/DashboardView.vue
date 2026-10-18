@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+
+import { getAuthSession } from '@/services/auth'
 
 type Estado = 'Confirmado' | 'Por confirmar'
 type TipoModal = 'reprogramar' | 'cancelar'
@@ -39,6 +41,31 @@ const HORARIOS = [
   '09:00', '10:00', '10:30', '11:00', '11:30',
   '14:00', '15:00', '16:00', '16:30',
 ]
+
+const nombreUsuario = ref('')
+
+const saludo = computed(() => {
+  const primerNombre = nombreUsuario.value.trim().split(/\s+/)[0]
+  return primerNombre ? `Hola, ${primerNombre}` : 'Hola'
+})
+
+const fechaHoy = (() => {
+  const texto = new Intl.DateTimeFormat('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date())
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+})()
+
+onMounted(async () => {
+  try {
+    const user = await getAuthSession()
+    nombreUsuario.value = user?.nombreCompleto ?? ''
+  } catch {
+    // Si la sesión no responde, se muestra el saludo sin nombre.
+  }
+})
 
 const modal = ref<{ turno: Turno; tipo: TipoModal } | null>(null)
 const turnoModal = computed(() => modal.value?.turno ?? null)
@@ -96,11 +123,11 @@ function confirmarAccion() {
     <div class="flex items-start justify-between gap-6">
       <div>
         <h1 class="font-serif text-[1.6rem]">
-          Hola, Julián
+          {{ saludo }}
         </h1>
 
         <p class="mt-1.5 text-base text-[#63665f]">
-          Jueves 4 de septiembre
+          {{ fechaHoy }}
         </p>
 
         <input
@@ -221,9 +248,9 @@ function confirmarAccion() {
             Modo offline
           </h3>
 
-          <span class="text-xs text-[#63665f]">
+          <RouterLink :to="{ name: 'vet-offline' }" class="text-xs text-[#63665f] hover:underline">
             Ver detalle
-          </span>
+          </RouterLink>
         </div>
 
         <div class="rounded border border-[#e1ded4] bg-white p-5">

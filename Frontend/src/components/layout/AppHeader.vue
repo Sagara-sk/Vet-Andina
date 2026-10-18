@@ -14,7 +14,7 @@ const menuOpen = ref(false)
 <template>
   <header class="sticky top-0 z-50 border-b border-brand-line bg-brand-bg/80 backdrop-blur">
     <div class="mx-auto flex h-[82px] w-full items-center justify-between px-6 md:px-12">
-      <RouterLink to="/inicio" class="font-serif text-[22px] text-brand-ink" @click="menuOpen = false">
+      <RouterLink to="/" class="font-serif text-[22px] text-brand-ink" @click="menuOpen = false">
         Vet Andina
       </RouterLink>
 
@@ -22,7 +22,7 @@ const menuOpen = ref(false)
         <RouterLink
           v-for="link in links"
           :key="link.hash"
-          :to="{ path: '/inicio', hash: link.hash }"
+          :to="{ path: '/', hash: link.hash }"
           class="text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
         >
           {{ link.label }}
@@ -53,7 +53,7 @@ const menuOpen = ref(false)
         <RouterLink
           v-for="link in links"
           :key="link.hash"
-          :to="{ path: '/inicio', hash: link.hash }"
+          :to="{ path: '/', hash: link.hash }"
           class="py-3 text-sm text-brand-inkSoft"
           @click="menuOpen = false"
         >

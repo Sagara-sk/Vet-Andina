@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
-    tailwindcss(), 
+    tailwindcss(),
   ],
   resolve: {
     alias: {

@@ -1,9 +1,10 @@
-const CACHE_NAME = 'vet-andina-v1'
+const CACHE_NAME = 'vet-andina-shell-v1'
+const APP_SHELL_URL = new URL('./', self.registration.scope).href
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.add('/'))
+      .then((cache) => cache.add(APP_SHELL_URL))
       .then(() => self.skipWaiting())
   )
 })
@@ -26,14 +27,36 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
 
   const url = new URL(event.request.url)
-  if (
-    url.origin !== self.location.origin ||
-    /^\/(animales|historial-clinico|turnos)(\/|$)/.test(url.pathname)
-  ) {
+  const scopePath = new URL(self.registration.scope).pathname
+  const isApiRequest = url.pathname === `${scopePath}api` ||
+    url.pathname.startsWith(`${scopePath}api/`)
+
+  if (url.origin !== self.location.origin || isApiRequest) {
+    return
+  }
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        return await fetch(event.request)
+      } catch {
+        return await caches.match(APP_SHELL_URL) ?? new Response('Sin conexión', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain' },
+        })
+      }
+    })())
+    return
+  }
+
+  if (!['script', 'style', 'image', 'font'].includes(event.request.destination)) {
     return
   }
 
   event.respondWith((async () => {
+    const cachedResponse = await caches.match(event.request)
+    if (cachedResponse) return cachedResponse
+
     try {
       const response = await fetch(event.request)
 
@@ -44,14 +67,6 @@ self.addEventListener('fetch', (event) => {
 
       return response
     } catch {
-      const respuestaCacheada = await caches.match(event.request)
-      if (respuestaCacheada) return respuestaCacheada
-
-      if (event.request.mode === 'navigate') {
-        const inicio = await caches.match('/')
-        if (inicio) return inicio
-      }
-
       return new Response('Sin conexión', {
         status: 503,
         headers: { 'Content-Type': 'text/plain' },
