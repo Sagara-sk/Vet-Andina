@@ -51,9 +51,9 @@ El `README.md` describe el estado técnico que debe usarse como línea de base h
 - Frontend Vue 3 + TypeScript y API Express + TypeScript; conexión PostgreSQL por `pg` y TLS.
 - Registro de clientes conectado: crea usuario y perfil de dueño en una transacción; bcrypt para contraseñas.
 - Endpoints disponibles: `GET /api/health`, `GET /api/db/health`, `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/session` y `POST /api/auth/logout`.
-- Login y cookie de sesión HttpOnly implementados en código; verificar el flujo con Neon y configurar `JWT_SECRET` antes de desplegar. El guard del frontend protege `/panel`, pero no sustituye autorización backend.
+- Login y cookie de sesión HttpOnly implementados en código; verificar el flujo con Neon y configurar `JWT_SECRET` antes de desplegar. Los guards del frontend protegen `/panel` para `CLIENTE` y `/panel-veterinario` para `VETERINARIO`, pero no sustituyen autorización backend.
 - Autorización backend por rol/propietario, revocación de sesiones y endpoints de dominio siguen pendientes.
-- Panel con datos mock; mascotas, turnos, evoluciones y otras operaciones de dominio aún sin endpoints CRUD descritos.
+- Panel cliente y agenda veterinaria con datos explícitamente de demostración; mascotas, turnos, evoluciones y otras operaciones de dominio aún sin endpoints CRUD descritos.
 - No se describen migraciones SQL o seeders en el repositorio. Verificar el esquema real antes de depender de él.
 - La API ya tiene algunas dependencias de autenticación instaladas; una dependencia instalada no demuestra que el flujo sea funcional.
 

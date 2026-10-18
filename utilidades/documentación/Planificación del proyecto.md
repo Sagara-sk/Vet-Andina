@@ -20,10 +20,11 @@ Por lo tanto, el Sprint 3 debe producir autenticación funcional y una decisión
 
 ### Estado técnico observado en `feature/erick-test`
 
-- Implementados en código: `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, firma/verificación JWT en cookie `HttpOnly`, guard del frontend y restricción del panel cliente al rol `CLIENTE`.
+- Implementados en código: `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, firma/verificación JWT en cookie `HttpOnly`, guard frontend para `CLIENTE` en `/panel` y `VETERINARIO` en `/panel-veterinario`.
+- El panel veterinario añadido a `feature/erick-test` es una demostración con agenda ficticia claramente marcada; no consulta ni modifica turnos en Neon.
 - Pendiente para aceptar la integración: configurar `JWT_SECRET` y `DATABASE_URL` en un entorno seguro, probar login/registro contra Neon y revisar configuración de cookie/CORS para el dominio desplegado.
 - No implementado: autorización backend por rol/propietario para recursos de dominio y revocación inmediata de sesiones. El guard frontend no sustituye esos controles.
-- El soporte offline sigue siendo un spike técnico: hay almacenamiento IndexedDB y caché de app shell en la rama de prueba, pero faltan la decisión documentada, prueba reproducible en modo avión y validación de sincronización sin pérdida ni duplicación.
+- El soporte offline sigue siendo un spike técnico: hay almacenamiento IndexedDB y caché de app shell en la rama de prueba, pero la vista de Ezequiel no se integra porque depende de endpoints que no existen y permite registrar observaciones clínicas sin autoría/idempotencia. Faltan la decisión documentada, prueba reproducible en modo avión y validación de sincronización sin pérdida ni duplicación.
 
 Este estado describe código observado, no historias aceptadas. No considerar VET-1, VET-2, VET-3 o VET-11 cerradas hasta cumplir sus criterios de aceptación y revisión.
 

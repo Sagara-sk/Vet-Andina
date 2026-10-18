@@ -54,6 +54,18 @@ const router = createRouter({
         },
       ],
     },
+    {
+      path: '/panel-veterinario',
+      meta: { requiresAuth: true, requiredRole: 'VETERINARIO' },
+      component: () => import('@/views/veterinario/VeterinarioView.vue'),
+      children: [
+        {
+          path: '',
+          name: 'vet-dashboard',
+          component: () => import('@/views/veterinario/DashboardView.vue'),
+        },
+      ],
+    },
   ],
   scrollBehavior(to) {
     if (to.hash) return { el: to.hash, behavior: 'smooth' }
@@ -64,6 +76,10 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.matched.some((record) => record.meta.requiresAuth)) return true
 
+  const requiredRole = to.matched
+    .map((record) => record.meta.requiredRole)
+    .find((role): role is string => typeof role === 'string')
+
   try {
     const user = await getAuthSession()
 
@@ -71,7 +87,7 @@ router.beforeEach(async (to) => {
       return { name: 'login', query: { redirect: to.fullPath } }
     }
 
-    if (user.rol === 'CLIENTE') return true
+    if (requiredRole ? user.rol === requiredRole : user.rol === 'CLIENTE') return true
 
     return { name: 'home' }
   } catch {

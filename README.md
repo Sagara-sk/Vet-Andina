@@ -224,6 +224,7 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `/login`          | `LoginView.vue`                           | Inicia sesión mediante la API y establece una cookie HttpOnly.       |
 | `/registro`       | `RegistroView.vue`                        | Envía el registro de un cliente a la API.                            |
 | `/panel`          | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.             |
+| `/panel-veterinario` | `VeterinarioView.vue` con agenda de muestra | Requiere sesión con rol `VETERINARIO`; no está conectada a turnos reales. |
 | `/panel/mascotas` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
 | `/panel/reservar` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
 | `/panel/turnos`   | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
@@ -275,9 +276,9 @@ El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de
 
 ## Estado funcional actual
 
-- **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guard frontend para `/panel` y endpoints de salud.
+- **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guards frontend para cliente/veterinario y endpoints de salud.
 - **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`/cookie del entorno de despliegue.
-- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable, rate limiting y validación de los marcadores de posición.
+- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable, rate limiting, sincronización clínica offline y validación de los marcadores de posición.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 
 ## Contexto y planificación

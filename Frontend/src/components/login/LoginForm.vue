@@ -15,12 +15,13 @@ async function submitLogin() {
   isSubmitting.value = true
 
   try {
-    await login(email.value, password.value)
+    const user = await login(email.value, password.value)
     const redirect = route.query.redirect
+    const defaultDestination = user.rol === 'VETERINARIO' ? '/panel-veterinario' : '/panel'
     const destination =
       typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
         ? redirect
-        : '/panel'
+        : defaultDestination
 
     await router.replace(destination)
   } catch (error) {
