@@ -1,190 +1,119 @@
-<script setup lang="ts">
-import { reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
-import { API_BASE_URL } from '@/config/api'
+<script setup>
+import {reactive, ref} from 'vue'
 
 // un contenedor para almacenar los datos del formulario
 const formData = reactive({
   nombre: '',
   email: '',
-  telefono: '',
-  localidad: '',
-  contrasena: '',
-  confirmarContrasena: '',
+  contraseña: '',
+  confirmarContraseña: ''
 })
 
+//los mensajes de error para cada campo del formulario sm
 const mensajeError = ref('')
 const mensajeExito = ref('')
-const enviando = ref(false)
 
-const envioFormulario = async () => {
-  mensajeError.value = ''
-  mensajeExito.value = ''
+//las funciones para procesar el envio del formulario
+const envioFormulario = () => {
+//limpiar mensajes previos
+mensajeError.value = ''
+mensajeExito.value = ''
 
-  if (formData.contrasena !== formData.confirmarContrasena) {
-    mensajeError.value = 'Las contraseñas no coinciden'
-    return
-  }
+// validar la contraseña si coinciden
+if (formData.contraseña !== formData.confirmarContraseña) {
+  mensajeError.value = 'Las contraseñas no coinciden'
+  return
+}
+  mensajeExito.value = 'Cuenta creada con éxito.'
 
-  enviando.value = true
-
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/auth/register`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombreCompleto: formData.nombre,
-          email: formData.email,
-          telefono: formData.telefono,
-          localidad: formData.localidad,
-          contrasena: formData.contrasena,
-        }),
-      },
-    )
-    const result: { message?: string } = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.message ?? 'No fue posible crear la cuenta.')
-    }
-
-    mensajeExito.value = result.message ?? 'La cuenta se creó correctamente.'
-    formData.nombre = ''
-    formData.email = ''
-    formData.telefono = ''
-    formData.localidad = ''
-    formData.contrasena = ''
-    formData.confirmarContrasena = ''
-  } catch (error) {
-    mensajeError.value =
-      error instanceof Error ? error.message : 'No se pudo establecer conexión con el servidor.'
-  } finally {
-    enviando.value = false
-  }
+// limpiar el formulario después de un registro exitos sm
+formData.nombre = ''
+formData.email = ''
+formData.contraseña = ''
+formData.confirmarContraseña = ''
 }
 </script>
 
 <template>
-  <main class="flex min-h-screen items-center justify-center bg-brand-bg px-6 py-12 text-brand-ink">
-    <section class="w-full max-w-md border border-brand-line bg-brand-surface p-8">
-      <h1 class="text-center font-serif text-3xl">Crear una cuenta</h1>
-      <p class="mt-2 text-center text-sm text-brand-inkSoft">
-        Completá tus datos para registrarte.
-      </p>
+  <div class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+      <!-- primer encabezado -->
+      <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">
+        Crea tu cuenta
+      </h2>
 
-      <div
-        v-if="mensajeError"
-        class="mt-6 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-        role="alert"
-      >
+      <!-- alerta de estado -->
+      <div v-if="mensajeError" class="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded-lg">
         {{ mensajeError }}
       </div>
-      <div
-        v-if="mensajeExito"
-        class="mt-6 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800"
-        role="status"
-      >
+
+      <div v-if="mensajeExito" class="mb-4 p-3 bg-green-100 text-green-700 text-sm rounded-lg">
         {{ mensajeExito }}
       </div>
 
-      <form class="mt-6 space-y-4" @submit.prevent="envioFormulario">
+      <!-- formulario -->
+      <form @submit.prevent="envioFormulario" class="space-y-4">
+
+    <!-- campo de nombre -->
         <div>
-          <label for="nombre" class="mb-1.5 block text-xs text-brand-inkSoft">Nombre</label>
+          <label for="nombre" class="block text-sm font-medium text-gray-700">Nombre</label>
           <input
             id="nombre"
             v-model="formData.nombre"
             type="text"
+            class="mt-1 block w-full rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Tu nombre"
             required
-            class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
         </div>
 
+    <!-- campo de correo electrónico -->
         <div>
-          <label for="email" class="mb-1.5 block text-xs text-brand-inkSoft">
-            Correo electrónico
-          </label>
+          <label for="email" class="block text-sm font-medium text-gray-700">Correo electrónico</label>
           <input
             id="email"
             v-model="formData.email"
             type="email"
+            class="mt-1 block w-full rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="correo@ejemplo.com"
             required
-            class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
         </div>
 
+    <!-- campo de contraseña -->
         <div>
-          <label for="telefono" class="mb-1.5 block text-xs text-brand-inkSoft">Teléfono</label>
-          <input
-            id="telefono"
-            v-model="formData.telefono"
-            type="tel"
-            autocomplete="tel"
-            placeholder="Tu teléfono"
-            required
-            class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
-          />
-        </div>
-
-        <div>
-          <label for="localidad" class="mb-1.5 block text-xs text-brand-inkSoft">Localidad</label>
-          <input
-            id="localidad"
-            v-model="formData.localidad"
-            type="text"
-            autocomplete="address-level2"
-            placeholder="Tu localidad"
-            required
-            class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
-          />
-        </div>
-
-        <div>
-          <label for="contraseña" class="mb-1.5 block text-xs text-brand-inkSoft">
-            Contraseña
-          </label>
+          <label for="contraseña" class="block text-sm font-medium text-gray-700">Contraseña</label>
           <input
             id="contraseña"
-            v-model="formData.contrasena"
+            v-model="formData.contraseña"
             type="password"
-            autocomplete="new-password"
+            class="mt-1 block w-full rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="••••••••"
             required
-            class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
         </div>
 
+    <!-- campo de confirmación de contraseña -->
         <div>
-          <label for="confirmarContraseña" class="mb-1.5 block text-xs text-brand-inkSoft">
-            Confirmar contraseña
-          </label>
+          <label for="confirmarContraseña" class="block text-sm font-medium text-gray-700">Confirmar contraseña</label>
           <input
             id="confirmarContraseña"
-            v-model="formData.confirmarContrasena"
+            v-model="formData.confirmarContraseña"
             type="password"
-            autocomplete="new-password"
+            class="mt-1 block w-full rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="••••••••"
             required
-            class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
         </div>
 
-        <button type="submit" class="btn-primary mt-2 w-full" :disabled="enviando">
-          {{ enviando ? 'Creando cuenta…' : 'Registrarse' }}
+    <!-- botón de envío sm -->
+        <button
+          type="submit"
+          class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition"
+        >
+          Registrarse
         </button>
       </form>
-
-      <p class="mt-6 text-center text-sm text-brand-inkSoft">
-        ¿Ya tenés cuenta?
-        <RouterLink
-          to="/login"
-          class="text-brand-ink underline underline-offset-2 hover:text-brand-accent"
-        >
-          Iniciar sesión
-        </RouterLink>
-      </p>
-    </section>
-  </main>
+    </div>
+  </div>
 </template>
