@@ -17,7 +17,7 @@ const fullName = `${currentUser.firstName} ${currentUser.lastName}`
   <aside
     class="flex flex-col border-b border-brand-line bg-[#f3f2ec] px-6 py-6 md:sticky md:top-0 md:h-screen md:w-[234px] md:shrink-0 md:border-b-0 md:border-r md:py-8"
   >
-    <RouterLink to="/" class="block">
+    <RouterLink to="/inicio" class="block">
       <span class="block font-serif text-xl text-brand-ink">Vet Andina</span>
       <span class="mt-1 block text-xs text-brand-inkSoft">Panel del cliente</span>
     </RouterLink>
@@ -44,7 +44,7 @@ const fullName = `${currentUser.firstName} ${currentUser.lastName}`
       </span>
       <div>
         <p class="text-sm text-brand-ink">{{ currentUser.firstName }}</p>
-        <RouterLink to="/" class="text-xs text-brand-inkSoft underline hover:text-brand-ink">
+        <RouterLink to="/inicio" class="text-xs text-brand-inkSoft underline hover:text-brand-ink">
           Cerrar sesión
         </RouterLink>
       </div>

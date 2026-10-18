@@ -19,7 +19,7 @@ import { RouterLink } from 'vue-router'
     </svg>
 
     <div class="relative">
-      <RouterLink to="/" class="font-serif text-[1.3rem] text-white no-underline">
+      <RouterLink to="/inicio" class="font-serif text-[1.3rem] text-white no-underline">
         Vet Andina
       </RouterLink>
 
@@ -33,7 +33,7 @@ import { RouterLink } from 'vue-router'
       </div>
     </div>
 
-    <RouterLink to="/" class="relative mt-8 w-fit text-sm text-white/75 underline-offset-4 hover:underline">
+    <RouterLink to="/inicio" class="relative mt-8 w-fit text-sm text-white/75 underline-offset-4 hover:underline">
       Volver al inicio
     </RouterLink>
   </aside>
