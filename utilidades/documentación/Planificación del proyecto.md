@@ -8,9 +8,9 @@ Antes de planificar cada sprint, contrastar esta propuesta con el backlog y el e
 
 ## 2. Línea de base del producto
 
-El objetivo es centralizar tutores, animales/lotes, turnos y atención clínica para consultorio y campo, con acceso diferenciado por rol y uso offline rural. La base técnica existente descrita en el README incluye frontend Vue 3/TypeScript, API Express/TypeScript, PostgreSQL y registro de clientes. En `feature/erick-test` se implementaron login/logout con cookie HttpOnly y un guard frontend inicial; su integración contra Neon todavía no está verificada. La autorización backend por rol/propietario, los módulos de negocio y la estrategia offline todavía requieren trabajo.
+El objetivo es centralizar tutores, animales/lotes, turnos y atención clínica para consultorio y campo, con acceso diferenciado por rol y uso offline rural. La base técnica observada incluye frontend Vue 3/TypeScript, API Express/TypeScript y PostgreSQL. El formulario de registro consume `POST /api/auth/register`; la API también tiene login/logout con cookie HttpOnly y guards iniciales en el frontend. La conexión de registro/login contra Neon y la configuración del entorno desplegado todavía deben verificarse. Los scripts de Backend ejecutan `src/index.ts` en desarrollo y `dist/index.js` en producción; `server.js` queda como implementación JavaScript anterior fuera de esos scripts.
 
-Por lo tanto, el Sprint 3 debe producir autenticación funcional y una decisión offline verificable; no se debe confundir el spike offline con una sincronización de producción ya implementada.
+La autorización backend por rol/propietario y los módulos de negocio todavía requieren trabajo. El modo offline permanece como prototipo local: la pantalla usa datos que ya existan en IndexedDB, no descarga fichas ni llama endpoints de dominio, y no ofrece sincronización. El guardado de borradores es solo demostrativo; no debe usarse para información clínica real.
 
 ## 3. Sprint 3 — 15 al 21/10
 
@@ -18,13 +18,13 @@ Por lo tanto, el Sprint 3 debe producir autenticación funcional y una decisión
 
 **Cerrar la autenticación inicial** (inicio de sesión, cierre de sesión, redirección al login, matriz de roles y contrato de autenticación) y **dejar documentada una solución offline** respaldada por una prueba en modo avión.
 
-### Estado técnico observado en `feature/erick-test`
+### Estado técnico observado en el repositorio
 
-- Implementados en código: `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, firma/verificación JWT en cookie `HttpOnly`, guard frontend para `CLIENTE` en `/panel` y `VETERINARIO` en `/panel-veterinario`.
-- El panel veterinario añadido a `feature/erick-test` es una demostración con agenda ficticia claramente marcada; no consulta ni modifica turnos en Neon.
-- Pendiente para aceptar la integración: configurar `JWT_SECRET` y `DATABASE_URL` en un entorno seguro, probar login/registro contra Neon y revisar configuración de cookie/CORS para el dominio desplegado.
+- Implementados en código: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, firma/verificación JWT en cookie `HttpOnly`, guard frontend para `CLIENTE` en `/panel` y `VETERINARIO` en `/panel-veterinario`. El formulario de registro valida la confirmación de contraseña, envía los datos requeridos por la API y muestra su respuesta; no inicia sesión automáticamente.
+- El panel veterinario disponible es una demostración con agenda ficticia; no consulta ni modifica turnos en Neon.
+- Pendiente de validación de entorno: configurar `JWT_SECRET` y `DATABASE_URL` de forma segura, probar login/registro contra Neon y revisar configuración de cookie/CORS para el dominio desplegado.
 - No implementado: autorización backend por rol/propietario para recursos de dominio y revocación inmediata de sesiones. El guard frontend no sustituye esos controles.
-- El soporte offline sigue siendo un spike técnico: hay almacenamiento IndexedDB y caché de app shell en la rama de prueba, pero la vista de Ezequiel no se integra porque depende de endpoints que no existen y permite registrar observaciones clínicas sin autoría/idempotencia. Faltan la decisión documentada, prueba reproducible en modo avión y validación de sincronización sin pérdida ni duplicación.
+- El frontend contiene IndexedDB y caché de app shell, pero no hay endpoints TypeScript de dominio para consultar fichas o crear evoluciones. La pantalla offline ya no intenta llamar rutas incompatibles: conserva y muestra datos locales preexistentes, advierte sobre su origen no verificado y deshabilita la sincronización. El borrador local es solo demostrativo; todavía faltan el contrato y los endpoints autenticados, autoría, idempotencia, política de conflictos y pruebas antes de habilitar uso clínico.
 
 Este estado describe código observado, no historias aceptadas. No considerar VET-1, VET-2, VET-3 o VET-11 cerradas hasta cumplir sus criterios de aceptación y revisión.
 

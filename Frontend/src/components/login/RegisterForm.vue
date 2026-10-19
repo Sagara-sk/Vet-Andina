@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { register } from '@/services/auth'
+import { registerOwner } from '@/services/auth'
 
 const formData = reactive({
   nombre: '',
@@ -28,13 +28,15 @@ async function envioFormulario() {
   enviando.value = true
 
   try {
-    mensajeExito.value = await register({
+    await registerOwner({
       nombreCompleto: formData.nombre,
       email: formData.email,
       telefono: formData.telefono,
       localidad: formData.localidad,
       contrasena: formData.contrasena,
     })
+
+    mensajeExito.value = 'Cuenta creada con éxito. Ya podés iniciar sesión.'
     formData.nombre = ''
     formData.email = ''
     formData.telefono = ''
@@ -43,7 +45,7 @@ async function envioFormulario() {
     formData.confirmarContrasena = ''
   } catch (error) {
     mensajeError.value =
-      error instanceof Error ? error.message : 'No se pudo establecer conexión con el servidor.'
+      error instanceof Error ? error.message : 'No fue posible crear la cuenta.'
   } finally {
     enviando.value = false
   }
@@ -73,14 +75,18 @@ async function envioFormulario() {
 
       <form class="mt-8 space-y-5" @submit.prevent="envioFormulario">
         <div>
-          <label for="nombre" class="mb-1.5 block text-xs text-brand-inkSoft">Nombre</label>
+          <label for="nombre" class="mb-1.5 block text-xs text-brand-inkSoft">
+            Nombre completo
+          </label>
           <input
             id="nombre"
             v-model="formData.nombre"
             name="nombre"
             type="text"
             autocomplete="name"
-            placeholder="Tu nombre"
+            placeholder="Tu nombre completo"
+            minlength="2"
+            maxlength="200"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
@@ -97,6 +103,7 @@ async function envioFormulario() {
             type="email"
             autocomplete="email"
             placeholder="correo@ejemplo.com"
+            maxlength="254"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
@@ -162,6 +169,7 @@ async function envioFormulario() {
             type="password"
             autocomplete="new-password"
             placeholder="••••••••"
+            minlength="8"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
@@ -170,9 +178,9 @@ async function envioFormulario() {
         <button
           type="submit"
           :disabled="enviando"
-          class="btn-primary mt-2 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          class="btn-primary mt-2 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
         >
-          {{ enviando ? 'Creando cuenta…' : 'Registrarse' }}
+          {{ enviando ? 'Creando cuenta...' : 'Registrarse' }}
         </button>
       </form>
 

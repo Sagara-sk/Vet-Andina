@@ -36,22 +36,21 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return (await readResponse(response)).user
 }
 
-export interface RegisterInput {
+export async function registerOwner(input: {
   nombreCompleto: string
   email: string
   telefono: string
   localidad: string
   contrasena: string
-}
-
-export async function register(input: RegisterInput): Promise<string> {
+}): Promise<AuthUser> {
   const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
 
-  return (await readResponse(response)).message ?? 'La cuenta se creó correctamente.'
+  return (await readResponse(response)).user
 }
 
 export async function getAuthSession(): Promise<AuthUser | null> {
