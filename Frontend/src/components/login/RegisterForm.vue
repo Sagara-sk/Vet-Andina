@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { registerOwner } from '@/services/auth'
 
 const formData = reactive({
   nombre: '',
   email: '',
+  telefono: '',
+  localidad: '',
   contrasena: '',
   confirmarContrasena: '',
 })
 
 const mensajeError = ref('')
 const mensajeExito = ref('')
+const enviando = ref(false)
 
-function envioFormulario() {
+async function envioFormulario() {
   mensajeError.value = ''
   mensajeExito.value = ''
 
@@ -21,11 +25,30 @@ function envioFormulario() {
     return
   }
 
-  mensajeExito.value = 'Cuenta creada con éxito.'
-  formData.nombre = ''
-  formData.email = ''
-  formData.contrasena = ''
-  formData.confirmarContrasena = ''
+  enviando.value = true
+
+  try {
+    await registerOwner({
+      nombreCompleto: formData.nombre,
+      email: formData.email,
+      telefono: formData.telefono,
+      localidad: formData.localidad,
+      contrasena: formData.contrasena,
+    })
+
+    mensajeExito.value = 'Cuenta creada con éxito. Ya podés iniciar sesión.'
+    formData.nombre = ''
+    formData.email = ''
+    formData.telefono = ''
+    formData.localidad = ''
+    formData.contrasena = ''
+    formData.confirmarContrasena = ''
+  } catch (error) {
+    mensajeError.value =
+      error instanceof Error ? error.message : 'No fue posible crear la cuenta.'
+  } finally {
+    enviando.value = false
+  }
 }
 </script>
 
@@ -52,14 +75,18 @@ function envioFormulario() {
 
       <form class="mt-8 space-y-5" @submit.prevent="envioFormulario">
         <div>
-          <label for="nombre" class="mb-1.5 block text-xs text-brand-inkSoft">Nombre</label>
+          <label for="nombre" class="mb-1.5 block text-xs text-brand-inkSoft">
+            Nombre completo
+          </label>
           <input
             id="nombre"
             v-model="formData.nombre"
             name="nombre"
             type="text"
             autocomplete="name"
-            placeholder="Tu nombre"
+            placeholder="Tu nombre completo"
+            minlength="2"
+            maxlength="200"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
@@ -76,6 +103,39 @@ function envioFormulario() {
             type="email"
             autocomplete="email"
             placeholder="correo@ejemplo.com"
+            maxlength="254"
+            required
+            class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
+          />
+        </div>
+
+        <div>
+          <label for="telefono" class="mb-1.5 block text-xs text-brand-inkSoft">Teléfono</label>
+          <input
+            id="telefono"
+            v-model="formData.telefono"
+            name="telefono"
+            type="tel"
+            autocomplete="tel"
+            placeholder="+54 9 299 000 0000"
+            minlength="6"
+            maxlength="50"
+            required
+            class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
+          />
+        </div>
+
+        <div>
+          <label for="localidad" class="mb-1.5 block text-xs text-brand-inkSoft">Localidad</label>
+          <input
+            id="localidad"
+            v-model="formData.localidad"
+            name="localidad"
+            type="text"
+            autocomplete="address-level2"
+            placeholder="Cipolletti"
+            minlength="2"
+            maxlength="150"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
@@ -92,6 +152,7 @@ function envioFormulario() {
             type="password"
             autocomplete="new-password"
             placeholder="••••••••"
+            minlength="8"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
@@ -108,6 +169,7 @@ function envioFormulario() {
             type="password"
             autocomplete="new-password"
             placeholder="••••••••"
+            minlength="8"
             required
             class="w-full rounded-[3px] border border-brand-line bg-brand-surface px-3 py-2.5 text-base text-brand-ink outline-none transition focus:border-brand-accent focus:ring-2 focus:ring-brand-accent/15"
           />
@@ -115,9 +177,10 @@ function envioFormulario() {
 
         <button
           type="submit"
-          class="btn-primary mt-2 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2"
+          :disabled="enviando"
+          class="btn-primary mt-2 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
         >
-          Registrarse
+          {{ enviando ? 'Creando cuenta...' : 'Registrarse' }}
         </button>
       </form>
 

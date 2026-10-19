@@ -36,6 +36,23 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return (await readResponse(response)).user
 }
 
+export async function registerOwner(input: {
+  nombreCompleto: string
+  email: string
+  telefono: string
+  localidad: string
+  contrasena: string
+}): Promise<AuthUser> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+
+  return (await readResponse(response)).user
+}
+
 export async function getAuthSession(): Promise<AuthUser | null> {
   const response = await fetch(`${API_BASE_URL}/api/auth/session`, {
     credentials: 'include',

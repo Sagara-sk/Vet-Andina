@@ -2,7 +2,7 @@
 
 Aplicación web para la gestión de atención veterinaria. El repositorio contiene una interfaz de usuario en Vue 3 y una API REST en Express/TypeScript conectada a PostgreSQL (Neon) mediante `pg`.
 
-> El registro de clientes y los endpoints de salud están conectados al backend. El inicio de sesión todavía es informativo y el panel utiliza datos de ejemplo; las pantallas que aún no están conectadas se detallan más abajo.
+> La API TypeScript implementa registro, inicio/cierre de sesión y endpoints de salud, y el formulario de registro del frontend consume `POST /api/auth/register`. Los comandos del backend ejecutan esa aplicación desde `src/index.ts` en desarrollo y desde `dist/index.js` en producción. Los paneles utilizan datos de ejemplo; el modo offline sigue siendo un prototipo local, sin descarga ni sincronización con la API.
 
 ## Índice
 
@@ -213,6 +213,8 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `npm run build` | Compila TypeScript a `dist/`.                                   |
 | `npm start`     | Inicia la aplicación compilada desde `dist/index.js`.           |
 
+`server.js` es una implementación JavaScript anterior y no la utilizan los scripts del paquete. La aplicación activa es la de `src/`, con PostgreSQL (`pg`); todavía no hay un ORM instalado o configurado. Si se incorpora uno, debe integrarse en esta aplicación TypeScript y sus scripts de arranque.
+
 ## Rutas y funcionamiento
 
 ### Rutas del frontend
@@ -277,8 +279,10 @@ El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de
 ## Estado funcional actual
 
 - **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guards frontend para cliente/veterinario y endpoints de salud.
-- **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`/cookie del entorno de despliegue.
-- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable, rate limiting, sincronización clínica offline y validación de los marcadores de posición.
+- **Registro desde frontend:** `/registro` envía nombre completo, email, teléfono, localidad y contraseña a `POST /api/auth/register`; presenta errores de la API y confirma el alta solo tras recibir una respuesta exitosa. El alta no inicia sesión automáticamente. La conexión real con Neon sigue pendiente de prueba en un entorno configurado.
+- **Arranque del Backend:** `npm run dev` ejecuta `src/index.ts`; `npm run build` compila a `dist/` y `npm start` inicia `dist/index.js`. `server.js` es una implementación anterior con MySQL y no forma parte de estos scripts.
+- **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`, cookie y CORS del entorno de despliegue.
+- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable, rate limiting y sincronización clínica offline. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 
 ## Contexto y planificación
