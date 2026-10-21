@@ -5,7 +5,8 @@ import HomeView from '../views/HomeView.vue'
 const PanelPlaceholderView = () => import('../views/panel/PanelPlaceholderView.vue')
 import LoginView from '../views/LoginView.vue'
 import RegistroView from '../views/RegistroView.vue'
-import { getAuthSession } from '@/services/auth'
+import { useSessionStore } from '@/stores/session'
+import { canAccess } from './access'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,8 +30,13 @@ const router = createRouter({
       component: RegistroView,
     },
     {
+      path: '/acceso-denegado',
+      name: 'acceso-denegado',
+      component: () => import('../views/AccesoDenegadoView.vue'),
+    },
+    {
       path: '/panel',
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, allowedRoles: ['CLIENTE'] },
       component: () => import('../layouts/PanelLayout.vue'),
       children: [
         { path: '', name: 'panel', component: () => import('../views/panel/PanelHomeView.vue') },
@@ -56,7 +62,7 @@ const router = createRouter({
     },
     {
       path: '/panel-veterinario',
-      meta: { requiresAuth: true, requiredRole: 'VETERINARIO' },
+      meta: { requiresAuth: true, allowedRoles: ['VETERINARIO', 'SUPERADMIN'] },
       component: () => import('@/views/veterinario/VeterinarioView.vue'),
       children: [
         {
@@ -81,25 +87,16 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.matched.some((record) => record.meta.requiresAuth)) return true
 
-  const requiredRole = to.matched
-    .map((record) => record.meta.requiredRole)
-    .find((role): role is string => typeof role === 'string')
+  // La sesión sale de Pinia; la API solo se consulta la primera vez (al cargar o
+  // recargar la app). Sin sesión, se guarda la ruta pedida para volver tras el login.
+  const user = await useSessionStore().ensureSession()
 
-  try {
-    const user = await getAuthSession()
-
-    if (!user) {
-      return { name: 'login', query: { redirect: to.fullPath } }
-    }
-
-    if (requiredRole ? user.rol === requiredRole : user.rol === 'CLIENTE') return true
-
-    return { name: 'home' }
-  } catch {
-    // Sin una sesión verificable, las rutas privadas vuelven al login.
+  if (!user) {
+    return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  return { name: 'login', query: { redirect: to.fullPath } }
+  // Con sesión pero sin permiso para esta ruta: página 403.
+  return canAccess(to.matched, user.rol) ? true : { name: 'acceso-denegado' }
 })
 
 export default router

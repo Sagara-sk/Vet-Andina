@@ -3,8 +3,11 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import PetCard from '@/components/panel/PetCard.vue'
 import StatusBadge from '@/components/panel/StatusBadge.vue'
-import { appointments, currentUser, pets } from '@/data/panelMock'
+import { appointments, pets } from '@/data/panelMock'
+import { useSessionStore } from '@/stores/session'
 import { formatLongDate, formatShortDate } from '@/utils/format'
+
+const session = useSessionStore()
 
 const petName = (id: number) => pets.find((p) => p.id === id)?.name ?? '—'
 
@@ -19,10 +22,10 @@ const nextAppointment = computed(() =>
   <div class="mx-auto max-w-[1210px]">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="font-serif text-3xl text-brand-ink">Hola, {{ currentUser.firstName }}</h1>
+        <h1 class="font-serif text-3xl text-brand-ink">Hola, {{ session.firstName }}</h1>
         <p class="mt-3 text-brand-inkSoft">Así está la agenda de tus mascotas.</p>
         <p class="mt-2 text-xs text-brand-inkSoft" role="note">
-          Vista de demostración. Estos datos no provienen de una cuenta ni de la base de datos.
+          Vista de demostración. Las mascotas y turnos no provienen de tu cuenta ni de la base de datos.
         </p>
       </div>
       <RouterLink to="/panel/reservar" class="btn-primary">Reservar turno</RouterLink>

@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
+import LogoutButton from '@/components/Redireccion/LogoutButton.vue'
+import { useSessionStore } from '@/stores/session'
+
+const session = useSessionStore()
 </script>
 
 <template>
@@ -33,6 +37,11 @@ import { RouterLink, RouterView } from 'vue-router'
       >
         Volver al inicio
       </RouterLink>
+
+      <div class="mt-7 border-t border-brand-line pt-6">
+        <p class="text-sm text-brand-ink">{{ session.user?.nombreCompleto }}</p>
+        <LogoutButton class="mt-1" />
+      </div>
     </aside>
 
     <main class="min-w-0 flex-1 px-6 py-8 md:px-10 md:py-10">

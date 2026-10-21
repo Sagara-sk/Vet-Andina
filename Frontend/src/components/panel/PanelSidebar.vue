@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
-import { currentUser } from '@/data/panelMock'
+import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
+import LogoutButton from '@/components/Redireccion/LogoutButton.vue'
+import { useSessionStore } from '@/stores/session'
 import { initials } from '@/utils/format'
-import { logout } from '@/services/auth'
 
-const router = useRouter()
-const logoutError = ref('')
-const isLoggingOut = ref(false)
+const session = useSessionStore()
 
 const links = [
   { label: 'Inicio', to: '/panel' },
@@ -16,21 +14,7 @@ const links = [
   { label: 'Mis turnos', to: '/panel/turnos' },
 ]
 
-const fullName = `${currentUser.firstName} ${currentUser.lastName}`
-
-async function closeSession() {
-  logoutError.value = ''
-  isLoggingOut.value = true
-
-  try {
-    await logout()
-    await router.replace({ name: 'login' })
-  } catch (error) {
-    logoutError.value = error instanceof Error ? error.message : 'No fue posible cerrar sesión.'
-  } finally {
-    isLoggingOut.value = false
-  }
-}
+const fullName = computed(() => session.user?.nombreCompleto ?? '')
 </script>
 
 <template>
@@ -63,19 +47,9 @@ async function closeSession() {
         {{ initials(fullName) }}
       </span>
       <div>
-        <p class="text-sm text-brand-ink">{{ currentUser.firstName }}</p>
-        <button
-          type="button"
-          class="text-xs text-brand-inkSoft underline hover:text-brand-ink disabled:opacity-60"
-          :disabled="isLoggingOut"
-          @click="closeSession"
-        >
-          {{ isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión' }}
-        </button>
+        <p class="text-sm text-brand-ink">{{ session.firstName }}</p>
+        <LogoutButton />
       </div>
     </div>
-    <p v-if="logoutError" class="mt-3 text-xs text-red-700" role="alert">
-      {{ logoutError }}
-    </p>
   </aside>
 </template>
