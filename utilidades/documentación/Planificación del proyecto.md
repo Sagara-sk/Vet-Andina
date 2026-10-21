@@ -8,9 +8,9 @@ Antes de planificar cada sprint, contrastar esta propuesta con el backlog y el e
 
 ## 2. Línea de base del producto
 
-El objetivo es centralizar tutores, animales/lotes, turnos y atención clínica para consultorio y campo, con acceso diferenciado por rol y uso offline rural. La base técnica existente descrita en el README incluye frontend Vue 3/TypeScript, API Express/TypeScript, PostgreSQL y registro de clientes. En `feature/erick-test` se implementaron login/logout con cookie HttpOnly y un guard frontend inicial; su integración contra Neon todavía no está verificada. La autorización backend por rol/propietario, los módulos de negocio y la estrategia offline todavía requieren trabajo.
+El objetivo es centralizar tutores, animales/lotes, turnos y atención clínica para consultorio y campo, con acceso diferenciado por rol y uso offline rural. La base técnica observada incluye frontend Vue 3/TypeScript, API Express/TypeScript y PostgreSQL. Los formularios de registro y login consumen la API de autenticación; el registro crea un `CLIENTE` con perfil de dueño, y las sesiones usan cookie HttpOnly. La conexión contra Neon aún debe verificarse con el entorno configurado. El backend ofrece un middleware RBAC reutilizable, pero la autorización de recursos de dominio por rol y propiedad aún no está implementada.
 
-Por lo tanto, el Sprint 3 debe producir autenticación funcional y una decisión offline verificable; no se debe confundir el spike offline con una sincronización de producción ya implementada.
+El modo offline continúa siendo un prototipo local: no descarga fichas desde la API ni sincroniza borradores. No se debe confundir IndexedDB o caché del app shell con una solución de sincronización clínica productiva.
 
 ## 3. Sprint 3 — 15 al 21/10
 
@@ -18,13 +18,12 @@ Por lo tanto, el Sprint 3 debe producir autenticación funcional y una decisión
 
 **Cerrar la autenticación inicial** (inicio de sesión, cierre de sesión, redirección al login, matriz de roles y contrato de autenticación) y **dejar documentada una solución offline** respaldada por una prueba en modo avión.
 
-### Estado técnico observado en `feature/erick-test`
+### Estado técnico observado en el repositorio
 
-- Implementados en código: `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, firma/verificación JWT en cookie `HttpOnly`, guard frontend para `CLIENTE` en `/panel` y `VETERINARIO` en `/panel-veterinario`.
-- El panel veterinario añadido a `feature/erick-test` es una demostración con agenda ficticia claramente marcada; no consulta ni modifica turnos en Neon.
-- Pendiente para aceptar la integración: configurar `JWT_SECRET` y `DATABASE_URL` en un entorno seguro, probar login/registro contra Neon y revisar configuración de cookie/CORS para el dominio desplegado.
-- No implementado: autorización backend por rol/propietario para recursos de dominio y revocación inmediata de sesiones. El guard frontend no sustituye esos controles.
-- El soporte offline sigue siendo un spike técnico: hay almacenamiento IndexedDB y caché de app shell en la rama de prueba, pero la vista de Ezequiel no se integra porque depende de endpoints que no existen y permite registrar observaciones clínicas sin autoría/idempotencia. Faltan la decisión documentada, prueba reproducible en modo avión y validación de sincronización sin pérdida ni duplicación.
+- Implementados en código: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/session`, `POST /api/auth/logout`, JWT en cookie HttpOnly, validación de sesión con Passport, middleware RBAC reutilizable y guards frontend para `CLIENTE` y `VETERINARIO`. El formulario público envía nombre, email, teléfono, localidad y contraseña; el servidor asigna `CLIENTE` y crea la sesión para completar el perfil en `/registro/perfil`.
+- Pendiente de validación de entorno: configurar `JWT_SECRET` y `DATABASE_URL` de forma segura, probar registro/login contra Neon y revisar cookie/CORS en el dominio desplegado.
+- El middleware RBAC está disponible para montar en rutas, pero todavía no existen endpoints administrativos o de dominio donde se aplique la matriz completa. ABAC requiere implementar relaciones y consultas que verifiquen propiedad; no se sustituye con guards frontend.
+- La pantalla offline solo muestra datos locales preexistentes y permite borradores de demostración; no realiza solicitudes a endpoints clínicos inexistentes ni ofrece sincronización. No ingresar datos clínicos reales.
 
 Este estado describe código observado, no historias aceptadas. No considerar VET-1, VET-2, VET-3 o VET-11 cerradas hasta cumplir sus criterios de aceptación y revisión.
 

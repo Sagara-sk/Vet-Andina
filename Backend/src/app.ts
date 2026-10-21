@@ -5,12 +5,16 @@ import passport from "passport";
 import "./config/passport";
 import authRouter from "./routes/auth.routes";
 import healthRouter from "./routes/health.routes";
+import profileRouter from "./routes/profile.routes";
 
 export const app = express();
 
-const allowedOrigins = process.env.FRONTEND_URL?.split(",")
+const configuredOrigins = process.env.FRONTEND_URL?.split(",")
   .map((origin) => origin.trim())
-  .filter(Boolean) ?? ["http://localhost:5173", "http://127.0.0.1:5173"];
+  .filter(Boolean);
+const allowedOrigins = configuredOrigins?.length
+  ? configuredOrigins
+  : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 app.use(express.json());
 app.use(cookieParser());
@@ -23,3 +27,4 @@ app.use(
 );
 app.use("/api", healthRouter);
 app.use("/api/auth", authRouter);
+app.use("/api", profileRouter);

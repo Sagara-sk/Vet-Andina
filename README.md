@@ -2,7 +2,7 @@
 
 Aplicación web para la gestión de atención veterinaria. El repositorio contiene una interfaz de usuario en Vue 3 y una API REST en Express/TypeScript conectada a PostgreSQL (Neon) mediante `pg`.
 
-> El registro de clientes y los endpoints de salud están conectados al backend. El inicio de sesión todavía es informativo y el panel utiliza datos de ejemplo; las pantallas que aún no están conectadas se detallan más abajo.
+> La API TypeScript implementa registro, inicio/cierre de sesión y endpoints de salud, y el formulario de registro del frontend consume `POST /api/auth/register`. Los comandos del backend ejecutan esa aplicación desde `src/index.ts` en desarrollo y desde `dist/index.js` en producción. Los paneles utilizan datos de ejemplo; el modo offline sigue siendo un prototipo local, sin descarga ni sincronización con la API.
 
 ## Índice
 
@@ -88,9 +88,14 @@ Vet Andina/
 │       ├── services/
 │       │   ├── auth.service.ts
 │       │   └── health.service.ts
+│       ├── middlewares/
+│       │   ├── auth.middleware.ts
+│       │   └── role.middleware.ts
 │       └── models/owner.model.ts
 └── utilidades/
     └── documentación/
+        ├── Autenticación y autorización.md
+        ├── Formularios de autenticación.md
         ├── Estructura y configuración.md
         ├── Planificación del proyecto.md
         ├── Matriz de roles y acciones.md
@@ -106,7 +111,7 @@ Vet Andina/
 | Diseño común                | `Frontend/src/layouts/`, `Frontend/src/components/layout/`                                                  | Estructura pública y del panel, encabezado y pie de página.                         |
 | Página principal            | `Frontend/src/views/HomeView.vue`, `Frontend/src/components/home/`                                          | Vista de inicio y sus secciones.                                                    |
 | Turnos públicos             | `Frontend/src/views/TurnosView.vue`                                                                         | Vista de turnos públicos.                                                           |
-| Registro e inicio de sesión | `Frontend/src/views/RegistroView.vue`, `Frontend/src/views/LoginView.vue`, `Frontend/src/components/login/` | Formulario de registro conectado a la API; pantalla de login aún sin autenticación. |
+| Registro e inicio de sesión | `Frontend/src/views/RegistroView.vue`, `Frontend/src/views/LoginView.vue`, `Frontend/src/components/login/`, `Frontend/src/services/auth.ts` | Registro y login consumen la API; las sesiones usan cookie HttpOnly. |
 | Panel                       | `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/views/panel/`, `Frontend/src/components/panel/`       | Diseño del panel, resumen, mascotas y turnos.                                       |
 | Datos del panel             | `Frontend/src/data/panelMock.ts`                                                                            | Datos locales ilustrativos; no representan datos obtenidos de la base real.         |
 | Contenido institucional     | `Frontend/src/config/site.ts`                                                                               | Nombre, dirección, contacto y horarios que usan las secciones públicas.             |
@@ -123,6 +128,7 @@ El backend sigue una separación por capas:
 | Aplicación HTTP | `Backend/src/app.ts`                                          | Configura JSON, cookies, CORS y monta los routers.                             |
 | Configuración   | `Backend/src/config/env.ts`, `Backend/src/config/database.ts` | Lee `Backend/.env` y configura el `Pool` compartido de PostgreSQL.             |
 | Rutas           | `Backend/src/routes/`                                         | Asocia endpoints HTTP con sus controladores.                                   |
+| Middleware      | `Backend/src/middlewares/`                                    | Autentica sesiones y ofrece autorización RBAC reutilizable por rol.             |
 | Controladores   | `Backend/src/controllers/`                                    | Valida solicitudes, define los códigos de estado y las respuestas HTTP.        |
 | Servicios       | `Backend/src/services/`                                       | Implementa operaciones de aplicación, transacciones y comprobaciones de salud. |
 | Modelos         | `Backend/src/models/`                                         | Ejecuta consultas parametrizadas y mapea entidades de persistencia.            |
@@ -136,6 +142,9 @@ El backend sigue una separación por capas:
 - `AGENTS.md`: contexto permanente, objetivos y pautas del producto para el trabajo de desarrollo asistido.
 - `utilidades/documentación/Planificación del proyecto.md`: compromiso del Sprint 3 y propuesta de continuidad.
 - `utilidades/documentación/Matriz de roles y acciones.md`: permisos propuestos por rol, con separación entre acceso clínico y administrativo.
+- `utilidades/documentación/Autenticación y autorización.md`: contrato de registro/sesión, roles, políticas RBAC/ABAC, estado implementado y requisitos para futuras rutas.
+- `utilidades/documentación/Formularios de autenticación.md`: campos permitidos, contratos de registro/login y pasos para diagnosticar errores de conexión y autenticación.
+- `utilidades/documentación/Guía de continuidad para IA.md`: mapa de contexto, estado técnico verificado, límites y pendientes para retomar el trabajo asistido.
 - `utilidades/documentación/Registro de incógnitas.md`: preguntas de negocio y permisos que requieren validación antes de implementarse.
 - `.gitignore`: excluye dependencias, compilados, cachés, logs y archivos `.env`; mantiene versionados los `.env.example`.
 
@@ -213,6 +222,8 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `npm run build` | Compila TypeScript a `dist/`.                                   |
 | `npm start`     | Inicia la aplicación compilada desde `dist/index.js`.           |
 
+`server.js` es una implementación JavaScript anterior y no la utilizan los scripts del paquete. La aplicación activa es la de `src/`, con PostgreSQL (`pg`); todavía no hay un ORM instalado o configurado. Si se incorpora uno, debe integrarse en esta aplicación TypeScript y sus scripts de arranque.
+
 ## Rutas y funcionamiento
 
 ### Rutas del frontend
@@ -223,6 +234,7 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `/turnos`         | `TurnosView.vue` con `PublicLayout.vue`   | Vista de turnos.                                                     |
 | `/login`          | `LoginView.vue`                           | Inicia sesión mediante la API y establece una cookie HttpOnly.       |
 | `/registro`       | `RegistroView.vue`                        | Envía el registro de un cliente a la API.                            |
+| `/registro/perfil` | `RegisterStepTwoView.vue`                | Completa el perfil del cliente; requiere sesión `CLIENTE`.           |
 | `/panel`          | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.             |
 | `/panel-veterinario` | `VeterinarioView.vue` con agenda de muestra | Requiere sesión con rol `VETERINARIO`; no está conectada a turnos reales. |
 | `/panel/mascotas` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
@@ -239,6 +251,7 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `POST` | `/api/auth/login`    | Valida credenciales y establece una cookie de sesión HttpOnly. |
 | `GET`  | `/api/auth/session`  | Valida la cookie y devuelve el identificador y rol de la sesión. |
 | `POST` | `/api/auth/logout`   | Elimina la cookie de sesión del navegador.                  |
+| `POST` | `/api/duenios/perfil` | Guarda DNI/CUIT, tipo de persona, dirección y finca del cliente autenticado. |
 
 El cuerpo del registro debe ser JSON:
 
@@ -252,7 +265,9 @@ El cuerpo del registro debe ser JSON:
 }
 ```
 
-Una solicitud correcta devuelve `201`; datos inválidos devuelven `400`; un correo duplicado devuelve `409`; un error inesperado devuelve `500`. El registro no inicia sesión automáticamente. El login recibe `{ "email": "...", "contrasena": "..." }`, devuelve `401` si las credenciales no son válidas y establece una cookie `HttpOnly`; el JWT no se devuelve en el cuerpo ni se guarda en `localStorage`. La cookie dura ocho horas por defecto.
+Una solicitud correcta devuelve `201` y establece una cookie de sesión para continuar al segundo paso. Datos inválidos devuelven `400`; un correo duplicado devuelve `409`; un error inesperado devuelve `500`. El login recibe `{ "email": "...", "contrasena": "..." }`, devuelve `401` si las credenciales no son válidas y establece una cookie `HttpOnly`; el JWT no se devuelve en el cuerpo ni se guarda en `localStorage`. La cookie dura ocho horas por defecto.
+
+`POST /api/duenios/perfil` requiere sesión de rol `CLIENTE`. Recibe `dni_cuit`, `tipo_persona`, `direccion_urbana` y `nombre_finca`; actualiza los campos del dueño y, si se indicó una finca, la crea o actualiza junto con la localidad de la cuenta. El guardado de perfil es transaccional.
 
 ## Base de datos
 
@@ -262,7 +277,7 @@ El esquema de la aplicación comprende estas ocho tablas:
 
 `usuario`, `duenio`, `finca`, `animal`, `ficha_medica`, `visita`, `turno` y `evolucion_clinica`.
 
-El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de las tablas forma parte del dominio previsto, pero todavía no tiene endpoints CRUD implementados en esta API. La base debe existir previamente con su esquema y relaciones; este repositorio no incluye migraciones SQL ni seeders para crearla.
+El endpoint de registro escribe en `usuario` y `duenio`, y el segundo paso actualiza `duenio` y opcionalmente `finca`. El resto de las tablas forma parte del dominio previsto, pero todavía no tiene endpoints CRUD implementados en esta API. La base principal debe existir previamente con su esquema y relaciones. `Backend/migrations/001_add_duenio_tipo_persona.sql` agrega el campo requerido por el perfil y su restricción de valores permitidos; aplícala en cada entorno antes de usar el segundo formulario.
 
 ## Variables de entorno y seguridad
 
@@ -277,8 +292,11 @@ El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de
 ## Estado funcional actual
 
 - **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guards frontend para cliente/veterinario y endpoints de salud.
-- **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`/cookie del entorno de despliegue.
-- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable, rate limiting, sincronización clínica offline y validación de los marcadores de posición.
+- **Registro desde frontend:** `/registro` envía nombre completo, email, teléfono, localidad y contraseña a `POST /api/auth/register`; presenta errores de la API y confirma el alta solo tras recibir una respuesta exitosa. El backend crea la cookie de sesión para que el usuario pueda completar `/registro/perfil`; la conexión debe validarse por entorno.
+- **Conexión frontend/API:** si no se puede alcanzar la API, la interfaz indica la URL de `VITE_API_BASE_URL` y recuerda verificar que Backend esté iniciado y que `FRONTEND_URL` permita el origen de Vite. En desarrollo se puede comprobar `http://localhost:3000/api/health`.
+- **Arranque del Backend:** `npm run dev` ejecuta `src/index.ts`; `npm run build` compila a `dist/` y `npm start` inicia `dist/index.js`. `server.js` es una implementación anterior con MySQL y no forma parte de estos scripts.
+- **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`, cookie y CORS del entorno de despliegue.
+- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable, rate limiting y sincronización clínica offline. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 
 ## Contexto y planificación
@@ -288,5 +306,6 @@ El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de
 
 ## Roles y reglas pendientes
 
+- [Autenticación y autorización](utilidades/documentación/Autenticaci%C3%B3n%20y%20autorizaci%C3%B3n.md)
 - [Matriz de roles y acciones](utilidades/documentación/Matriz%20de%20roles%20y%20acciones.md)
 - [Registro de incógnitas](utilidades/documentación/Registro%20de%20inc%C3%B3gnitas.md)

@@ -10,6 +10,11 @@ import {
   SESSION_COOKIE_NAME,
   sessionCookieOptions,
 } from "../services/auth.service";
+import {
+  ClientProfileConflictError,
+  ClientProfileSchemaError,
+  saveClientProfileForUser,
+} from "../models/owner.model";
 
 const registerSchema = Joi.object({
   nombreCompleto: Joi.string().trim().min(2).max(200).required(),
@@ -36,6 +41,13 @@ const loginSchema = Joi.object({
         : value,
     )
     .required(),
+}).unknown(false);
+
+const clientProfileSchema = Joi.object({
+  dni_cuit: Joi.string().trim().min(8).max(30).required(),
+  tipo_persona: Joi.string().valid("INDIVIDUAL", "EMPRESA_PRODUCTOR").required(),
+  direccion_urbana: Joi.string().trim().max(250).allow("", null).optional(),
+  nombre_finca: Joi.string().trim().min(2).max(200).allow("", null).optional(),
 }).unknown(false);
 
 function clearSessionCookie(response: Parameters<RequestHandler>[1]): void {
@@ -129,6 +141,9 @@ export const postRegister: RequestHandler = async (request, response) => {
       password: value.contrasena,
     });
 
+    const token = createSessionToken({ userId: account.userId, role: account.role });
+    response.cookie(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+
     response.status(201).json({
       status: "ok",
       message: "La cuenta se creó correctamente.",
@@ -149,6 +164,77 @@ export const postRegister: RequestHandler = async (request, response) => {
     response.status(500).json({
       status: "error",
       message: "No fue posible crear la cuenta.",
+    });
+  }
+};
+
+export const postClientProfile: RequestHandler = async (request, response) => {
+  const user = request.user as AuthenticatedUser | undefined;
+
+  if (!user) {
+    response.status(401).json({
+      status: "error",
+      message: "Se requiere una sesión válida para guardar el perfil.",
+    });
+    return;
+  }
+
+  const { error, value } = clientProfileSchema.validate(request.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    response.status(400).json({
+      status: "error",
+      message: "Los datos del perfil no son válidos.",
+      details: error.details.map((detail) => detail.message),
+    });
+    return;
+  }
+
+  if (
+    value.tipo_persona === "EMPRESA_PRODUCTOR" &&
+    !value.nombre_finca?.trim()
+  ) {
+    response.status(400).json({
+      status: "error",
+      message:
+        "Ingresá el nombre de la finca o establecimiento para el perfil productor.",
+    });
+    return;
+  }
+
+  try {
+    await saveClientProfileForUser(user.userId, {
+      dniCuit: value.dni_cuit,
+      tipoPersona: value.tipo_persona,
+      direccionUrbana: value.direccion_urbana ?? null,
+      nombreFinca: value.nombre_finca ?? null,
+    });
+
+    response.status(200).json({
+      status: "ok",
+      message: "Perfil del cliente guardado correctamente.",
+    });
+  } catch (error) {
+    if (error instanceof ClientProfileConflictError) {
+      response.status(409).json({ status: "error", message: error.message });
+      return;
+    }
+
+    if (error instanceof ClientProfileSchemaError) {
+      console.error("Esquema incompatible al guardar el perfil del cliente:", error);
+      response.status(503).json({
+        status: "error",
+        message: error.message,
+      });
+      return;
+    }
+
+    console.error("Error al guardar el perfil del cliente:", error);
+    response.status(500).json({
+      status: "error",
+      message: "No fue posible guardar el perfil del cliente.",
     });
   }
 };

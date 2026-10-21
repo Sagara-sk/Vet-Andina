@@ -51,10 +51,11 @@ El `README.md` describe el estado técnico que debe usarse como línea de base h
 - Frontend Vue 3 + TypeScript y API Express + TypeScript; conexión PostgreSQL por `pg` y TLS.
 - Registro de clientes conectado: crea usuario y perfil de dueño en una transacción; bcrypt para contraseñas.
 - Endpoints disponibles: `GET /api/health`, `GET /api/db/health`, `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/session` y `POST /api/auth/logout`.
-- Login y cookie de sesión HttpOnly implementados en código; verificar el flujo con Neon y configurar `JWT_SECRET` antes de desplegar. Los guards del frontend protegen `/panel` para `CLIENTE` y `/panel-veterinario` para `VETERINARIO`, pero no sustituyen autorización backend.
+- Login, cookie de sesión HttpOnly y cookie de sesión tras el registro implementados en código. Verificar cada entorno antes de desplegar. Los guards del frontend protegen `/panel` para `CLIENTE` y `/panel-veterinario` para `VETERINARIO`, pero no sustituyen autorización backend.
+- El endpoint `POST /api/duenios/perfil` requiere sesión `CLIENTE`; guarda DNI/CUIT, tipo de persona, dirección opcional y finca opcional. La migración versionada `Backend/migrations/001_add_duenio_tipo_persona.sql` agrega el campo `duenio.tipo_persona`.
 - Autorización backend por rol/propietario, revocación de sesiones y endpoints de dominio siguen pendientes.
 - Panel cliente y agenda veterinaria con datos explícitamente de demostración; mascotas, turnos, evoluciones y otras operaciones de dominio aún sin endpoints CRUD descritos.
-- No se describen migraciones SQL o seeders en el repositorio. Verificar el esquema real antes de depender de él.
+- No hay un esquema integral ni seeders versionados; existe una migración del perfil de cliente. Verificar el esquema real antes de depender de tablas o columnas del dominio.
 - La API ya tiene algunas dependencias de autenticación instaladas; una dependencia instalada no demuestra que el flujo sea funcional.
 
 ## Guía para el trabajo futuro

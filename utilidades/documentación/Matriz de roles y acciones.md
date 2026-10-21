@@ -5,6 +5,7 @@
 Esta matriz formaliza los permisos funcionales propuestos para Vet Andina a partir de la definición del equipo. Es una referencia para validar con el cliente y traducir luego a controles de acceso y pruebas. **No implica que estos permisos ya estén implementados**: la autorización debe verificarse en la API; ocultar acciones en la interfaz no es un control de seguridad suficiente.
 
 Las reglas marcadas como pendientes se registran en el [Registro de incógnitas](Registro%20de%20inc%C3%B3gnitas.md) y no deben cerrarse por suposición.
+La política técnica, el estado de los middlewares y la separación entre RBAC y propiedad de recursos están en [Autenticación y autorización](Autenticaci%C3%B3n%20y%20autorizaci%C3%B3n.md).
 
 ## Matriz
 
@@ -24,6 +25,7 @@ Las reglas marcadas como pendientes se registran en el [Registro de incógnitas]
 - **Trazabilidad:** auditar las operaciones sensibles (por ejemplo, administración de cuentas, reasignaciones y cambios de turnos) sin guardar secretos ni datos clínicos innecesarios en logs.
 - **Acceso amplio del personal:** la lectura profesional transversal de historias clínicas está propuesta para Superadmin y Veterinario. El equipo debe validar su alcance y justificarlo por necesidad operativa.
 - **Offline:** el acceso y sincronización offline todavía dependen de la decisión registrada en el Registro de incógnitas y del spike de la historia VET-11.
+- **Estado de implementación:** el backend tiene autenticación de sesión y un middleware RBAC reutilizable, pero todavía no ofrece endpoints de dominio en los que aplicar la matriz completa ni controles ABAC de propiedad. La vista offline actual no descarga ni sincroniza registros clínicos.
 
 ## Referencias
 

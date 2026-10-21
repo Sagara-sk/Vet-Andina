@@ -5,6 +5,7 @@ import HomeView from '../views/HomeView.vue'
 const PanelPlaceholderView = () => import('../views/panel/PanelPlaceholderView.vue')
 import LoginView from '../views/LoginView.vue'
 import RegistroView from '../views/RegistroView.vue'
+import RegisterStepTwoView from '../views/RegisterStepTwoView.vue'
 import { getAuthSession } from '@/services/auth'
 
 const router = createRouter({
@@ -27,6 +28,11 @@ const router = createRouter({
       path: '/registro',
       name: 'registro',
       component: RegistroView,
+    },
+    {
+      path: '/registro/perfil',
+      name: 'registro-perfil',
+      component: RegisterStepTwoView,
     },
     {
       path: '/panel',
