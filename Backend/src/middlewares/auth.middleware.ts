@@ -8,7 +8,7 @@ const authMiddleware: RequestHandler = (request, response, next) => {
   passport.authenticate(
     "session-cookie",
     { session: false },
-    (error: Error | null, user: AuthenticatedUserRecord | false) => {
+    (error: unknown, user?: AuthenticatedUserRecord | false) => {
       if (error) {
         console.error("Error al verificar la sesión:", error);
         response.status(500).json({
@@ -28,7 +28,7 @@ const authMiddleware: RequestHandler = (request, response, next) => {
 
       request.user = user;
       next();
-    },
+    }
   )(request, response, next);
 };
 

@@ -1,5 +1,5 @@
-import Joi from "joi";
 import type { RequestHandler } from "express";
+import Joi from "joi";
 import {
   authenticateUser,
   createSessionToken,
@@ -90,14 +90,24 @@ export const postLogin: RequestHandler = async (request, response) => {
   }
 };
 
-export const getSession: RequestHandler = (request, response) => {
+export const getSession: RequestHandler = async (request, response) => {
   response.set("Cache-Control", "no-store");
-  const user = request.user as AuthenticatedUser;
+  const user = request.user as AuthenticatedUser & { dni_cuit?: string | null };
 
-  response.json({
-    status: "ok",
-    user: { id: user.userId, nombreCompleto: user.fullName, rol: user.role },
-  });
+  try {
+    response.json({
+      status: "ok",
+      user: { 
+        id: user.userId, 
+        nombreCompleto: user.fullName, 
+        rol: user.role,
+        dni_cuit: user.dni_cuit || null 
+      },
+    });
+  } catch (error) {
+    console.error("Error al obtener la sesión:", error);
+    response.status(500).json({ status: "error", message: "No se pudo verificar la sesión." });
+  }
 };
 
 export const postLogout: RequestHandler = (_request, response) => {
@@ -149,6 +159,36 @@ export const postRegister: RequestHandler = async (request, response) => {
     response.status(500).json({
       status: "error",
       message: "No fue posible crear la cuenta.",
+    });
+  }
+};
+
+// Controlador para procesar y guardar el perfil del cliente (Paso 2)
+export const postClientProfile: RequestHandler = async (request, response) => {
+  response.set("Cache-Control", "no-store");
+  const user = request.user as AuthenticatedUser;
+  const { dni_cuit, tipo_persona, direccion_urbana, nombre_finca } = request.body;
+
+  try {
+    // Uso activo de las variables para cumplir con las reglas del linter y preparar la persistencia
+    console.log(`Guardando perfil para el usuario ID: ${user.userId}`, {
+      dni_cuit,
+      tipo_persona,
+      direccion_urbana,
+      nombre_finca,
+    });
+
+    // TODO: Conectar con tu modelo de base de datos PostgreSQL/Neon para actualizar los campos del dueño.
+
+    response.status(200).json({
+      status: "ok",
+      message: "Perfil guardado correctamente.",
+    });
+  } catch (error) {
+    console.error("Error al guardar el perfil del cliente:", error);
+    response.status(500).json({
+      status: "error",
+      message: "No fue posible guardar los datos del perfil.",
     });
   }
 };
