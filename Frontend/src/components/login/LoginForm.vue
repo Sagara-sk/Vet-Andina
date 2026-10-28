@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { canAccess, homeRouteForRole } from '@/router/access'
 import { login } from '@/services/auth'
+import { useSessionStore } from '@/stores/session'
 
 const email = ref('')
 const password = ref('')
@@ -9,6 +11,19 @@ const feedback = ref('')
 const isSubmitting = ref(false)
 const route = useRoute()
 const router = useRouter()
+const session = useSessionStore()
+
+// Solo se respeta el redirect si es una ruta interna que el rol puede abrir.
+function destinationFor(rol: string) {
+  const redirect = route.query.redirect
+
+  if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    const target = router.resolve(redirect)
+    if (target.matched.length > 0 && canAccess(target.matched, rol)) return redirect
+  }
+
+  return homeRouteForRole(rol)
+}
 
 async function submitLogin() {
   feedback.value = ''
@@ -16,14 +31,8 @@ async function submitLogin() {
 
   try {
     const user = await login(email.value, password.value)
-    const redirect = route.query.redirect
-    const defaultDestination = user.rol === 'VETERINARIO' ? '/panel-veterinario' : '/panel'
-    const destination =
-      typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
-        ? redirect
-        : defaultDestination
-
-    await router.replace(destination)
+    session.setUser(user)
+    await router.replace(destinationFor(user.rol))
   } catch (error) {
     feedback.value = error instanceof Error ? error.message : 'No fue posible iniciar sesión.'
   } finally {

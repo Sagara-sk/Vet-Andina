@@ -10,6 +10,7 @@ Aplicación web para la gestión de atención veterinaria. El repositorio contie
 - [Organización de archivos](#organización-de-archivos)
 - [Requisitos](#requisitos)
 - [Configuración local](#configuración-local)
+- [Cuentas de prueba](#cuentas-de-prueba)
 - [Comandos](#comandos)
 - [Rutas y funcionamiento](#rutas-y-funcionamiento)
 - [API REST](#api-rest)
@@ -51,7 +52,11 @@ Vet Andina/
 │       ├── main.ts
 │       ├── App.vue
 │       ├── assets/main.css
-│       ├── router/index.ts
+│       ├── router/
+│       │   ├── index.ts
+│       │   └── access.ts
+│       ├── stores/session.ts
+│       ├── composables/useLogout.ts
 │       ├── config/site.ts
 │       ├── data/panelMock.ts
 │       ├── layouts/
@@ -61,11 +66,15 @@ Vet Andina/
 │       │   ├── home/
 │       │   ├── layout/
 │       │   ├── login/
-│       │   └── panel/
+│       │   ├── panel/
+│       │   └── Redireccion/
+│       │       ├── AccesoDenegado.vue
+│       │       └── LogoutButton.vue
 │       ├── views/
 │       │   ├── HomeView.vue
 │       │   ├── LoginView.vue
 │       │   ├── RegistroView.vue
+│       │   ├── AccesoDenegadoView.vue
 │       │   ├── TurnosView.vue
 │       │   └── panel/
 │       └── utils/format.ts
@@ -85,6 +94,11 @@ Vet Andina/
 │       ├── controllers/
 │       │   ├── auth.controller.ts
 │       │   └── health.controller.ts
+│       ├── middlewares/
+│       │   ├── auth.middleware.ts
+│       │   ├── error.middleware.ts
+│       │   └── rate-limit.middleware.ts
+│       ├── scripts/create-test-users.ts
 │       ├── services/
 │       │   ├── auth.service.ts
 │       │   └── health.service.ts
@@ -102,11 +116,13 @@ Vet Andina/
 | Parte                       | Ubicación                                                                                                   | Responsabilidad                                                                     |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | Entrada de la aplicación    | `Frontend/src/main.ts`, `Frontend/src/App.vue`                                                              | Carga CSS, inicializa Vue, Pinia y el router; `App.vue` presenta la vista de ruta.  |
-| Navegación                  | `Frontend/src/router/index.ts`                                                                              | Define rutas públicas, registro, login y panel, además de las vistas diferidas.     |
+| Navegación                  | `Frontend/src/router/index.ts`, `Frontend/src/router/access.ts`                                             | Define las rutas y el guard; `access.ts` declara qué roles abren cada panel y el destino de cada rol tras el login. |
+| Sesión                      | `Frontend/src/stores/session.ts`, `Frontend/src/composables/useLogout.ts`                                   | Store Pinia con el usuario verificado por la API (solo en memoria) y la acción `logout`; `useLogout` la usa para cerrar sesión y volver al login. |
+| Redirecciones de sesión     | `Frontend/src/components/Redireccion/`                                                                      | `LogoutButton.vue` (botón de cierre de sesión de ambos paneles) y `AccesoDenegado.vue` (página 403). |
 | Diseño común                | `Frontend/src/layouts/`, `Frontend/src/components/layout/`                                                  | Estructura pública y del panel, encabezado y pie de página.                         |
 | Página principal            | `Frontend/src/views/HomeView.vue`, `Frontend/src/components/home/`                                          | Vista de inicio y sus secciones.                                                    |
 | Turnos públicos             | `Frontend/src/views/TurnosView.vue`                                                                         | Vista de turnos públicos.                                                           |
-| Registro e inicio de sesión | `Frontend/src/views/RegistroView.vue`, `Frontend/src/views/LoginView.vue`, `Frontend/src/components/login/` | Formulario de registro conectado a la API; pantalla de login aún sin autenticación. |
+| Registro e inicio de sesión | `Frontend/src/views/RegistroView.vue`, `Frontend/src/views/LoginView.vue`, `Frontend/src/components/login/` | Registro y login conectados a la API.                                               |
 | Panel                       | `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/views/panel/`, `Frontend/src/components/panel/`       | Diseño del panel, resumen, mascotas y turnos.                                       |
 | Datos del panel             | `Frontend/src/data/panelMock.ts`                                                                            | Datos locales ilustrativos; no representan datos obtenidos de la base real.         |
 | Contenido institucional     | `Frontend/src/config/site.ts`                                                                               | Nombre, dirección, contacto y horarios que usan las secciones públicas.             |
@@ -120,7 +136,8 @@ El backend sigue una separación por capas:
 | Capa            | Ubicación                                                     | Responsabilidad                                                                |
 | --------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Arranque        | `Backend/src/index.ts`                                        | Carga las variables de entorno, valida el puerto e inicia Express.             |
-| Aplicación HTTP | `Backend/src/app.ts`                                          | Configura JSON, cookies, CORS y monta los routers.                             |
+| Aplicación HTTP | `Backend/src/app.ts`                                          | Configura CORS, JSON, cookies y proxy; monta los routers y los manejadores 404/error. |
+| Middlewares     | `Backend/src/middlewares/`                                    | Verificación de sesión, límite de intentos y respuestas de error en JSON.      |
 | Configuración   | `Backend/src/config/env.ts`, `Backend/src/config/database.ts` | Lee `Backend/.env` y configura el `Pool` compartido de PostgreSQL.             |
 | Rutas           | `Backend/src/routes/`                                         | Asocia endpoints HTTP con sus controladores.                                   |
 | Controladores   | `Backend/src/controllers/`                                    | Valida solicitudes, define los códigos de estado y las respuestas HTTP.        |
@@ -175,7 +192,11 @@ El frontend usa por defecto `http://localhost:3000` para llamar a la API. Para c
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-### 3. Iniciar ambos procesos
+### 3. Crear las cuentas de prueba
+
+Ver [Cuentas de prueba](#cuentas-de-prueba). Solo hace falta una vez por base de datos.
+
+### 4. Iniciar ambos procesos
 
 En dos terminales separadas:
 
@@ -190,6 +211,30 @@ npm run dev
 ```
 
 Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El backend escucha por defecto en `http://localhost:3000`.
+
+## Cuentas de prueba
+
+Hay una cuenta de prueba por rol. Julián, referente clínico del proyecto, es el superadministrador; el resto de los datos son ficticios.
+
+| Rol              | Nombre         | Email                             | Contraseña              | Al iniciar sesión abre                       |
+| ---------------- | -------------- | --------------------------------- | ----------------------- | -------------------------------------------- |
+| `SUPERADMIN`     | Julián Paredes | `julian.paredes@vetandina.com.ar` | `VetAndina-Julian2026`  | `/panel-veterinario`                         |
+| `ADMINISTRATIVO` | Carla Méndez   | `carla.mendez@vetandina.com.ar`   | `VetAndina-Admin2026`   | `/` (todavía no hay panel administrativo)    |
+| `VETERINARIO`    | Martín Sosa    | `martin.sosa@vetandina.com.ar`    | `VetAndina-Vet2026`     | `/panel-veterinario`                         |
+| `CLIENTE`        | Laura Giménez  | `laura.gimenez@example.com`       | `VetAndina-Cliente2026` | `/panel`                                     |
+
+Julián y Martín tienen matrículas ficticias (`DEMO-0001` y `DEMO-0002`). Laura tiene además su perfil de dueño (teléfono `+54 9 299 000 0001`, Cipolletti), igual que un cliente registrado desde `/registro`.
+
+Las cuentas ya están creadas en la base de desarrollo de Neon. Si se usa otra base, se crean con:
+
+```powershell
+cd Backend
+npm run seed:test-users
+```
+
+El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuyo email no existe; las que ya existen no se modifican. No se ejecuta con `NODE_ENV=production`.
+
+> **Importante:** estas contraseñas son públicas porque están en este README. Usalas solo en bases de desarrollo o prueba. Antes de cargar datos reales o desplegar para el cliente, eliminá estas cuentas o cambiales la contraseña.
 
 ## Comandos
 
@@ -212,6 +257,7 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `npm run dev`   | Ejecuta `src/index.ts` con `tsx` y recarga al detectar cambios. |
 | `npm run build` | Compila TypeScript a `dist/`.                                   |
 | `npm start`     | Inicia la aplicación compilada desde `dist/index.js`.           |
+| `npm run seed:test-users` | Crea las cuentas de prueba de cada rol que no existan. |
 
 `server.js` es una implementación JavaScript anterior y no la utilizan los scripts del paquete. La aplicación activa es la de `src/`, con PostgreSQL (`pg`); todavía no hay un ORM instalado o configurado. Si se incorpora uno, debe integrarse en esta aplicación TypeScript y sus scripts de arranque.
 
@@ -225,11 +271,19 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `/turnos`         | `TurnosView.vue` con `PublicLayout.vue`   | Vista de turnos.                                                     |
 | `/login`          | `LoginView.vue`                           | Inicia sesión mediante la API y establece una cookie HttpOnly.       |
 | `/registro`       | `RegistroView.vue`                        | Envía el registro de un cliente a la API.                            |
+| `/acceso-denegado` | `AccesoDenegadoView.vue`                 | Página 403 para una sesión sin permiso sobre la ruta pedida.          |
 | `/panel`          | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.             |
-| `/panel-veterinario` | `VeterinarioView.vue` con agenda de muestra | Requiere sesión con rol `VETERINARIO`; no está conectada a turnos reales. |
-| `/panel/mascotas` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
+| `/panel/mascotas` | `PetsView.vue`                            | Mascotas con datos de ejemplo.                                       |
 | `/panel/reservar` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
-| `/panel/turnos`   | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
+| `/panel/turnos`   | `AppointmentsView.vue`                    | Turnos con datos de ejemplo.                                         |
+| `/panel-veterinario` | `DashboardView.vue` con `PanelLayout.vue` | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; agenda de demostración. |
+| `/panel-veterinario/clientes` | `ClientesView.vue`            | Clientes de demostración.                                            |
+| `/panel-veterinario/agenda` | `AgendaView.vue`                | Agenda semanal de demostración.                                      |
+| `/panel-veterinario/turnos` | `TurnosGestionView.vue`         | Confirmar, reprogramar y cancelar turnos de demostración (solo en memoria). |
+| `/panel-veterinario/offline` | `OfflineView.vue`              | Prototipo local con IndexedDB.                                       |
+| `/panel-veterinario/usuarios` | `UsersView.vue`               | Solo `SUPERADMIN`; alta real de veterinarios y administrativos vía `POST /api/users`. |
+
+Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú según el rol de la sesión. El modo oscuro está disponible para todos los roles desde el menú lateral: los colores de la marca son variables CSS (`Frontend/src/assets/main.css`) que la clase `.theme-dark` reemplaza, y la preferencia se guarda en el navegador (`useTheme`). Los datos de demostración del panel veterinario están en `Frontend/src/data/agendaMock.ts` y se comparten entre vistas mediante el store `agendaDemo`.
 
 ### API REST disponible
 
@@ -241,6 +295,7 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 | `POST` | `/api/auth/login`    | Valida credenciales y establece una cookie de sesión HttpOnly. |
 | `GET`  | `/api/auth/session`  | Valida la cookie y devuelve el identificador y rol de la sesión. |
 | `POST` | `/api/auth/logout`   | Elimina la cookie de sesión del navegador.                  |
+| `POST` | `/api/users`         | Solo `SUPERADMIN` (403 para otros roles). Crea un usuario `VETERINARIO` (con `matriculaProfesional`) o `ADMINISTRATIVO`. |
 
 El cuerpo del registro debe ser JSON:
 
@@ -255,6 +310,14 @@ El cuerpo del registro debe ser JSON:
 ```
 
 Una solicitud correcta devuelve `201`; datos inválidos devuelven `400`; un correo duplicado devuelve `409`; un error inesperado devuelve `500`. El registro no inicia sesión automáticamente. El login recibe `{ "email": "...", "contrasena": "..." }`, devuelve `401` si las credenciales no son válidas y establece una cookie `HttpOnly`; el JWT no se devuelve en el cuerpo ni se guarda en `localStorage`. La cookie dura ocho horas por defecto.
+
+**Rutas privadas:** el guard (`router.beforeEach`) revisa las rutas con `meta.requiresAuth` y toma la sesión del store Pinia `session`. Solo la primera vez (al abrir o recargar la app) la confirma con `GET /api/auth/session`, porque la cookie HttpOnly no se puede leer desde JavaScript. Sin sesión, redirige a `/login?redirect=<ruta pedida>`. Con sesión pero sin permiso para esa ruta (por ejemplo, un cliente que abre `/panel-veterinario`), muestra `/acceso-denegado` (403), con un enlace al panel propio si el rol tiene uno.
+
+Tras el login, cada rol va a su panel: `CLIENTE` a `/panel`; `VETERINARIO` y `SUPERADMIN` a `/panel-veterinario`. `ADMINISTRATIVO` todavía no tiene panel y vuelve al inicio. Si el login trae un `redirect` a una ruta que el rol no puede abrir, se ignora y se usa el panel del rol.
+
+**Límite de intentos:** `POST /api/auth/login` admite 10 intentos fallidos cada 15 minutos por IP (los logins correctos no cuentan) y `POST /api/auth/register`, 5 registros por hora por IP. Al superarlos responde `429` con las cabeceras `RateLimit` y `RateLimit-Policy`. Los contadores viven en memoria, así que se reinician al reiniciar la API y no se comparten entre instancias. El login compara contra un hash descartable cuando el email no existe, así el tiempo de respuesta no revela qué correos están registrados.
+
+**Errores:** todas las respuestas de error son JSON con la forma `{ "status": "error", "message": "..." }`. Una ruta inexistente devuelve `404`; un cuerpo JSON mal formado, `400`; un error inesperado, `500`, sin detalles internos.
 
 ## Base de datos
 
@@ -275,14 +338,15 @@ El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de
 - El Pool de PostgreSQL exige validación TLS del certificado.
 - La contraseña del cliente se valida en el controlador y se almacena como hash mediante bcrypt en el servicio de registro; nunca se guarda en texto plano.
 - Express limita CORS a las URL configuradas mediante `FRONTEND_URL`; si no está definida, permite los orígenes locales indicados en `Backend/src/app.ts`.
+- `TRUST_PROXY` indica cuántos proxies confiar para obtener la IP real del cliente. Dejalo vacío en local y usá `1` en Render; si queda vacío detrás de un proxy, el límite de intentos agrupa a todos los usuarios en la IP del proxy.
 
 ## Estado funcional actual
 
-- **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guards frontend para cliente/veterinario y endpoints de salud.
+- **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guards frontend por rol (cliente; veterinario o superadministrador), límite de intentos en login y registro, respuestas de error JSON y endpoints de salud.
 - **Registro desde frontend:** `/registro` envía nombre completo, email, teléfono, localidad y contraseña a `POST /api/auth/register`; presenta errores de la API y confirma el alta solo tras recibir una respuesta exitosa. El alta no inicia sesión automáticamente. La conexión real con Neon sigue pendiente de prueba en un entorno configurado.
 - **Arranque del Backend:** `npm run dev` ejecuta `src/index.ts`; `npm run build` compila a `dist/` y `npm start` inicia `dist/index.js`. `server.js` es una implementación anterior con MySQL y no forma parte de estos scripts.
 - **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`, cookie y CORS del entorno de despliegue.
-- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable, rate limiting y sincronización clínica offline. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
+- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable y sincronización clínica offline. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 
 ## Contexto y planificación

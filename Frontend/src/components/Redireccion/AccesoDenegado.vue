@@ -1,44 +1,51 @@
-<script setup>
-import { useRouter } from 'vue-router'
+<script setup lang="ts">
+import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
+import { panelRouteForRole } from '@/router/access'
+import { useSessionStore } from '@/stores/session'
 
-const router = useRouter()
-
-const GoBack = () => {
-    //Redirecciona a la pagina principal
-    router.push('/')
-}
- 
+// Se muestra cuando hay sesión pero el rol no puede abrir la ruta pedida.
+const session = useSessionStore()
+const ownPanel = computed(() => (session.user ? panelRouteForRole(session.user.rol) : null))
 </script>
 
 <template>
-<div class="min-h-screen flex items-center justify-center bg-gray-50 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full text-center space-y-6">
-    <!--Icono de Advertencia / candado-->
-    <div class="flex justify-center">
-         <div class="bg-red-100 p-4 rounded-full text-red-600 animate-bounce">
-            <svg xmlns="https://w3.org" fill="none" viewbox="0 0 24 24" stroke-width="2" stroke="currentcolor" class="w-16 h-16">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10">
-                </path>
-            </svg>
-         </div>
-        </div>
+  <section class="flex flex-1 items-center justify-center px-7 py-12 sm:px-12">
+    <div class="animate-login-enter w-full max-w-88 text-center">
+      <div class="flex justify-center">
+        <span
+          class="flex h-14 w-14 items-center justify-center rounded-full bg-brand-accentSoft text-brand-accentInk"
+          aria-hidden="true"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="h-7 w-7"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+            />
+          </svg>
+        </span>
+      </div>
+
+      <p class="mt-6 text-xs text-brand-inkSoft">Error 403</p>
+      <h1 class="mt-2 font-serif text-[1.65rem] leading-tight">Acceso denegado</h1>
+      <p class="mt-3 text-base text-brand-inkSoft">
+        Tu cuenta no tiene permiso para ver esta página.
+      </p>
+
+      <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <RouterLink v-if="ownPanel" :to="ownPanel" class="btn-primary">Ir a mi panel</RouterLink>
+        <RouterLink :to="{ name: 'home' }" :class="ownPanel ? 'btn-outline' : 'btn-primary'">
+          Volver al inicio
+        </RouterLink>
+      </div>
     </div>
-</div>
-
-<!--El Mensaje de error-->
-<div class="space-y-2">
-    <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight sm:text-5xl">Eror 403</h1>
-
-    
-    <p class="text-xl font-semibold text-gray-700">Acceso Denegado</p>
-
-    <p class="text-sm text-gray-500 max-w-xs mx-auto">No tienes los permisos necesarios para ver esta pagina</p>
-</div>
-
-<!--Boton para volver al Inicio-->
-<div>
-    <button @click="GoBack" class="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo1-500 transition duration-150 ease-in-out w-full sm:w-auto">Volver al Inicio
-
-    </button>
-</div>
+  </section>
 </template>

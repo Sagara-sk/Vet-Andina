@@ -44,13 +44,21 @@ export function getJwtSecret(): string {
   return secret;
 }
 
+// Hash descartable para comparar cuando el email no existe: así la respuesta tarda
+// lo mismo y no revela qué correos están registrados.
+const dummyPasswordHash = bcrypt.hash("vet-andina-cuenta-inexistente", 12);
+
 export async function authenticateUser(
   email: string,
   password: string,
 ): Promise<AuthenticatedUser> {
   const user = await findUserCredentialsByEmail(email.trim().toLowerCase());
+  const passwordMatches = await bcrypt.compare(
+    password,
+    user?.passwordHash ?? (await dummyPasswordHash),
+  );
 
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+  if (!user || !passwordMatches) {
     throw new InvalidCredentialsError();
   }
 

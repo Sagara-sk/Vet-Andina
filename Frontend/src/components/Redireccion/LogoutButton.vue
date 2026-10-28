@@ -1,21 +1,22 @@
-<script setup>
-import { useRoute, useRouter } from 'vue-router';
+<script setup lang="ts">
+import { useLogout } from '@/composables/useLogout'
 
-import {useAuthStore} from '/@Stores/Auth'
-import { defineStore } from 'pinia';
-
-const router = useRouter()
-const authStore = useAuthStore()
-
-const backAt = async () => {
-    //ejecuta la accion de store osea (peticion + limpieza)
-    await authStore.logout()
-    //Redirigir al /login
-    Router,push('/login')
-}
-
+// Cierra la sesión en la API, limpia el store y vuelve al login.
+const { closeSession, logoutError, isLoggingOut } = useLogout()
 </script>
 
 <template>
-    <button @click="BackAt" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">Cerrar Sesion</button>
+  <div>
+    <button
+      type="button"
+      class="text-xs text-brand-inkSoft underline hover:text-brand-ink disabled:opacity-60"
+      :disabled="isLoggingOut"
+      @click="closeSession"
+    >
+      {{ isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión' }}
+    </button>
+    <p v-if="logoutError" class="mt-2 text-xs text-brand-dangerInk" role="alert">
+      {{ logoutError }}
+    </p>
+  </div>
 </template>

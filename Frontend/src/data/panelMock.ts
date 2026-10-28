@@ -21,11 +21,6 @@ export interface Appointment {
   status: AppointmentStatus
 }
 
-export const currentUser = {
-  firstName: 'Pedro',
-  lastName: 'Gómez',
-}
-
 export const pets: Pet[] = [
   { id: 1, name: 'Rocco', species: 'Perro', breed: 'Labrador', age: 4, note: 'Próxima vacuna: 20 sep' },
   { id: 2, name: 'Luna', species: 'Gata', breed: 'Siamés', age: 2, note: 'Sin controles pendientes' },

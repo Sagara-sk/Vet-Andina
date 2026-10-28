@@ -2,6 +2,50 @@
 @config '../../tailwind.config.js';
 
 @layer base {
+  /* Paleta clara por defecto; .theme-dark la reemplaza dentro del panel. */
+  :root {
+    --brand-bg: #fafaf7;
+    --brand-surface: #ffffff;
+    --brand-sidebar: #f3f2ec;
+    --brand-ink: #1e211c;
+    --brand-ink-soft: #63665f;
+    --brand-line: #e1ded4;
+    --brand-muted: #efeee9;
+    --brand-accent: #34503a;
+    --brand-accent-hover: #1f3323;
+    --brand-accent-soft: #e7eee3;
+    --brand-accent-ink: #1f3323;
+    --brand-warn-soft: #f3eee2;
+    --brand-warn-ink: #7a5b1f;
+    --brand-warn-line: #e6cf9a;
+    --brand-danger: #c0392b;
+    --brand-danger-soft: #fde8e8;
+    --brand-danger-ink: #7a1f1f;
+    --brand-danger-line: #f5c6c6;
+  }
+
+  .theme-dark {
+    --brand-bg: #161815;
+    --brand-surface: #1e211c;
+    --brand-sidebar: #1a1c18;
+    --brand-ink: #ecebe5;
+    --brand-ink-soft: #a5a89f;
+    --brand-line: #33372f;
+    --brand-muted: #2a2c27;
+    --brand-accent: #4f7a57;
+    --brand-accent-hover: #5e8c66;
+    --brand-accent-soft: #263428;
+    --brand-accent-ink: #cfe3c9;
+    --brand-warn-soft: #3a3220;
+    --brand-warn-ink: #e8cf94;
+    --brand-warn-line: #5a4a28;
+    --brand-danger: #c0392b;
+    --brand-danger-soft: #3d2222;
+    --brand-danger-ink: #f2b8b8;
+    --brand-danger-line: #5a2e2e;
+    color-scheme: dark;
+  }
+
   html {
     min-width: 320px;
     scroll-behavior: smooth;
@@ -79,8 +123,8 @@
   }
 
   .btn-primary:hover {
-    border-color: theme('colors.brand.accentInk');
-    background-color: theme('colors.brand.accentInk');
+    border-color: theme('colors.brand.accentHover');
+    background-color: theme('colors.brand.accentHover');
   }
 
   .btn-outline {
