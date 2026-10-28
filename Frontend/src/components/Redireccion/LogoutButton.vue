@@ -15,7 +15,7 @@ const { closeSession, logoutError, isLoggingOut } = useLogout()
     >
       {{ isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión' }}
     </button>
-    <p v-if="logoutError" class="mt-2 text-xs text-red-700" role="alert">
+    <p v-if="logoutError" class="mt-2 text-xs text-brand-dangerInk" role="alert">
       {{ logoutError }}
     </p>
   </div>

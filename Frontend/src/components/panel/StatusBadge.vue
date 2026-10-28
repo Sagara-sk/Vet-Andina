@@ -5,8 +5,8 @@ defineProps<{ status: AppointmentStatus }>()
 
 const styles: Record<AppointmentStatus, { label: string; class: string }> = {
   confirmado: { label: 'Confirmado', class: 'bg-brand-accentSoft text-brand-accentInk' },
-  pendiente: { label: 'Pendiente', class: 'bg-[#f4ecdc] text-[#6b5526]' },
-  realizado: { label: 'Realizado', class: 'bg-[#efeee9] text-brand-inkSoft' },
+  pendiente: { label: 'Pendiente', class: 'bg-brand-warnSoft text-brand-warnInk' },
+  realizado: { label: 'Realizado', class: 'bg-brand-muted text-brand-inkSoft' },
 }
 </script>
 

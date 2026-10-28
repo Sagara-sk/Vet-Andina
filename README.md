@@ -273,10 +273,17 @@ El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuy
 | `/registro`       | `RegistroView.vue`                        | Envía el registro de un cliente a la API.                            |
 | `/acceso-denegado` | `AccesoDenegadoView.vue`                 | Página 403 para una sesión sin permiso sobre la ruta pedida.          |
 | `/panel`          | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.             |
-| `/panel-veterinario` | `VeterinarioView.vue` con agenda de muestra | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; no está conectada a turnos reales. |
-| `/panel/mascotas` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
+| `/panel/mascotas` | `PetsView.vue`                            | Mascotas con datos de ejemplo.                                       |
 | `/panel/reservar` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
-| `/panel/turnos`   | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
+| `/panel/turnos`   | `AppointmentsView.vue`                    | Turnos con datos de ejemplo.                                         |
+| `/panel-veterinario` | `DashboardView.vue` con `PanelLayout.vue` | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; agenda de demostración. |
+| `/panel-veterinario/clientes` | `ClientesView.vue`            | Clientes de demostración.                                            |
+| `/panel-veterinario/agenda` | `AgendaView.vue`                | Agenda semanal de demostración.                                      |
+| `/panel-veterinario/turnos` | `TurnosGestionView.vue`         | Confirmar, reprogramar y cancelar turnos de demostración (solo en memoria). |
+| `/panel-veterinario/offline` | `OfflineView.vue`              | Prototipo local con IndexedDB.                                       |
+| `/panel-veterinario/usuarios` | `UsersView.vue`               | Solo `SUPERADMIN`; alta real de veterinarios y administrativos vía `POST /api/users`. |
+
+Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú según el rol de la sesión. El modo oscuro está disponible para todos los roles desde el menú lateral: los colores de la marca son variables CSS (`Frontend/src/assets/main.css`) que la clase `.theme-dark` reemplaza, y la preferencia se guarda en el navegador (`useTheme`). Los datos de demostración del panel veterinario están en `Frontend/src/data/agendaMock.ts` y se comparten entre vistas mediante el store `agendaDemo`.
 
 ### API REST disponible
 
@@ -288,6 +295,7 @@ El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuy
 | `POST` | `/api/auth/login`    | Valida credenciales y establece una cookie de sesión HttpOnly. |
 | `GET`  | `/api/auth/session`  | Valida la cookie y devuelve el identificador y rol de la sesión. |
 | `POST` | `/api/auth/logout`   | Elimina la cookie de sesión del navegador.                  |
+| `POST` | `/api/users`         | Solo `SUPERADMIN` (403 para otros roles). Crea un usuario `VETERINARIO` (con `matriculaProfesional`) o `ADMINISTRATIVO`. |
 
 El cuerpo del registro debe ser JSON:
 

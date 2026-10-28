@@ -43,8 +43,7 @@ const router = createRouter({
         {
           path: 'mascotas',
           name: 'panel-mascotas',
-          component: PanelPlaceholderView,
-          meta: { title: 'Mis mascotas' },
+          component: () => import('../views/panel/PetsView.vue'),
         },
         {
           path: 'reservar',
@@ -55,20 +54,40 @@ const router = createRouter({
         {
           path: 'turnos',
           name: 'panel-turnos',
-          component: PanelPlaceholderView,
-          meta: { title: 'Mis turnos' },
+          component: () => import('../views/panel/AppointmentsView.vue'),
         },
       ],
     },
     {
       path: '/panel-veterinario',
       meta: { requiresAuth: true, allowedRoles: ['VETERINARIO', 'SUPERADMIN'] },
-      component: () => import('@/views/veterinario/VeterinarioView.vue'),
+      component: () => import('../layouts/PanelLayout.vue'),
       children: [
         {
           path: '',
           name: 'vet-dashboard',
           component: () => import('@/views/veterinario/DashboardView.vue'),
+        },
+        {
+          path: 'clientes',
+          name: 'vet-clientes',
+          component: () => import('@/views/veterinario/ClientesView.vue'),
+        },
+        {
+          path: 'agenda',
+          name: 'vet-agenda',
+          component: () => import('@/views/veterinario/AgendaView.vue'),
+        },
+        {
+          path: 'turnos',
+          name: 'vet-turnos',
+          component: () => import('@/views/veterinario/TurnosGestionView.vue'),
+        },
+        {
+          path: 'usuarios',
+          name: 'vet-usuarios',
+          meta: { allowedRoles: ['SUPERADMIN'] },
+          component: () => import('@/views/veterinario/UsersView.vue'),
         },
         {
           path: 'offline',

@@ -6,6 +6,7 @@ import "./config/passport";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware";
 import authRouter from "./routes/auth.routes";
 import healthRouter from "./routes/health.routes";
+import userRouter from "./routes/user.routes";
 
 export const app = express();
 
@@ -39,5 +40,6 @@ app.use(cookieParser());
 app.use(passport.initialize());
 app.use("/api", healthRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/users", userRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
