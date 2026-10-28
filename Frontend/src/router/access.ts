@@ -25,7 +25,7 @@ export function canAccess(matched: readonly RouteRecordNormalized[], rol: string
   return restrictions.every((roles) => roles.some((allowed) => allowed === rol))
 }
 
-// Panel propio de cada rol; ADMINISTRATIVO todavía no tiene uno.
+// Panel propio de cada rol.
 export function panelRouteForRole(rol: string): RouteLocationRaw | null {
   switch (rol) {
     case 'CLIENTE':
@@ -33,6 +33,8 @@ export function panelRouteForRole(rol: string): RouteLocationRaw | null {
     case 'VETERINARIO':
     case 'SUPERADMIN':
       return { name: 'vet-dashboard' }
+    case 'ADMINISTRATIVO':
+      return { name: 'admin-turnos' }
     default:
       return null
   }

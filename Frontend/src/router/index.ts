@@ -96,6 +96,51 @@ const router = createRouter({
         },
       ],
     },
+    {
+      // Gestión de agenda, tutores y lectura de fichas, conectada a la API.
+      path: '/panel-administrativo',
+      meta: { requiresAuth: true, allowedRoles: ['ADMINISTRATIVO', 'SUPERADMIN'] },
+      component: () => import('../layouts/PanelLayout.vue'),
+      children: [
+        {
+          path: '',
+          name: 'admin-turnos',
+          component: () => import('@/views/admin/TurnosView.vue'),
+        },
+        {
+          path: 'tutores',
+          children: [
+            {
+              path: '',
+              name: 'admin-tutores',
+              component: () => import('@/views/admin/TutoresView.vue'),
+            },
+            {
+              path: ':id',
+              name: 'admin-tutor',
+              props: true,
+              component: () => import('@/views/admin/TutorDetailView.vue'),
+            },
+          ],
+        },
+        {
+          path: 'fichas',
+          children: [
+            {
+              path: '',
+              name: 'admin-fichas',
+              component: () => import('@/views/admin/FichasView.vue'),
+            },
+            {
+              path: ':id',
+              name: 'admin-ficha',
+              props: true,
+              component: () => import('@/views/admin/FichaView.vue'),
+            },
+          ],
+        },
+      ],
+    },
   ],
   scrollBehavior(to) {
     if (to.hash) return { el: to.hash, behavior: 'smooth' }

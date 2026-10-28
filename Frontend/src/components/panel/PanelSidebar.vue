@@ -10,6 +10,9 @@ import { initials } from '@/utils/format'
 interface NavLink {
   label: string
   to: RouteLocationRaw
+  // Para la página de inicio de cada panel: sin esto quedaría marcada en todas
+  // las secciones, porque comparten la ruta padre.
+  exact?: boolean
 }
 
 interface PanelConfig {
@@ -17,19 +20,28 @@ interface PanelConfig {
   links: NavLink[]
 }
 
+const ACTIVE_CLASS = '!bg-brand-accentSoft !text-brand-ink'
+
 const clientLinks: NavLink[] = [
-  { label: 'Inicio', to: { name: 'panel' } },
+  { label: 'Inicio', to: { name: 'panel' }, exact: true },
   { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
   { label: 'Reservar turno', to: { name: 'panel-reservar' } },
   { label: 'Mis turnos', to: { name: 'panel-turnos' } },
 ]
 
 const vetLinks: NavLink[] = [
-  { label: 'Dashboard', to: { name: 'vet-dashboard' } },
+  { label: 'Dashboard', to: { name: 'vet-dashboard' }, exact: true },
   { label: 'Clientes', to: { name: 'vet-clientes' } },
   { label: 'Agenda', to: { name: 'vet-agenda' } },
   { label: 'Gestión de turnos', to: { name: 'vet-turnos' } },
   { label: 'Modo offline', to: { name: 'vet-offline' } },
+]
+
+// Secciones conectadas a la API (turnos, tutores y fichas reales).
+const adminLinks: NavLink[] = [
+  { label: 'Turnos', to: { name: 'admin-turnos' }, exact: true },
+  { label: 'Tutores', to: { name: 'admin-tutores' } },
+  { label: 'Fichas', to: { name: 'admin-fichas' } },
 ]
 
 // Opciones del menú por rol. Ocultar un link no protege nada: la API tiene que
@@ -37,10 +49,18 @@ const vetLinks: NavLink[] = [
 const panels: Partial<Record<Rol, PanelConfig>> = {
   CLIENTE: { subtitle: 'Panel del cliente', links: clientLinks },
   VETERINARIO: { subtitle: 'Panel veterinario', links: vetLinks },
-  // Por ahora el superadmin tiene lo mismo que el veterinario más el alta de usuarios.
+  ADMINISTRATIVO: { subtitle: 'Panel administrativo', links: adminLinks },
+  // El superadmin hace todo lo del resto del personal. Usa las secciones reales
+  // de turnos y tutores en lugar de las de demostración del panel veterinario.
   SUPERADMIN: {
     subtitle: 'Panel de administración',
-    links: [...vetLinks, { label: 'Usuarios', to: { name: 'vet-usuarios' } }],
+    links: [
+      { label: 'Dashboard', to: { name: 'vet-dashboard' }, exact: true },
+      ...adminLinks.map((link) => ({ ...link, exact: false })),
+      { label: 'Agenda', to: { name: 'vet-agenda' } },
+      { label: 'Modo offline', to: { name: 'vet-offline' } },
+      { label: 'Usuarios', to: { name: 'vet-usuarios' } },
+    ],
   },
 }
 
@@ -66,7 +86,8 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
         v-for="link in panel.links"
         :key="link.label"
         :to="link.to"
-        exact-active-class="!bg-brand-accentSoft !text-brand-ink"
+        :active-class="link.exact ? '' : ACTIVE_CLASS"
+        :exact-active-class="ACTIVE_CLASS"
         class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
       >
         <span class="h-1 w-1 rounded-full bg-current" aria-hidden="true" />

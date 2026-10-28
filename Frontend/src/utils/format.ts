@@ -26,3 +26,14 @@ export function initials(name: string) {
   const letters = parts.length > 1 ? parts[0]![0]! + parts[1]![0]! : name.slice(0, 2)
   return letters.toUpperCase()
 }
+
+// Date -> "2026-10-28T14:30", el formato de <input type="datetime-local"> (hora local).
+export function toDateTimeInput(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+// "+54 9 299 400-1122" -> "5492994001122", para armar links de wa.me.
+export function whatsappNumber(phone: string) {
+  return phone.replace(/\D/g, '')
+}
