@@ -219,7 +219,7 @@ Hay una cuenta de prueba por rol. Julián, referente clínico del proyecto, es e
 | Rol              | Nombre         | Email                             | Contraseña              | Al iniciar sesión abre                       |
 | ---------------- | -------------- | --------------------------------- | ----------------------- | -------------------------------------------- |
 | `SUPERADMIN`     | Julián Paredes | `julian.paredes@vetandina.com.ar` | `VetAndina-Julian2026`  | `/panel-veterinario`                         |
-| `ADMINISTRATIVO` | Carla Méndez   | `carla.mendez@vetandina.com.ar`   | `VetAndina-Admin2026`   | `/` (todavía no hay panel administrativo)    |
+| `ADMINISTRATIVO` | Carla Méndez   | `carla.mendez@vetandina.com.ar`   | `VetAndina-Admin2026`   | `/panel-administrativo`                      |
 | `VETERINARIO`    | Martín Sosa    | `martin.sosa@vetandina.com.ar`    | `VetAndina-Vet2026`     | `/panel-veterinario`                         |
 | `CLIENTE`        | Laura Giménez  | `laura.gimenez@example.com`       | `VetAndina-Cliente2026` | `/panel`                                     |
 
@@ -258,6 +258,7 @@ El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuy
 | `npm run build` | Compila TypeScript a `dist/`.                                   |
 | `npm start`     | Inicia la aplicación compilada desde `dist/index.js`.           |
 | `npm run seed:test-users` | Crea las cuentas de prueba de cada rol que no existan. |
+| `npm run db:migrate` | Aplica las migraciones pendientes de `Backend/migrations/` y las registra en `schema_migrations`. |
 
 `server.js` es una implementación JavaScript anterior y no la utilizan los scripts del paquete. La aplicación activa es la de `src/`, con PostgreSQL (`pg`); todavía no hay un ORM instalado o configurado. Si se incorpora uno, debe integrarse en esta aplicación TypeScript y sus scripts de arranque.
 
@@ -282,6 +283,11 @@ El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuy
 | `/panel-veterinario/turnos` | `TurnosGestionView.vue`         | Confirmar, reprogramar y cancelar turnos de demostración (solo en memoria). |
 | `/panel-veterinario/offline` | `OfflineView.vue`              | Prototipo local con IndexedDB.                                       |
 | `/panel-veterinario/usuarios` | `UsersView.vue`               | Solo `SUPERADMIN`; alta real de veterinarios y administrativos vía `POST /api/users`. |
+| `/panel-administrativo` | `admin/TurnosView.vue`              | `ADMINISTRATIVO` y `SUPERADMIN`. Agenda real: crear, confirmar, reprogramar y cancelar turnos. |
+| `/panel-administrativo/tutores` | `admin/TutoresView.vue`     | Alta, búsqueda y edición de tutores. |
+| `/panel-administrativo/tutores/:id` | `admin/TutorDetailView.vue` | Datos del tutor, sus animales y alta de animales o lotes. |
+| `/panel-administrativo/fichas` | `admin/FichasView.vue`       | Búsqueda de pacientes. |
+| `/panel-administrativo/fichas/:id` | `admin/FichaView.vue`    | Ficha clínica en solo lectura. |
 
 Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú según el rol de la sesión. El modo oscuro está disponible para todos los roles desde el menú lateral: los colores de la marca son variables CSS (`Frontend/src/assets/main.css`) que la clase `.theme-dark` reemplaza, y la preferencia se guarda en el navegador (`useTheme`). Los datos de demostración del panel veterinario están en `Frontend/src/data/agendaMock.ts` y se comparten entre vistas mediante el store `agendaDemo`.
 
@@ -296,6 +302,21 @@ Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el me
 | `GET`  | `/api/auth/session`  | Valida la cookie y devuelve el identificador y rol de la sesión. |
 | `POST` | `/api/auth/logout`   | Elimina la cookie de sesión del navegador.                  |
 | `POST` | `/api/users`         | Solo `SUPERADMIN` (403 para otros roles). Crea un usuario `VETERINARIO` (con `matriculaProfesional`) o `ADMINISTRATIVO`. |
+| `GET`  | `/api/tutores?buscar=` | Personal. Lista tutores (máx. 100), con búsqueda por nombre, email, teléfono, DNI o mascota. |
+| `POST` | `/api/tutores`       | `ADMINISTRATIVO` y `SUPERADMIN`. Crea un tutor sin cuenta de usuario. |
+| `GET`  | `/api/tutores/:id`   | Personal. Tutor con sus animales y establecimientos. |
+| `PUT`  | `/api/tutores/:id`   | `ADMINISTRATIVO` y `SUPERADMIN`. Edita el tutor; el email de un tutor con cuenta no se puede cambiar desde acá. |
+| `POST` | `/api/tutores/:id/animales` | `ADMINISTRATIVO` y `SUPERADMIN`. Alta de animal o lote, con su ficha médica, en una transacción. |
+| `GET`  | `/api/animales?buscar=` | Personal. Busca pacientes por nombre del animal o del tutor (mín. 2 letras). |
+| `GET`  | `/api/animales/:id/ficha` | Personal. Ficha y evoluciones clínicas en solo lectura. |
+| `GET`  | `/api/turnos?desde&hasta&estado&veterinario` | Personal. Agenda general (rango máx. 92 días; por defecto, 7 días desde hoy). |
+| `GET`  | `/api/turnos/veterinarios` | Personal. Profesionales asignables (con matrícula). |
+| `POST` | `/api/turnos`        | `ADMINISTRATIVO` y `SUPERADMIN`. Crea un turno futuro (`PENDIENTE` o `CONFIRMADO`); rechaza el horario si el profesional ya está ocupado. |
+| `POST` | `/api/turnos/:id/confirmar` | Personal. `PENDIENTE` o `REPROGRAMADO` → `CONFIRMADO`. |
+| `POST` | `/api/turnos/:id/reprogramar` | Personal. Nueva fecha (y profesional, solo gestión) → `REPROGRAMADO`. |
+| `POST` | `/api/turnos/:id/cancelar` | Personal. → `CANCELADA`, con motivo opcional. |
+
+"Personal" son `SUPERADMIN`, `ADMINISTRATIVO` y `VETERINARIO`. En confirmar, reprogramar y cancelar, el veterinario solo puede actuar sobre los turnos asignados a él (403 en los demás); administrativo y superadmin, sobre cualquiera. Las transiciones solo se aplican si el turno sigue en el estado esperado, así un cambio simultáneo de otra persona no se pisa (409).
 
 El cuerpo del registro debe ser JSON:
 
@@ -313,7 +334,7 @@ Una solicitud correcta devuelve `201`; datos inválidos devuelven `400`; un corr
 
 **Rutas privadas:** el guard (`router.beforeEach`) revisa las rutas con `meta.requiresAuth` y toma la sesión del store Pinia `session`. Solo la primera vez (al abrir o recargar la app) la confirma con `GET /api/auth/session`, porque la cookie HttpOnly no se puede leer desde JavaScript. Sin sesión, redirige a `/login?redirect=<ruta pedida>`. Con sesión pero sin permiso para esa ruta (por ejemplo, un cliente que abre `/panel-veterinario`), muestra `/acceso-denegado` (403), con un enlace al panel propio si el rol tiene uno.
 
-Tras el login, cada rol va a su panel: `CLIENTE` a `/panel`; `VETERINARIO` y `SUPERADMIN` a `/panel-veterinario`. `ADMINISTRATIVO` todavía no tiene panel y vuelve al inicio. Si el login trae un `redirect` a una ruta que el rol no puede abrir, se ignora y se usa el panel del rol.
+Tras el login, cada rol va a su panel: `CLIENTE` a `/panel`; `VETERINARIO` y `SUPERADMIN` a `/panel-veterinario`; `ADMINISTRATIVO` a `/panel-administrativo`. Si el login trae un `redirect` a una ruta que el rol no puede abrir, se ignora y se usa el panel del rol.
 
 **Límite de intentos:** `POST /api/auth/login` admite 10 intentos fallidos cada 15 minutos por IP (los logins correctos no cuentan) y `POST /api/auth/register`, 5 registros por hora por IP. Al superarlos responde `429` con las cabeceras `RateLimit` y `RateLimit-Policy`. Los contadores viven en memoria, así que se reinician al reiniciar la API y no se comparten entre instancias. El login compara contra un hash descartable cuando el email no existe, así el tiempo de respuesta no revela qué correos están registrados.
 
@@ -327,7 +348,11 @@ El esquema de la aplicación comprende estas ocho tablas:
 
 `usuario`, `duenio`, `finca`, `animal`, `ficha_medica`, `visita`, `turno` y `evolucion_clinica`.
 
-El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de las tablas forma parte del dominio previsto, pero todavía no tiene endpoints CRUD implementados en esta API. La base debe existir previamente con su esquema y relaciones; este repositorio no incluye migraciones SQL ni seeders para crearla.
+La API escribe en `usuario`, `duenio`, `animal`, `ficha_medica` y `turno`, y lee `evolucion_clinica` y `finca`. `visita` todavía no tiene endpoints.
+
+**Migraciones:** el esquema inicial se creó a mano en Neon y no está versionado. Los cambios posteriores van en `Backend/migrations/` como archivos SQL numerados (`001_...sql`) y se aplican con `npm run db:migrate`, que registra cada uno en la tabla `schema_migrations` y no los repite. Cada migración corre en su propia transacción.
+
+- `001_turno_pendiente_y_motivos.sql`: agrega el estado `PENDIENTE` a `estado_turno` y las columnas `motivo` y `motivo_cancelacion` a `turno`. Aplicada en la base de desarrollo de Neon.
 
 ## Variables de entorno y seguridad
 
@@ -346,7 +371,8 @@ El endpoint de registro actualmente escribe en `usuario` y `duenio`. El resto de
 - **Registro desde frontend:** `/registro` envía nombre completo, email, teléfono, localidad y contraseña a `POST /api/auth/register`; presenta errores de la API y confirma el alta solo tras recibir una respuesta exitosa. El alta no inicia sesión automáticamente. La conexión real con Neon sigue pendiente de prueba en un entorno configurado.
 - **Arranque del Backend:** `npm run dev` ejecuta `src/index.ts`; `npm run build` compila a `dist/` y `npm start` inicia `dist/index.js`. `server.js` es una implementación anterior con MySQL y no forma parte de estos scripts.
 - **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`, cookie y CORS del entorno de despliegue.
-- **Pendiente de implementación:** autorización backend por rol/propietario para APIs de dominio (todavía no hay endpoints de mascotas, fichas, visitas, turnos o evoluciones), sesión revocable y sincronización clínica offline. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
+- **Panel administrativo conectado a la API:** turnos, tutores, alta de animales y lectura de fichas, con autorización por rol en el backend (`requireRole` y reglas en `turno.service.ts`).
+- **Pendiente de implementación:** acceso del tutor a sus propios animales y turnos (filtro por propietario), endpoints de visitas y evoluciones clínicas, notas administrativas, señas y pagos, sesión revocable y sincronización clínica offline. El panel veterinario (dashboard, agenda, clientes y gestión de turnos) sigue con datos de demostración. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 
 ## Contexto y planificación
