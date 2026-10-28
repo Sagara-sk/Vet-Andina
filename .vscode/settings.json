@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "npx eslint": true,
+        "npx oxlint": true,
+        "npm run dev": true,
+        "npm run build": true
+    }
+}
