@@ -38,6 +38,13 @@ const loginSchema = Joi.object({
     .required(),
 }).unknown(false);
 
+const clientProfileSchema = Joi.object({
+  dni_cuit: Joi.string().trim().min(7).max(20).pattern(/^[A-Za-z0-9-]+$/).required(),
+  tipo_persona: Joi.string().valid('INDIVIDUAL', 'EMPRESA_PRODUCTOR').required(),
+  direccion_urbana: Joi.string().trim().max(250).allow(null, '').optional(),
+  nombre_finca: Joi.string().trim().min(2).max(150).allow(null, '').optional(),
+}).unknown(false); 
+
 function clearSessionCookie(response: Parameters<RequestHandler>[1]): void {
   const { httpOnly, secure, sameSite, path } = sessionCookieOptions();
   response.clearCookie(SESSION_COOKIE_NAME, {
@@ -46,6 +53,7 @@ function clearSessionCookie(response: Parameters<RequestHandler>[1]): void {
     sameSite,
     path,
   });
+  
 }
 
 export const postLogin: RequestHandler = async (request, response) => {
@@ -167,22 +175,34 @@ export const postRegister: RequestHandler = async (request, response) => {
 export const postClientProfile: RequestHandler = async (request, response) => {
   response.set("Cache-Control", "no-store");
   const user = request.user as AuthenticatedUser;
-  const { dni_cuit, tipo_persona, direccion_urbana, nombre_finca } = request.body;
+
+  // Validar entrada
+  const { error, value } = clientProfileSchema.validate(request.body, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    response.status(400).json({
+      status: "error",
+      message: "Revisá los datos ingresados.",
+      details: error.details.map((detail) => detail.message),
+    });
+    return;
+  }
 
   try {
-    // Uso activo de las variables para cumplir con las reglas del linter y preparar la persistencia
-    console.log(`Guardando perfil para el usuario ID: ${user.userId}`, {
-      dni_cuit,
-      tipo_persona,
-      direccion_urbana,
-      nombre_finca,
+    // Usar 'value' en lugar de request.body (datos ya validados y normalizados)
+    console.log(`Usuario ${user.userId} intentó guardar perfil (pendiente persistencia)`, {
+      dni_cuit: value.dni_cuit,
+      tipo_persona: value.tipo_persona,
     });
-
-    // TODO: Conectar con tu modelo de base de datos PostgreSQL/Neon para actualizar los campos del dueño.
-
-    response.status(200).json({
-      status: "ok",
-      message: "Perfil guardado correctamente.",
+    
+    // TODO: Implementar actualización en la base de datos
+    // await updateOwnerProfile(user.userId, value);
+    
+    response.status(501).json({
+      status: "error",
+      message: "La funcionalidad de guardar perfil aún no está implementada en la base de datos.",
     });
   } catch (error) {
     console.error("Error al guardar el perfil del cliente:", error);

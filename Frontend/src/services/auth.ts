@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string
   nombreCompleto: string
   rol: string
+  dni_cuit?: string | null
 }
 
 interface AuthResponse {
@@ -84,8 +85,8 @@ export async function saveClientProfile(data: {
   direccion_urbana: string | null
   nombre_finca: string | null
 }) {
-  const response = await fetch('/api/auth/profile', {
-    method: 'POST',
+const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
