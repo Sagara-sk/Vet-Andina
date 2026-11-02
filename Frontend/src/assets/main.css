@@ -1,36 +1,198 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
-}
+@import 'tailwindcss';
+@config '../../tailwind.config.js';
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
+@layer base {
+  /* Paleta clara por defecto; .theme-dark la reemplaza dentro del panel. */
+  :root {
+    --brand-bg: #fafaf7;
+    --brand-surface: #ffffff;
+    --brand-sidebar: #f3f2ec;
+    --brand-ink: #1e211c;
+    --brand-ink-soft: #63665f;
+    --brand-line: #e1ded4;
+    --brand-muted: #efeee9;
+    --brand-accent: #34503a;
+    --brand-accent-hover: #1f3323;
+    --brand-accent-soft: #e7eee3;
+    --brand-accent-ink: #1f3323;
+    --brand-warn-soft: #f3eee2;
+    --brand-warn-ink: #7a5b1f;
+    --brand-warn-line: #e6cf9a;
+    --brand-danger: #c0392b;
+    --brand-danger-soft: #fde8e8;
+    --brand-danger-ink: #7a1f1f;
+    --brand-danger-line: #f5c6c6;
   }
-}
 
-@media (min-width: 1024px) {
+  .theme-dark {
+    --brand-bg: #161815;
+    --brand-surface: #1e211c;
+    --brand-sidebar: #1a1c18;
+    --brand-ink: #ecebe5;
+    --brand-ink-soft: #a5a89f;
+    --brand-line: #33372f;
+    --brand-muted: #2a2c27;
+    --brand-accent: #4f7a57;
+    --brand-accent-hover: #5e8c66;
+    --brand-accent-soft: #263428;
+    --brand-accent-ink: #cfe3c9;
+    --brand-warn-soft: #3a3220;
+    --brand-warn-ink: #e8cf94;
+    --brand-warn-line: #5a4a28;
+    --brand-danger: #c0392b;
+    --brand-danger-soft: #3d2222;
+    --brand-danger-ink: #f2b8b8;
+    --brand-danger-line: #5a2e2e;
+    color-scheme: dark;
+  }
+
+  html {
+    min-width: 320px;
+    scroll-behavior: smooth;
+  }
+
   body {
-    display: flex;
-    place-items: center;
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background-color: theme('colors.brand.bg');
+    color: theme('colors.brand.ink');
+    font-family: theme('fontFamily.sans');
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: 1210px;
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+
+  .section-title {
+    font-family: theme('fontFamily.serif');
+    font-size: 1.875rem;
+    line-height: 1.2;
+    color: theme('colors.brand.ink');
+  }
+
+  .btn-primary,
+  .btn-outline {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid theme('colors.brand.accent');
+    border-radius: 3px;
+    padding: 0.625rem 1.125rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    text-align: center;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease;
+  }
+
+  .btn-primary {
+    background-color: theme('colors.brand.accent');
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    border-color: theme('colors.brand.accentHover');
+    background-color: theme('colors.brand.accentHover');
+  }
+
+  .btn-outline {
+    background-color: transparent;
+    color: theme('colors.brand.ink');
+  }
+
+  .field-label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.75rem;
+    color: theme('colors.brand.inkSoft');
+  }
+
+  .field-input {
+    width: 100%;
+    border: 1px solid theme('colors.brand.line');
+    border-radius: 3px;
+    background-color: theme('colors.brand.surface');
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    color: theme('colors.brand.ink');
+    outline: none;
+  }
+
+  .field-input:focus {
+    border-color: theme('colors.brand.accent');
+  }
+
+  .field-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-outline:hover {
+    background-color: theme('colors.brand.accentSoft');
+  }
+}
+
+@media (min-width: 768px) {
+  .container-page {
+    padding-inline: 3rem;
+  }
+}
+
+@keyframes login-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-login-enter {
+  animation: login-enter 350ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
