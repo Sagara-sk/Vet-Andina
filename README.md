@@ -113,36 +113,36 @@ Vet Andina/
 
 ### Frontend
 
-| Parte                       | Ubicación                                                                                                   | Responsabilidad                                                                     |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Entrada de la aplicación    | `Frontend/src/main.ts`, `Frontend/src/App.vue`                                                              | Carga CSS, inicializa Vue, Pinia y el router; `App.vue` presenta la vista de ruta.  |
-| Navegación                  | `Frontend/src/router/index.ts`, `Frontend/src/router/access.ts`                                             | Define las rutas y el guard; `access.ts` declara qué roles abren cada panel y el destino de cada rol tras el login. |
+| Parte                       | Ubicación                                                                                                   | Responsabilidad                                                                                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entrada de la aplicación    | `Frontend/src/main.ts`, `Frontend/src/App.vue`                                                              | Carga CSS, inicializa Vue, Pinia y el router; `App.vue` presenta la vista de ruta.                                                                |
+| Navegación                  | `Frontend/src/router/index.ts`, `Frontend/src/router/access.ts`                                             | Define las rutas y el guard; `access.ts` declara qué roles abren cada panel y el destino de cada rol tras el login.                               |
 | Sesión                      | `Frontend/src/stores/session.ts`, `Frontend/src/composables/useLogout.ts`                                   | Store Pinia con el usuario verificado por la API (solo en memoria) y la acción `logout`; `useLogout` la usa para cerrar sesión y volver al login. |
-| Redirecciones de sesión     | `Frontend/src/components/Redireccion/`                                                                      | `LogoutButton.vue` (botón de cierre de sesión de ambos paneles) y `AccesoDenegado.vue` (página 403). |
-| Diseño común                | `Frontend/src/layouts/`, `Frontend/src/components/layout/`                                                  | Estructura pública y del panel, encabezado y pie de página.                         |
-| Página principal            | `Frontend/src/views/HomeView.vue`, `Frontend/src/components/home/`                                          | Vista de inicio y sus secciones.                                                    |
-| Turnos públicos             | `Frontend/src/views/TurnosView.vue`                                                                         | Vista de turnos públicos.                                                           |
-| Registro e inicio de sesión | `Frontend/src/views/RegistroView.vue`, `Frontend/src/views/LoginView.vue`, `Frontend/src/components/login/` | Registro y login conectados a la API.                                               |
-| Panel                       | `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/views/panel/`, `Frontend/src/components/panel/`       | Diseño del panel, resumen, mascotas y turnos.                                       |
-| Datos del panel             | `Frontend/src/data/panelMock.ts`                                                                            | Datos locales ilustrativos; no representan datos obtenidos de la base real.         |
-| Contenido institucional     | `Frontend/src/config/site.ts`                                                                               | Nombre, dirección, contacto y horarios que usan las secciones públicas.             |
-| Formato y estilos           | `Frontend/src/utils/format.ts`, `Frontend/src/assets/main.css`, `Frontend/tailwind.config.js`               | Formateo de datos, estilos base/componentes y tema visual.                          |
-| Herramientas de desarrollo  | `Frontend/vite.config.ts`, `Frontend/eslint.config.ts`, `Frontend/tsconfig*.json`                           | Vite y plugins, alias `@/`, análisis estático y configuración TypeScript.           |
+| Redirecciones de sesión     | `Frontend/src/components/Redireccion/`                                                                      | `LogoutButton.vue` (botón de cierre de sesión de ambos paneles) y `AccesoDenegado.vue` (página 403).                                              |
+| Diseño común                | `Frontend/src/layouts/`, `Frontend/src/components/layout/`                                                  | Estructura pública y del panel, encabezado y pie de página.                                                                                       |
+| Página principal            | `Frontend/src/views/HomeView.vue`, `Frontend/src/components/home/`                                          | Vista de inicio y sus secciones.                                                                                                                  |
+| Turnos públicos             | `Frontend/src/views/TurnosView.vue`                                                                         | Vista de turnos públicos.                                                                                                                         |
+| Registro e inicio de sesión | `Frontend/src/views/RegistroView.vue`, `Frontend/src/views/LoginView.vue`, `Frontend/src/components/login/` | Registro y login conectados a la API.                                                                                                             |
+| Panel                       | `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/views/panel/`, `Frontend/src/components/panel/`       | Diseño del panel, resumen, mascotas y turnos.                                                                                                     |
+| Datos del panel             | `Frontend/src/data/panelMock.ts`                                                                            | Datos locales ilustrativos; no representan datos obtenidos de la base real.                                                                       |
+| Contenido institucional     | `Frontend/src/config/site.ts`                                                                               | Nombre, dirección, contacto y horarios que usan las secciones públicas.                                                                           |
+| Formato y estilos           | `Frontend/src/utils/format.ts`, `Frontend/src/assets/main.css`, `Frontend/tailwind.config.js`               | Formateo de datos, estilos base/componentes y tema visual.                                                                                        |
+| Herramientas de desarrollo  | `Frontend/vite.config.ts`, `Frontend/eslint.config.ts`, `Frontend/tsconfig*.json`                           | Vite y plugins, alias `@/`, análisis estático y configuración TypeScript.                                                                         |
 
 ### Backend
 
 El backend sigue una separación por capas:
 
-| Capa            | Ubicación                                                     | Responsabilidad                                                                |
-| --------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Arranque        | `Backend/src/index.ts`                                        | Carga las variables de entorno, valida el puerto e inicia Express.             |
+| Capa            | Ubicación                                                     | Responsabilidad                                                                       |
+| --------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Arranque        | `Backend/src/index.ts`                                        | Carga las variables de entorno, valida el puerto e inicia Express.                    |
 | Aplicación HTTP | `Backend/src/app.ts`                                          | Configura CORS, JSON, cookies y proxy; monta los routers y los manejadores 404/error. |
-| Middlewares     | `Backend/src/middlewares/`                                    | Verificación de sesión, límite de intentos y respuestas de error en JSON.      |
-| Configuración   | `Backend/src/config/env.ts`, `Backend/src/config/database.ts` | Lee `Backend/.env` y configura el `Pool` compartido de PostgreSQL.             |
-| Rutas           | `Backend/src/routes/`                                         | Asocia endpoints HTTP con sus controladores.                                   |
-| Controladores   | `Backend/src/controllers/`                                    | Valida solicitudes, define los códigos de estado y las respuestas HTTP.        |
-| Servicios       | `Backend/src/services/`                                       | Implementa operaciones de aplicación, transacciones y comprobaciones de salud. |
-| Modelos         | `Backend/src/models/`                                         | Ejecuta consultas parametrizadas y mapea entidades de persistencia.            |
+| Middlewares     | `Backend/src/middlewares/`                                    | Verificación de sesión, límite de intentos y respuestas de error en JSON.             |
+| Configuración   | `Backend/src/config/env.ts`, `Backend/src/config/database.ts` | Lee `Backend/.env` y configura el `Pool` compartido de PostgreSQL.                    |
+| Rutas           | `Backend/src/routes/`                                         | Asocia endpoints HTTP con sus controladores.                                          |
+| Controladores   | `Backend/src/controllers/`                                    | Valida solicitudes, define los códigos de estado y las respuestas HTTP.               |
+| Servicios       | `Backend/src/services/`                                       | Implementa operaciones de aplicación, transacciones y comprobaciones de salud.        |
+| Modelos         | `Backend/src/models/`                                         | Ejecuta consultas parametrizadas y mapea entidades de persistencia.                   |
 
 **Flujo de registro:** `auth.routes.ts` → `auth.controller.ts` (validación Joi) → `auth.service.ts` (hash bcrypt y transacción) → `owner.model.ts` (inserciones parametrizadas en `usuario` y `duenio`) → Pool de `pg`.
 
@@ -216,12 +216,12 @@ Abrí la URL local que muestre Vite (normalmente `http://localhost:5173`). El ba
 
 Hay una cuenta de prueba por rol. Julián, referente clínico del proyecto, es el superadministrador; el resto de los datos son ficticios.
 
-| Rol              | Nombre         | Email                             | Contraseña              | Al iniciar sesión abre                       |
-| ---------------- | -------------- | --------------------------------- | ----------------------- | -------------------------------------------- |
-| `SUPERADMIN`     | Julián Paredes | `julian.paredes@vetandina.com.ar` | `VetAndina-Julian2026`  | `/panel-veterinario`                         |
-| `ADMINISTRATIVO` | Carla Méndez   | `carla.mendez@vetandina.com.ar`   | `VetAndina-Admin2026`   | `/panel-administrativo`                      |
-| `VETERINARIO`    | Martín Sosa    | `martin.sosa@vetandina.com.ar`    | `VetAndina-Vet2026`     | `/panel-veterinario`                         |
-| `CLIENTE`        | Laura Giménez  | `laura.gimenez@example.com`       | `VetAndina-Cliente2026` | `/panel`                                     |
+| Rol              | Nombre         | Email                             | Contraseña              | Al iniciar sesión abre  |
+| ---------------- | -------------- | --------------------------------- | ----------------------- | ----------------------- |
+| `SUPERADMIN`     | Julián Paredes | `julian.paredes@vetandina.com.ar` | `VetAndina-Julian2026`  | `/panel-veterinario`    |
+| `ADMINISTRATIVO` | Carla Méndez   | `carla.mendez@vetandina.com.ar`   | `VetAndina-Admin2026`   | `/panel-administrativo` |
+| `VETERINARIO`    | Martín Sosa    | `martin.sosa@vetandina.com.ar`    | `VetAndina-Vet2026`     | `/panel-veterinario`    |
+| `CLIENTE`        | Laura Giménez  | `laura.gimenez@example.com`       | `VetAndina-Cliente2026` | `/panel`                |
 
 Julián y Martín tienen matrículas ficticias (`DEMO-0001` y `DEMO-0002`). Laura tiene además su perfil de dueño (teléfono `+54 9 299 000 0001`, Cipolletti), igual que un cliente registrado desde `/registro`.
 
@@ -252,13 +252,13 @@ El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuy
 
 ### Backend (`Backend/`)
 
-| Comando         | Función                                                         |
-| --------------- | --------------------------------------------------------------- |
-| `npm run dev`   | Ejecuta `src/index.ts` con `tsx` y recarga al detectar cambios. |
-| `npm run build` | Compila TypeScript a `dist/`.                                   |
-| `npm start`     | Inicia la aplicación compilada desde `dist/index.js`.           |
-| `npm run seed:test-users` | Crea las cuentas de prueba de cada rol que no existan. |
-| `npm run db:migrate` | Aplica las migraciones pendientes de `Backend/migrations/` y las registra en `schema_migrations`. |
+| Comando                   | Función                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------- |
+| `npm run dev`             | Ejecuta `src/index.ts` con `tsx` y recarga al detectar cambios.                                   |
+| `npm run build`           | Compila TypeScript a `dist/`.                                                                     |
+| `npm start`               | Inicia la aplicación compilada desde `dist/index.js`.                                             |
+| `npm run seed:test-users` | Crea las cuentas de prueba de cada rol que no existan.                                            |
+| `npm run db:migrate`      | Aplica las migraciones pendientes de `Backend/migrations/` y las registra en `schema_migrations`. |
 
 `server.js` es una implementación JavaScript anterior y no la utilizan los scripts del paquete. La aplicación activa es la de `src/`, con PostgreSQL (`pg`); todavía no hay un ORM instalado o configurado. Si se incorpora uno, debe integrarse en esta aplicación TypeScript y sus scripts de arranque.
 
@@ -266,58 +266,70 @@ El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuy
 
 ### Rutas del frontend
 
-| Ruta              | Vista                                     | Estado                                                               |
-| ----------------- | ----------------------------------------- | -------------------------------------------------------------------- |
-| `/`               | `HomeView.vue` con `PublicLayout.vue`     | Página pública.                                                      |
-| `/turnos`         | `TurnosView.vue` con `PublicLayout.vue`   | Vista de turnos.                                                     |
-| `/login`          | `LoginView.vue`                           | Inicia sesión mediante la API y establece una cookie HttpOnly.       |
-| `/registro`       | `RegistroView.vue`                        | Envía el registro de un cliente a la API.                            |
-| `/acceso-denegado` | `AccesoDenegadoView.vue`                 | Página 403 para una sesión sin permiso sobre la ruta pedida.          |
-| `/panel`          | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.             |
-| `/panel/mascotas` | `PetsView.vue`                            | Mascotas con datos de ejemplo.                                       |
-| `/panel/reservar` | `PanelPlaceholderView.vue`                | Marcador de posición.                                                |
-| `/panel/turnos`   | `AppointmentsView.vue`                    | Turnos con datos de ejemplo.                                         |
-| `/panel-veterinario` | `DashboardView.vue` con `PanelLayout.vue` | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; agenda de demostración. |
-| `/panel-veterinario/clientes` | `ClientesView.vue`            | Clientes de demostración.                                            |
-| `/panel-veterinario/agenda` | `AgendaView.vue`                | Agenda semanal de demostración.                                      |
-| `/panel-veterinario/turnos` | `TurnosGestionView.vue`         | Confirmar, reprogramar y cancelar turnos de demostración (solo en memoria). |
-| `/panel-veterinario/offline` | `OfflineView.vue`              | Prototipo local con IndexedDB.                                       |
-| `/panel-veterinario/usuarios` | `UsersView.vue`               | Solo `SUPERADMIN`; alta real de veterinarios y administrativos vía `POST /api/users`. |
-| `/panel-administrativo` | `admin/TurnosView.vue`              | `ADMINISTRATIVO` y `SUPERADMIN`. Agenda real: crear, confirmar, reprogramar y cancelar turnos. |
-| `/panel-administrativo/tutores` | `admin/TutoresView.vue`     | Alta, búsqueda y edición de tutores. |
-| `/panel-administrativo/tutores/:id` | `admin/TutorDetailView.vue` | Datos del tutor, sus animales y alta de animales o lotes. |
-| `/panel-administrativo/fichas` | `admin/FichasView.vue`       | Búsqueda de pacientes. |
-| `/panel-administrativo/fichas/:id` | `admin/FichaView.vue`    | Ficha clínica en solo lectura. |
+| Ruta                                | Vista                                     | Estado                                                                                         |
+| ----------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `/`                                 | `HomeView.vue` con `PublicLayout.vue`     | Página pública.                                                                                |
+| `/turnos`                           | `TurnosView.vue` con `PublicLayout.vue`   | Vista de turnos.                                                                               |
+| `/login`                            | `LoginView.vue`                           | Inicia sesión mediante la API y establece una cookie HttpOnly.                                 |
+| `/registro`                         | `RegistroView.vue`                        | Envía el registro de un cliente a la API.                                                      |
+| `/acceso-denegado`                  | `AccesoDenegadoView.vue`                  | Página 403 para una sesión sin permiso sobre la ruta pedida.                                   |
+| `/panel`                            | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.                                      |
+| `/panel/mascotas`                   | `PetsView.vue`                            | Mascotas con datos de ejemplo.                                                                 |
+| `/panel/reservar`                   | `ReservaTurnoView.vue`                    | Calendario conectado a disponibilidad y solicitudes reales.                                    |
+| `/panel/turnos`                     | `AppointmentsView.vue`                    | Historial de turnos con datos de ejemplo.                                                      |
+| `/panel-veterinario`                | `DashboardView.vue` con `PanelLayout.vue` | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; agenda de demostración.                  |
+| `/panel-veterinario/clientes`       | `ClientesView.vue`                        | Clientes de demostración.                                                                      |
+| `/panel-veterinario/agenda`         | `AgendaView.vue`                          | Agenda de demostración y administración de franjas rurales reales.                             |
+| `/panel-veterinario/turnos`         | `TurnosGestionView.vue`                   | Turnos asignados reales; el veterinario confirma los pendientes propios.                       |
+| `/panel-veterinario/offline`        | `OfflineView.vue`                         | Prototipo local con IndexedDB.                                                                 |
+| `/panel-veterinario/usuarios`       | `UsersView.vue`                           | Solo `SUPERADMIN`; alta real de veterinarios y administrativos vía `POST /api/users`.          |
+| `/panel-administrativo`             | `admin/TurnosView.vue`                    | `ADMINISTRATIVO` y `SUPERADMIN`. Agenda real: crear, confirmar, reprogramar y cancelar turnos. |
+| `/panel-administrativo/tutores`     | `admin/TutoresView.vue`                   | Alta, búsqueda y edición de tutores.                                                           |
+| `/panel-administrativo/tutores/:id` | `admin/TutorDetailView.vue`               | Datos del tutor, sus animales y alta de animales o lotes.                                      |
+| `/panel-administrativo/fichas`      | `admin/FichasView.vue`                    | Búsqueda de pacientes.                                                                         |
+| `/panel-administrativo/fichas/:id`  | `admin/FichaView.vue`                     | Ficha clínica en solo lectura.                                                                 |
 
 Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú según el rol de la sesión. El modo oscuro está disponible para todos los roles desde el menú lateral: los colores de la marca son variables CSS (`Frontend/src/assets/main.css`) que la clase `.theme-dark` reemplaza, y la preferencia se guarda en el navegador (`useTheme`). Los datos de demostración del panel veterinario están en `Frontend/src/data/agendaMock.ts` y se comparten entre vistas mediante el store `agendaDemo`.
 
 ### API REST disponible
 
-| Método | Endpoint             | Descripción                                                 |
-| ------ | -------------------- | ----------------------------------------------------------- |
-| `GET`  | `/api/health`        | Confirma que la API responde.                               |
-| `GET`  | `/api/db/health`     | Ejecuta `SELECT 1` para comprobar la conexión a PostgreSQL. |
-| `POST` | `/api/auth/register` | Valida e inserta un nuevo usuario y su perfil de dueño.     |
-| `POST` | `/api/auth/login`    | Valida credenciales y establece una cookie de sesión HttpOnly. |
-| `GET`  | `/api/auth/session`  | Valida la cookie y devuelve el usuario, rol y estado de completitud del perfil. |
-| `POST` | `/api/auth/profile`  | Solo `CLIENTE`. Guarda los datos adicionales del tutor autenticado. |
-| `POST` | `/api/auth/logout`   | Elimina la cookie de sesión del navegador.                  |
-| `POST` | `/api/users`         | Solo `SUPERADMIN` (403 para otros roles). Crea un usuario `VETERINARIO` (con `matriculaProfesional`) o `ADMINISTRATIVO`. |
-| `GET`  | `/api/tutores?buscar=` | Personal. Lista tutores (máx. 100), con búsqueda por nombre, email, teléfono, DNI o mascota. |
-| `POST` | `/api/tutores`       | `ADMINISTRATIVO` y `SUPERADMIN`. Crea un tutor sin cuenta de usuario. |
-| `GET`  | `/api/tutores/:id`   | Personal. Tutor con sus animales y establecimientos. |
-| `PUT`  | `/api/tutores/:id`   | `ADMINISTRATIVO` y `SUPERADMIN`. Edita el tutor; el email de un tutor con cuenta no se puede cambiar desde acá. |
-| `POST` | `/api/tutores/:id/animales` | `ADMINISTRATIVO` y `SUPERADMIN`. Alta de animal o lote, con su ficha médica, en una transacción. |
-| `GET`  | `/api/animales?buscar=` | Personal. Busca pacientes por nombre del animal o del tutor (mín. 2 letras). |
-| `GET`  | `/api/animales/:id/ficha` | Personal. Ficha y evoluciones clínicas en solo lectura. |
-| `GET`  | `/api/turnos?desde&hasta&estado&veterinario` | Personal. Agenda general (rango máx. 92 días; por defecto, 7 días desde hoy). |
-| `GET`  | `/api/turnos/veterinarios` | Personal. Profesionales asignables (con matrícula). |
-| `POST` | `/api/turnos`        | `ADMINISTRATIVO` y `SUPERADMIN`. Crea un turno futuro (`PENDIENTE` o `CONFIRMADO`); rechaza el horario si el profesional ya está ocupado. |
-| `POST` | `/api/turnos/:id/confirmar` | Personal. `PENDIENTE` o `REPROGRAMADO` → `CONFIRMADO`. |
-| `POST` | `/api/turnos/:id/reprogramar` | Personal. Nueva fecha (y profesional, solo gestión) → `REPROGRAMADO`. |
-| `POST` | `/api/turnos/:id/cancelar` | Personal. → `CANCELADA`, con motivo opcional. |
+| Método   | Endpoint                                                         | Descripción                                                                                                                                         |
+| -------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/api/health`                                                    | Confirma que la API responde.                                                                                                                       |
+| `GET`    | `/api/db/health`                                                 | Ejecuta `SELECT 1` para comprobar la conexión a PostgreSQL.                                                                                         |
+| `POST`   | `/api/auth/register`                                             | Valida e inserta un nuevo usuario y su perfil de dueño.                                                                                             |
+| `POST`   | `/api/auth/login`                                                | Valida credenciales y establece una cookie de sesión HttpOnly.                                                                                      |
+| `GET`    | `/api/auth/session`                                              | Valida la cookie y devuelve el identificador y rol de la sesión.                                                                                    |
+| `POST`   | `/api/auth/logout`                                               | Elimina la cookie de sesión del navegador.                                                                                                          |
+| `POST`   | `/api/users`                                                     | Solo `SUPERADMIN` (403 para otros roles). Crea un usuario `VETERINARIO` (con `matriculaProfesional`) o `ADMINISTRATIVO`.                            |
+| `GET`    | `/api/tutores?buscar=`                                           | Personal. Lista tutores (máx. 100), con búsqueda por nombre, email, teléfono, DNI o mascota.                                                        |
+| `POST`   | `/api/tutores`                                                   | `ADMINISTRATIVO` y `SUPERADMIN`. Crea un tutor sin cuenta de usuario.                                                                               |
+| `GET`    | `/api/tutores/:id`                                               | Personal. Tutor con sus animales y establecimientos.                                                                                                |
+| `PUT`    | `/api/tutores/:id`                                               | `ADMINISTRATIVO` y `SUPERADMIN`. Edita el tutor; el email de un tutor con cuenta no se puede cambiar desde acá.                                     |
+| `POST`   | `/api/tutores/:id/animales`                                      | `ADMINISTRATIVO` y `SUPERADMIN`. Alta de animal o lote, con su ficha médica, en una transacción.                                                    |
+| `GET`    | `/api/animales?buscar=`                                          | Personal. Busca pacientes por nombre del animal o del tutor (mín. 2 letras).                                                                        |
+| `GET`    | `/api/animales/:id/ficha`                                        | Personal. Ficha y evoluciones clínicas en solo lectura.                                                                                             |
+| `GET`    | `/api/animales/mios`                                             | `CLIENTE`. Animales propios para solicitar turnos.                                                                                                  |
+| `GET`    | `/api/turnos/disponibilidad?desde&hasta&modalidad&idVeterinario` | Usuario autenticado. Días y horarios libres (rango máx. 62 días); un veterinario omitido consulta disponibilidad conjunta.                          |
+| `GET`    | `/api/turnos/mios`                                               | `CLIENTE`. Turnos de su cuenta.                                                                                                                     |
+| `POST`   | `/api/turnos/solicitudes`                                        | `CLIENTE`. Solicita un turno para uno de sus animales; el servidor valida disponibilidad y asigna un profesional libre. Estado inicial `PENDIENTE`. |
+| `GET`    | `/api/turnos?desde&hasta&estado&veterinario`                     | Personal. Agenda general (rango máx. 92 días; por defecto, 7 días desde hoy).                                                                       |
+| `GET`    | `/api/turnos/veterinarios`                                       | Usuarios autenticados. Profesionales asignables (con matrícula).                                                                                    |
+| `POST`   | `/api/turnos`                                                    | `ADMINISTRATIVO` y `SUPERADMIN`. Crea un turno futuro (`PENDIENTE` o `CONFIRMADO`); rechaza el horario si el profesional ya está ocupado.           |
+| `PUT`    | `/api/turnos/:id/asignar`                                        | `ADMINISTRATIVO` y `SUPERADMIN`. Asigna o reasigna el profesional, validando conflictos de horario.                                                 |
+| `POST`   | `/api/turnos/:id/confirmar`                                      | Personal. `PENDIENTE` o `REPROGRAMADO` → `CONFIRMADO`.                                                                                              |
+| `POST`   | `/api/turnos/:id/reprogramar`                                    | Personal. Nueva fecha (y profesional, solo gestión) → `REPROGRAMADO`.                                                                               |
+| `POST`   | `/api/turnos/:id/cancelar`                                       | Personal. → `CANCELADA`, con motivo opcional.                                                                                                       |
+| `GET`    | `/api/turnos/disponibilidad-rural?desde&hasta&veterinario`       | Personal. Franjas rurales publicadas para la hoja de ruta.                                                                                          |
+| `POST`   | `/api/turnos/disponibilidad-rural`                               | Personal. Publica una franja rural de 60 a 120 minutos; el veterinario solo puede publicar en su agenda.                                            |
+| `DELETE` | `/api/turnos/disponibilidad-rural/:id`                           | Personal. Quita una franja rural que no tenga turno reservado.                                                                                      |
+| `GET`    | `/api/turnos/feriados?desde&hasta`                               | `ADMINISTRATIVO` y `SUPERADMIN`. Feriados configurados.                                                                                             |
+| `POST`   | `/api/turnos/feriados`                                           | `ADMINISTRATIVO` y `SUPERADMIN`. Crea o actualiza un día no laborable.                                                                              |
+| `DELETE` | `/api/turnos/feriados/:fecha`                                    | `ADMINISTRATIVO` y `SUPERADMIN`. Quita un feriado configurado.                                                                                      |
 
 "Personal" son `SUPERADMIN`, `ADMINISTRATIVO` y `VETERINARIO`. En confirmar, reprogramar y cancelar, el veterinario solo puede actuar sobre los turnos asignados a él (403 en los demás); administrativo y superadmin, sobre cualquiera. Las transiciones solo se aplican si el turno sigue en el estado esperado, así un cambio simultáneo de otra persona no se pisa (409).
+
+La agenda pública ofrece turnos de consultorio de lunes a viernes de 08:30 a 12:30 y de 16:00 a 20:00, y los sábados de 09:00 a 13:00, en franjas de 30 minutos. Domingos y feriados configurados no ofrecen horarios. La modalidad rural solo muestra franjas que un veterinario haya publicado previamente de lunes a viernes; cada bloque dura entre 60 y 120 minutos. Las fechas y horarios se interpretan en `America/Argentina/Buenos_Aires`. La disponibilidad se vuelve a validar transaccionalmente al reservar; los turnos de un cliente quedan `PENDIENTE` hasta que personal o el veterinario asignado los confirme. Administración puede asignar o reasignar profesionales. Para habilitar estas funciones, aplicar `Backend/migrations/002_agenda_publica_y_rural.sql` con `npm run db:migrate` desde `Backend/`.
 
 El cuerpo del registro debe ser JSON:
 
@@ -370,13 +382,12 @@ La API escribe en `usuario`, `duenio`, `animal`, `ficha_medica` y `turno`, y lee
 
 ## Estado funcional actual
 
-- **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guards frontend por rol (cliente; veterinario o superadministrador), límite de intentos en login y registro, respuestas de error JSON y endpoints de salud.
-- **Perfil de cliente:** el formulario de datos adicionales se exige al cliente hasta guardar DNI/CUIT y tipo de persona (y finca para productores). La completitud se obtiene desde el perfil persistido, tanto en el login como al restaurar la sesión.
+- **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guards frontend por rol, límites de intentos en login y registro, endpoints de salud y flujo de agenda con solicitud de clientes, disponibilidad urbana/rural, aceptación de turnos y asignación administrativa (requiere aplicar las migraciones).
 - **Registro desde frontend:** `/registro` envía nombre completo, email, teléfono, localidad y contraseña a `POST /api/auth/register`; presenta errores de la API y confirma el alta solo tras recibir una respuesta exitosa. El alta no inicia sesión automáticamente. La conexión real con Neon sigue pendiente de prueba en un entorno configurado.
 - **Arranque del Backend:** `npm run dev` ejecuta `src/index.ts`; `npm run build` compila a `dist/` y `npm start` inicia `dist/index.js`. `server.js` es una implementación anterior con MySQL y no forma parte de estos scripts.
 - **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`, cookie y CORS del entorno de despliegue.
-- **Panel administrativo conectado a la API:** turnos, tutores, alta de animales y lectura de fichas, con autorización por rol en el backend (`requireRole` y reglas en `turno.service.ts`).
-- **Pendiente de implementación:** acceso del tutor a sus propios animales y turnos (filtro por propietario), endpoints de visitas y evoluciones clínicas, notas administrativas, señas y pagos, sesión revocable y sincronización clínica offline. El panel veterinario (dashboard, agenda, clientes y gestión de turnos) sigue con datos de demostración. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
+- **Panel administrativo conectado a la API:** turnos, asignación/reasignación, feriados, hoja de ruta rural, tutores, alta de animales y lectura de fichas, con autorización por rol en el backend.
+- **Pendiente de implementación:** endpoints de visitas y evoluciones clínicas, notas administrativas, señas y pagos, sesión revocable y sincronización clínica offline. El dashboard y varias secciones del panel veterinario siguen siendo demostrativos; la gestión de sus turnos asignados y la hoja de ruta rural usan la API. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 
 ## Contexto y planificación

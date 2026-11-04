@@ -6,7 +6,7 @@ import { site } from '@/config/site'
 <template>
   <main class="border-b border-brand-line">
     <div class="container-page py-20 md:py-24">
-      <div class="max-w-[540px]">
+      <div class="max-w-135">
         <h1 class="font-serif text-4xl text-brand-ink">Reservar turno</h1>
         <p class="mt-6 leading-7 text-brand-inkSoft">
           Estamos terminando el sistema de turnos en línea. Mientras tanto, podés pedir tu turno por
