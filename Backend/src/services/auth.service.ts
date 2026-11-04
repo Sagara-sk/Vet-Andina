@@ -5,8 +5,11 @@ import { db } from "../config/database";
 import {
   findUserCredentialsByEmail,
   insertOwnerAccount,
+  updateOwnerProfile,
+  type OwnerProfileInput,
   type OwnerAccountRecord,
 } from "../models/owner.model";
+import { NotFoundError } from "./errors";
 
 const sessionTtlSeconds = Number(process.env.AUTH_SESSION_TTL_SECONDS ?? 28800);
 
@@ -25,6 +28,7 @@ export interface AuthenticatedUser {
   fullName: string;
   email: string;
   role: string;
+  profileComplete: boolean;
 }
 
 export class InvalidCredentialsError extends Error {
@@ -67,6 +71,7 @@ export async function authenticateUser(
     fullName: user.fullName,
     email: user.email,
     role: user.role,
+    profileComplete: user.profileComplete,
   };
 }
 
@@ -174,6 +179,29 @@ export async function registerOwner(
       throw new RegistrationConflictError();
     }
 
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function saveOwnerProfile(
+  userId: string,
+  input: OwnerProfileInput,
+): Promise<void> {
+  const client: PoolClient = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+    const updated = await updateOwnerProfile(client, userId, input);
+
+    if (!updated) throw new NotFoundError("No se encontró el perfil del tutor.");
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch((rollbackError: unknown) => {
+      console.error("No se pudo revertir la actualización del perfil:", rollbackError);
+    });
     throw error;
   } finally {
     client.release();

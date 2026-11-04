@@ -299,7 +299,8 @@ Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el me
 | `GET`  | `/api/db/health`     | Ejecuta `SELECT 1` para comprobar la conexión a PostgreSQL. |
 | `POST` | `/api/auth/register` | Valida e inserta un nuevo usuario y su perfil de dueño.     |
 | `POST` | `/api/auth/login`    | Valida credenciales y establece una cookie de sesión HttpOnly. |
-| `GET`  | `/api/auth/session`  | Valida la cookie y devuelve el identificador y rol de la sesión. |
+| `GET`  | `/api/auth/session`  | Valida la cookie y devuelve el usuario, rol y estado de completitud del perfil. |
+| `POST` | `/api/auth/profile`  | Solo `CLIENTE`. Guarda los datos adicionales del tutor autenticado. |
 | `POST` | `/api/auth/logout`   | Elimina la cookie de sesión del navegador.                  |
 | `POST` | `/api/users`         | Solo `SUPERADMIN` (403 para otros roles). Crea un usuario `VETERINARIO` (con `matriculaProfesional`) o `ADMINISTRATIVO`. |
 | `GET`  | `/api/tutores?buscar=` | Personal. Lista tutores (máx. 100), con búsqueda por nombre, email, teléfono, DNI o mascota. |
@@ -333,6 +334,8 @@ El cuerpo del registro debe ser JSON:
 Una solicitud correcta devuelve `201`; datos inválidos devuelven `400`; un correo duplicado devuelve `409`; un error inesperado devuelve `500`. El registro no inicia sesión automáticamente. El login recibe `{ "email": "...", "contrasena": "..." }`, devuelve `401` si las credenciales no son válidas y establece una cookie `HttpOnly`; el JWT no se devuelve en el cuerpo ni se guarda en `localStorage`. La cookie dura ocho horas por defecto.
 
 **Rutas privadas:** el guard (`router.beforeEach`) revisa las rutas con `meta.requiresAuth` y toma la sesión del store Pinia `session`. Solo la primera vez (al abrir o recargar la app) la confirma con `GET /api/auth/session`, porque la cookie HttpOnly no se puede leer desde JavaScript. Sin sesión, redirige a `/login?redirect=<ruta pedida>`. Con sesión pero sin permiso para esa ruta (por ejemplo, un cliente que abre `/panel-veterinario`), muestra `/acceso-denegado` (403), con un enlace al panel propio si el rol tiene uno.
+
+Al acceder al panel, los clientes con DNI/CUIT o tipo de persona pendientes son enviados a `/panel/perfil` hasta completar el formulario. Para productores también se requiere una finca. La API calcula este estado con los datos persistidos del tutor cada vez que inicia o restaura una sesión; por eso un perfil completo cargado por personal administrativo no vuelve a pedir el formulario.
 
 Tras el login, cada rol va a su panel: `CLIENTE` a `/panel`; `VETERINARIO` y `SUPERADMIN` a `/panel-veterinario`; `ADMINISTRATIVO` a `/panel-administrativo`. Si el login trae un `redirect` a una ruta que el rol no puede abrir, se ignora y se usa el panel del rol.
 
@@ -368,6 +371,7 @@ La API escribe en `usuario`, `duenio`, `animal`, `ficha_medica` y `turno`, y lee
 ## Estado funcional actual
 
 - **Implementado en código:** navegación pública, registro transaccional, hash de contraseñas, login/logout/verificación de sesión mediante cookie HttpOnly, guards frontend por rol (cliente; veterinario o superadministrador), límite de intentos en login y registro, respuestas de error JSON y endpoints de salud.
+- **Perfil de cliente:** el formulario de datos adicionales se exige al cliente hasta guardar DNI/CUIT y tipo de persona (y finca para productores). La completitud se obtiene desde el perfil persistido, tanto en el login como al restaurar la sesión.
 - **Registro desde frontend:** `/registro` envía nombre completo, email, teléfono, localidad y contraseña a `POST /api/auth/register`; presenta errores de la API y confirma el alta solo tras recibir una respuesta exitosa. El alta no inicia sesión automáticamente. La conexión real con Neon sigue pendiente de prueba en un entorno configurado.
 - **Arranque del Backend:** `npm run dev` ejecuta `src/index.ts`; `npm run build` compila a `dist/` y `npm start` inicia `dist/index.js`. `server.js` es una implementación anterior con MySQL y no forma parte de estos scripts.
 - **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`, cookie y CORS del entorno de despliegue.

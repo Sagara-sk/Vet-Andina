@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string
   nombreCompleto: string
   rol: string
+  profileComplete: boolean
 }
 
 interface AuthResponse {
@@ -75,5 +76,38 @@ export async function logout(): Promise<void> {
   if (!response.ok) {
     const result = (await response.json().catch(() => null)) as { message?: string } | null
     throw new Error(result?.message ?? 'No fue posible cerrar sesión.')
+  }
+}
+
+export async function saveClientProfile(data: {
+  dni_cuit: string
+  tipo_persona: 'INDIVIDUAL' | 'EMPRESA_PRODUCTOR'
+  direccion_urbana: string | null
+  nombre_finca: string | null
+}): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
+
+  const result = (await response.json().catch(() => null)) as {
+    message?: unknown
+    profileComplete?: unknown
+  } | null
+
+  if (!response.ok) {
+    const errorMsg =
+      typeof result?.message === 'string'
+        ? result.message
+        : `Error al guardar el perfil (Código: ${response.status})`
+    throw new Error(errorMsg)
+  }
+
+  if (result?.profileComplete !== true) {
+    throw new Error('El servidor no confirmó que el perfil esté completo.')
   }
 }
