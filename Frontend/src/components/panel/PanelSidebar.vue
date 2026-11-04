@@ -74,7 +74,7 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
 <template>
   <aside
     v-if="panel"
-    class="flex flex-col border-b border-brand-line bg-brand-sidebar px-6 py-6 md:sticky md:top-0 md:h-screen md:w-[234px] md:shrink-0 md:border-b-0 md:border-r md:py-8"
+    class="flex flex-col border-b border-brand-line bg-brand-sidebar px-6 py-6 md:sticky md:top-0 md:h-screen md:w-58.5 md:shrink-0 md:border-b-0 md:border-r md:py-8"
   >
     <RouterLink to="/" class="block">
       <span class="block font-serif text-xl text-brand-ink">Vet Andina</span>

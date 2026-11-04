@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import PublicLayout from '../layouts/PublicLayout.vue'
 import HomeView from '../views/HomeView.vue'
 
-const PanelPlaceholderView = () => import('../views/panel/PanelPlaceholderView.vue')
 import LoginView from '../views/LoginView.vue'
 import RegistroView from '../views/RegistroView.vue'
 import { useSessionStore } from '@/stores/session'
@@ -48,7 +47,7 @@ const router = createRouter({
         {
           path: 'reservar',
           name: 'panel-reservar',
-          component: PanelPlaceholderView,
+          component: () => import('../views/panel/ReservaTurnoView.vue'),
           meta: { title: 'Reservar turno' },
         },
         {

@@ -1,178 +1,150 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import TurnoActionModal, { type TipoModal } from '@/components/veterinario/TurnoActionModal.vue'
-import TurnoEstadoBadge from '@/components/veterinario/TurnoEstadoBadge.vue'
-import type { TurnoDemo, TurnoEstado } from '@/data/agendaMock'
-import { useAgendaDemoStore } from '@/stores/agendaDemo'
+import { computed, onMounted, ref } from 'vue'
+import { confirmTurno, listTurnos, type Turno } from '@/services/turnos'
 import { useSessionStore } from '@/stores/session'
-import { formatShortDate } from '@/utils/format'
 
-const agenda = useAgendaDemoStore()
+const DAY_MS = 24 * 60 * 60 * 1000
 const session = useSessionStore()
+const turnos = ref<Turno[]>([])
+const loading = ref(false)
+const confirmandoId = ref('')
+const error = ref('')
+const feedback = ref('')
+const today = new Date()
+today.setHours(0, 0, 0, 0)
+const until = new Date(today.getTime() + 61 * DAY_MS)
 
-const busqueda = ref('')
-const filtroEstado = ref<TurnoEstado | ''>('')
-const modal = ref<{ turno: TurnoDemo; tipo: TipoModal } | null>(null)
-const feedbackOk = ref('')
-
-const ESTADOS: { value: TurnoEstado | ''; label: string }[] = [
-  { value: '', label: 'Todos' },
-  { value: 'pendiente', label: 'Por confirmar' },
-  { value: 'confirmado', label: 'Confirmados' },
-  { value: 'atendido', label: 'Atendidos' },
-  { value: 'cancelado', label: 'Cancelados' },
-]
-
-const tutor = (turno: TurnoDemo) => agenda.cliente(turno.idCliente)?.nombreCompleto ?? '—'
-
-const filtrados = computed(() => {
-  const texto = busqueda.value.trim().toLowerCase()
-
-  return agenda.turnos
-    .filter((t) => !filtroEstado.value || t.estado === filtroEstado.value)
-    .filter(
-      (t) =>
-        !texto ||
-        t.animal.toLowerCase().includes(texto) ||
-        tutor(t).toLowerCase().includes(texto) ||
-        t.motivo.toLowerCase().includes(texto),
-    )
-    .sort((a, b) => a.fechaHora.getTime() - b.fechaHora.getTime())
+const pendientes = computed(() =>
+  turnos.value.filter((turno) => turno.status === 'PENDIENTE' || turno.status === 'REPROGRAMADO'),
+)
+const dateFormat = new Intl.DateTimeFormat('es-AR', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'America/Argentina/Buenos_Aires',
 })
 
-const editable = (turno: TurnoDemo) =>
-  (turno.estado === 'pendiente' || turno.estado === 'confirmado') && agenda.puedeModificar(turno)
+async function loadAppointments() {
+  const vetId = session.user?.id
+  if (!vetId) {
+    error.value = 'No se pudo identificar al veterinario de la sesión.'
+    return
+  }
 
-const esVeterinario = computed(() => session.user?.rol === 'VETERINARIO')
-
-function mostrarFeedback(mensaje: string) {
-  modal.value = null
-  feedbackOk.value = mensaje
-
-  setTimeout(() => {
-    feedbackOk.value = ''
-  }, 4000)
+  loading.value = true
+  error.value = ''
+  try {
+    turnos.value = await listTurnos({ desde: today, hasta: until, veterinario: vetId })
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No fue posible cargar tus turnos.'
+  } finally {
+    loading.value = false
+  }
 }
 
-function confirmar(turno: TurnoDemo) {
-  agenda.confirmar(turno.id)
-  mostrarFeedback(`Turno de ${turno.animal} confirmado`)
+async function confirmAppointment(turno: Turno) {
+  confirmandoId.value = turno.id
+  error.value = ''
+  feedback.value = ''
+  try {
+    await confirmTurno(turno.id)
+    feedback.value = `Turno de ${turno.animal.name} confirmado.`
+    await loadAppointments()
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'No fue posible confirmar el turno.'
+  } finally {
+    confirmandoId.value = ''
+  }
 }
+
+onMounted(loadAppointments)
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1210px] text-brand-ink">
-    <h1 class="font-serif text-[1.6rem]">Gestión de turnos</h1>
-    <p class="mt-2 text-xs text-brand-inkSoft" role="note">
-      Vista de demostración. Los cambios se guardan solo en memoria y se pierden al recargar.
-    </p>
-    <p v-if="esVeterinario" class="mt-1 text-xs text-brand-inkSoft">
-      Ves la agenda general, pero solo podés modificar los turnos asignados a vos.
-    </p>
-
-    <div class="mt-7 flex flex-wrap items-center gap-3">
-      <input
-        v-model="busqueda"
-        type="search"
-        placeholder="Buscar por mascota, tutor o motivo"
-        aria-label="Buscar turnos"
-        class="w-[280px] max-w-full rounded-sm border border-brand-line bg-brand-surface px-3 py-2.5 text-sm outline-none focus:border-brand-accent"
-      />
-      <div class="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por estado">
-        <button
-          v-for="estado in ESTADOS"
-          :key="estado.value"
-          type="button"
-          class="rounded-full border px-3 py-1.5 text-xs"
-          :class="
-            filtroEstado === estado.value
-              ? 'border-brand-accent bg-brand-accentSoft text-brand-accentInk'
-              : 'border-brand-line bg-brand-surface text-brand-inkSoft'
-          "
-          :aria-pressed="filtroEstado === estado.value"
-          @click="filtroEstado = estado.value"
-        >
-          {{ estado.label }}
-        </button>
+  <section class="mx-auto max-w-5xl text-brand-ink">
+    <header class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 class="font-serif text-3xl">Turnos asignados</h1>
+        <p class="mt-2 text-sm text-brand-inkSoft">
+          Revisá tus próximas consultas y confirmá las solicitudes pendientes.
+        </p>
       </div>
-    </div>
+      <button type="button" class="btn-outline" :disabled="loading" @click="loadAppointments">
+        Actualizar
+      </button>
+    </header>
 
-    <div
-      v-if="feedbackOk"
-      class="mt-5 rounded-lg bg-brand-accentSoft px-4 py-3 text-sm text-brand-accentInk"
+    <p
+      v-if="feedback"
+      class="mt-5 rounded border border-brand-accent bg-brand-accentSoft px-4 py-3 text-sm text-brand-accentInk"
       role="status"
     >
-      ✅ {{ feedbackOk }}
-    </div>
+      {{ feedback }}
+    </p>
+    <p
+      v-if="error"
+      class="mt-5 rounded border border-brand-dangerLine bg-brand-dangerSoft px-4 py-3 text-sm text-brand-dangerInk"
+      role="alert"
+    >
+      {{ error }}
+    </p>
 
-    <div class="mt-5 overflow-x-auto rounded border border-brand-line bg-brand-surface">
-      <table class="w-full min-w-[820px] text-left text-sm">
-        <thead class="text-xs text-brand-inkSoft">
-          <tr>
-            <th class="px-4 py-3 font-normal">Fecha</th>
-            <th class="px-4 py-3 font-normal">Paciente</th>
-            <th class="px-4 py-3 font-normal">Motivo</th>
-            <th class="px-4 py-3 font-normal">Veterinario</th>
-            <th class="px-4 py-3 font-normal">Estado</th>
-            <th class="px-4 py-3 font-normal"><span class="sr-only">Acciones</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="turno in filtrados" :key="turno.id" class="border-t border-brand-line align-top">
-            <td class="whitespace-nowrap px-4 py-3.5">{{ formatShortDate(turno.fechaHora) }}</td>
-            <td class="px-4 py-3.5">
-              {{ turno.animal }}
-              <p class="mt-0.5 text-xs text-brand-inkSoft">{{ tutor(turno) }}</p>
-            </td>
-            <td class="px-4 py-3.5">
-              {{ turno.motivo }}
-              <p v-if="turno.motivoCancelacion" class="mt-0.5 text-xs text-brand-dangerInk">
-                {{ turno.motivoCancelacion }}
-              </p>
-            </td>
-            <td class="px-4 py-3.5">{{ turno.veterinario }}</td>
-            <td class="px-4 py-3.5"><TurnoEstadoBadge :estado="turno.estado" /></td>
-            <td class="px-4 py-3.5">
-              <div v-if="editable(turno)" class="flex justify-end gap-1.5">
-                <button
-                  v-if="turno.estado === 'pendiente'"
-                  type="button"
-                  class="rounded-md border border-brand-accentSoft bg-brand-accentSoft px-2.5 py-1 text-xs text-brand-accentInk hover:opacity-80"
-                  @click="confirmar(turno)"
-                >
-                  Confirmar
-                </button>
-                <button
-                  type="button"
-                  class="rounded-md border border-brand-line px-2.5 py-1 text-xs text-brand-inkSoft hover:opacity-80"
-                  @click="modal = { turno, tipo: 'reprogramar' }"
-                >
-                  Reprogramar
-                </button>
-                <button
-                  type="button"
-                  class="rounded-md border border-brand-dangerLine bg-brand-dangerSoft px-2.5 py-1 text-xs text-brand-dangerInk hover:opacity-80"
-                  @click="modal = { turno, tipo: 'cancelar' }"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p v-if="filtrados.length === 0" class="px-5 py-6 text-center text-sm text-brand-inkSoft">
-        No hay turnos que coincidan con la búsqueda.
+    <div class="mt-6 rounded-lg border border-brand-line bg-brand-surface p-5">
+      <h2 class="font-semibold">Solicitudes por confirmar ({{ pendientes.length }})</h2>
+      <p v-if="loading" class="mt-4 text-sm text-brand-inkSoft">Cargando tus turnos...</p>
+      <p v-else-if="!pendientes.length" class="mt-4 text-sm text-brand-inkSoft">
+        No tenés solicitudes pendientes asignadas.
       </p>
+      <ul v-else class="mt-4 divide-y divide-brand-line border-y border-brand-line">
+        <li
+          v-for="turno in pendientes"
+          :key="turno.id"
+          class="flex flex-wrap items-center justify-between gap-4 py-4"
+        >
+          <div class="min-w-0">
+            <p class="font-medium">{{ turno.animal.name }} · {{ turno.animal.species }}</p>
+            <p class="mt-1 text-sm text-brand-inkSoft">
+              {{ dateFormat.format(new Date(turno.dateTime)) }} · {{ turno.durationMinutes }} min
+            </p>
+            <p class="mt-1 text-sm text-brand-inkSoft">
+              Tutor: {{ turno.tutor.fullName }}
+              <span v-if="turno.tutor.phone"> · {{ turno.tutor.phone }}</span>
+            </p>
+            <p v-if="turno.reason" class="mt-1 text-sm">{{ turno.reason }}</p>
+            <span class="mt-2 inline-block text-xs font-medium text-brand-accentInk">
+              {{ turno.status === 'REPROGRAMADO' ? 'Reprogramado' : 'Pendiente de aceptación' }}
+            </span>
+          </div>
+          <button
+            type="button"
+            class="btn-primary shrink-0"
+            :disabled="confirmandoId === turno.id"
+            @click="confirmAppointment(turno)"
+          >
+            {{ confirmandoId === turno.id ? 'Confirmando...' : 'Aceptar turno' }}
+          </button>
+        </li>
+      </ul>
     </div>
 
-    <TurnoActionModal
-      v-if="modal"
-      :turno="modal.turno"
-      :tipo="modal.tipo"
-      @close="modal = null"
-      @done="mostrarFeedback"
-    />
-  </div>
+    <div class="mt-6 rounded-lg border border-brand-line bg-brand-surface p-5">
+      <h2 class="font-semibold">Agenda próxima</h2>
+      <p v-if="loading" class="mt-4 text-sm text-brand-inkSoft">Cargando tus turnos...</p>
+      <p v-else-if="!turnos.length" class="mt-4 text-sm text-brand-inkSoft">
+        No tenés turnos asignados para los próximos 60 días.
+      </p>
+      <ul v-else class="mt-4 divide-y divide-brand-line border-y border-brand-line">
+        <li
+          v-for="turno in turnos"
+          :key="turno.id"
+          class="flex flex-wrap justify-between gap-3 py-3 text-sm"
+        >
+          <span>
+            {{ dateFormat.format(new Date(turno.dateTime)) }} · {{ turno.animal.name }} ·
+            {{ turno.modality === 'RURAL' ? 'Rural' : 'Consultorio' }}
+          </span>
+          <span class="text-brand-inkSoft">{{ turno.status.replace('_', ' ') }}</span>
+        </li>
+      </ul>
+    </div>
+  </section>
 </template>
