@@ -27,6 +27,7 @@ No confundir el acceso amplio de profesionales a historias con el acceso de clie
 ## Arquitectura y tecnologías objetivo
 
 - **Frontend:** Vue 3 Composition API, TypeScript, Tailwind CSS, Pinia, Vue Router con guards y ESLint/Prettier. Diseñar para móvil y escritorio.
+- **Tema visual:** todas las nuevas vistas y secciones de los paneles deben adaptarse al tema claro/oscuro elegido desde el menú lateral. Usar los tokens `brand-*` para fondos, texto, bordes y estados semánticos; evitar colores fijos como `bg-white`, `text-gray-*`, `bg-red-*` o `text-green-*` en contenido del panel. Consultar `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/components/panel/PanelSidebar.vue`, `Frontend/src/composables/useTheme.ts` y `Frontend/src/assets/main.css` antes de cambiar este comportamiento.
 - **Persistencia offline:** almacenamiento local apropiado (la estrategia a evaluar incluye IndexedDB) y sincronización explícita al recuperar conectividad.
 - **Backend:** API REST en Node.js, Express y TypeScript. Las reglas de negocio, validación y autorización pertenecen al servidor.
 - **Autenticación:** JWT en cookies seguras `HttpOnly`, `Secure` y `SameSite=Strict`, según las condiciones de despliegue; evitar tokens en almacenamiento accesible por JavaScript. Proteger y configurar CORS/CSRF de acuerdo con el flujo real.

@@ -23,6 +23,7 @@ export interface UserCredentialsRecord {
   email: string;
   passwordHash: string;
   role: string;
+  profileComplete: boolean;
 }
 
 export interface AuthenticatedUserRecord {
@@ -30,20 +31,47 @@ export interface AuthenticatedUserRecord {
   fullName: string;
   email: string;
   role: string;
+  profileComplete: boolean;
+}
+
+interface AuthenticatedUserRow {
+  id_usuario: string;
+  nombre_completo: string;
+  email: string;
+  rol: string;
+  perfil_completo: boolean;
+}
+
+const AUTHENTICATED_USER_COLUMNS = `
+  u.id_usuario, u.nombre_completo, u.email, u.rol,
+  CASE
+    WHEN u.rol <> 'CLIENTE' THEN TRUE
+    WHEN d.dni_cuit IS NULL OR btrim(d.dni_cuit) = '' OR d.tipo_persona IS NULL THEN FALSE
+    WHEN d.tipo_persona = 'EMPRESA_PRODUCTOR' AND NOT EXISTS (
+      SELECT 1 FROM finca f
+      WHERE f.id_duenio = d.id_duenio AND length(btrim(f.nombre_finca)) >= 2
+    ) THEN FALSE
+    ELSE TRUE
+  END AS perfil_completo`;
+
+function toAuthenticatedUser(row: AuthenticatedUserRow): AuthenticatedUserRecord {
+  return {
+    userId: row.id_usuario,
+    fullName: row.nombre_completo,
+    email: row.email,
+    role: row.rol,
+    profileComplete: row.perfil_completo,
+  };
 }
 
 export async function findAuthenticatedUserById(
   userId: string,
 ): Promise<AuthenticatedUserRecord | undefined> {
-  const result = await db.query<{
-    id_usuario: string;
-    nombre_completo: string;
-    email: string;
-    rol: string;
-  }>(
-    `SELECT id_usuario, nombre_completo, email, rol
-     FROM usuario
-     WHERE id_usuario = $1
+  const result = await db.query<AuthenticatedUserRow>(
+    `SELECT ${AUTHENTICATED_USER_COLUMNS}
+     FROM usuario u
+     LEFT JOIN duenio d ON d.id_usuario = u.id_usuario
+     WHERE u.id_usuario = $1
      LIMIT 1`,
     [userId],
   );
@@ -51,12 +79,7 @@ export async function findAuthenticatedUserById(
 
   if (!user) return undefined;
 
-  return {
-    userId: user.id_usuario,
-    fullName: user.nombre_completo,
-    email: user.email,
-    role: user.rol,
-  };
+  return toAuthenticatedUser(user);
 }
 
 export async function findUserCredentialsByEmail(
@@ -68,10 +91,12 @@ export async function findUserCredentialsByEmail(
     email: string;
     password_hash: string;
     rol: string;
+    perfil_completo: boolean;
   }>(
-    `SELECT id_usuario, nombre_completo, email, password_hash, rol
-     FROM usuario
-     WHERE email = $1
+    `SELECT ${AUTHENTICATED_USER_COLUMNS}, u.password_hash
+     FROM usuario u
+     LEFT JOIN duenio d ON d.id_usuario = u.id_usuario
+     WHERE u.email = $1
      LIMIT 1`,
     [email],
   );
@@ -85,7 +110,46 @@ export async function findUserCredentialsByEmail(
     email: user.email,
     passwordHash: user.password_hash,
     role: user.rol,
+    profileComplete: user.perfil_completo,
   };
+}
+
+export interface OwnerProfileInput {
+  dniCuit: string;
+  address: string | null;
+  personType: "INDIVIDUAL" | "EMPRESA_PRODUCTOR";
+  farmName: string | null;
+}
+
+export async function updateOwnerProfile(
+  client: PoolClient,
+  userId: string,
+  input: OwnerProfileInput,
+): Promise<boolean> {
+  const ownerResult = await client.query<{ id_duenio: string; localidad: string }>(
+    `UPDATE duenio
+     SET dni_cuit = $2, direccion_urbana = $3, tipo_persona = $4
+     WHERE id_usuario = $1
+     RETURNING id_duenio, localidad`,
+    [userId, input.dniCuit, input.address, input.personType],
+  );
+  const owner = ownerResult.rows[0];
+
+  if (!owner) return false;
+
+  if (input.farmName) {
+    await client.query(
+      `INSERT INTO finca (id_duenio, nombre_finca, localidad)
+       SELECT $1, $2, $3
+       WHERE NOT EXISTS (
+         SELECT 1 FROM finca
+         WHERE id_duenio = $1 AND lower(btrim(nombre_finca)) = lower(btrim($2))
+       )`,
+      [owner.id_duenio, input.farmName, owner.localidad],
+    );
+  }
+
+  return true;
 }
 
 export async function insertOwnerAccount(
