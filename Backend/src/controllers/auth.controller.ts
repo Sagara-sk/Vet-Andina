@@ -8,8 +8,11 @@ import {
   RegistrationConflictError,
   registerOwner,
   SESSION_COOKIE_NAME,
+  saveOwnerProfile,
   sessionCookieOptions,
 } from "../services/auth.service";
+import type { AuthenticatedUserRecord } from "../models/owner.model";
+import { sendError, sendValidationError } from "./respond";
 
 const registerSchema = Joi.object({
   nombreCompleto: Joi.string().trim().min(2).max(200).required(),
@@ -36,6 +39,22 @@ const loginSchema = Joi.object({
         : value,
     )
     .required(),
+}).unknown(false);
+
+const clientProfileSchema = Joi.object({
+  dni_cuit: Joi.string()
+    .trim()
+    .min(7)
+    .max(20)
+    .pattern(/^[A-Za-z0-9-]+$/)
+    .required(),
+  tipo_persona: Joi.string().valid("INDIVIDUAL", "EMPRESA_PRODUCTOR").required(),
+  direccion_urbana: Joi.string().trim().max(200).allow("", null).default(null),
+  nombre_finca: Joi.when("tipo_persona", {
+    is: "EMPRESA_PRODUCTOR",
+    then: Joi.string().trim().min(2).max(150).required(),
+    otherwise: Joi.string().trim().min(2).max(150).allow("", null).default(null),
+  }),
 }).unknown(false);
 
 function clearSessionCookie(response: Parameters<RequestHandler>[1]): void {
@@ -74,6 +93,7 @@ export const postLogin: RequestHandler = async (request, response) => {
         nombreCompleto: user.fullName,
         email: user.email,
         rol: user.role,
+        profileComplete: user.profileComplete,
       },
     });
   } catch (error) {
@@ -96,8 +116,36 @@ export const getSession: RequestHandler = (request, response) => {
 
   response.json({
     status: "ok",
-    user: { id: user.userId, nombreCompleto: user.fullName, rol: user.role },
+    user: {
+      id: user.userId,
+      nombreCompleto: user.fullName,
+      rol: user.role,
+      profileComplete: user.profileComplete,
+    },
   });
+};
+
+export const postClientProfile: RequestHandler = async (request, response) => {
+  response.set("Cache-Control", "no-store");
+  const { error, value } = clientProfileSchema.validate(request.body, {
+    abortEarly: false,
+  });
+
+  if (error) return sendValidationError(response, error);
+
+  const user = request.user as AuthenticatedUserRecord;
+
+  try {
+    await saveOwnerProfile(user.userId, {
+      dniCuit: value.dni_cuit,
+      address: value.direccion_urbana || null,
+      personType: value.tipo_persona,
+      farmName: value.nombre_finca || null,
+    });
+    response.json({ status: "ok", profileComplete: true });
+  } catch (error) {
+    sendError(response, error, "Error al guardar el perfil del tutor", "No fue posible guardar el perfil.");
+  }
 };
 
 export const postLogout: RequestHandler = (_request, response) => {
@@ -137,6 +185,7 @@ export const postRegister: RequestHandler = async (request, response) => {
         nombreCompleto: account.fullName,
         email: account.email,
         rol: account.role,
+        profileComplete: false,
       },
     });
   } catch (error) {
