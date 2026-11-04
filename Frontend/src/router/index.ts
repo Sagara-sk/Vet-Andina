@@ -56,6 +56,11 @@ const router = createRouter({
           name: 'panel-turnos',
           component: () => import('../views/panel/AppointmentsView.vue'),
         },
+        {
+          path: 'perfil',
+          name: 'client-profile',
+          component: () => import('../views/forms/ClientProfileView.vue'),
+        },
       ],
     },
     {
@@ -160,7 +165,17 @@ router.beforeEach(async (to) => {
   }
 
   // Con sesión pero sin permiso para esta ruta: página 403.
-  return canAccess(to.matched, user.rol) ? true : { name: 'acceso-denegado' }
+  if (!canAccess(to.matched, user.rol)) return { name: 'acceso-denegado' }
+
+  if (user.rol === 'CLIENTE' && !user.profileComplete && to.name !== 'client-profile') {
+    return { name: 'client-profile', query: { redirect: to.fullPath } }
+  }
+
+  if (user.rol === 'CLIENTE' && user.profileComplete && to.name === 'client-profile') {
+    return { name: 'panel' }
+  }
+
+  return true
 })
 
 export default router

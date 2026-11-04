@@ -28,6 +28,13 @@ Vet Andina/
 - **Estilos:** Tailwind CSS v4 mediante `@tailwindcss/vite` (paleta Vet Andina: verde `#34503a`, fondo `#fafaf7`, texto `#1e211c`)
 - **Calidad de Código:** ESLint + Prettier
 
+#### Tema claro y oscuro
+
+- El tema seleccionado desde el menú lateral se comparte mediante `Frontend/src/composables/useTheme.ts` y se persiste en el navegador.
+- `Frontend/src/layouts/PanelLayout.vue` aplica la clase `theme-dark` al contenedor del panel; la paleta correspondiente está definida como variables CSS en `Frontend/src/assets/main.css`.
+- Todas las vistas y secciones nuevas dentro de los paneles deben ser compatibles con ambos temas. Usar los tokens Tailwind `brand-bg`, `brand-surface`, `brand-sidebar`, `brand-ink`, `brand-inkSoft`, `brand-line` y los tokens semánticos `brand-danger*`, `brand-warn*` y `brand-accent*` para superficies, texto, bordes y estados.
+- Evitar colores fijos (`bg-white`, `text-gray-*`, `bg-red-*`, `text-green-*`, etc.) en contenido del panel: pueden perder contraste al cambiar de tema. Los campos deben usar fondos y texto `brand-*` para mantener legibles también sus valores y opciones.
+
 ### Backend (`/Backend`)
 
 - **Entorno de Ejecución:** Node.js + Express
