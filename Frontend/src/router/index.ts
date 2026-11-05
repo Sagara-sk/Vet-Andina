@@ -45,6 +45,12 @@ const router = createRouter({
           component: () => import('../views/panel/PetsView.vue'),
         },
         {
+          path: 'establecimientos',
+          name: 'panel-establecimientos',
+          component: () => import('../views/panel/EstablishmentsView.vue'),
+          meta: { title: 'Mis establecimientos' },
+        },
+        {
           path: 'reservar',
           name: 'panel-reservar',
           component: () => import('../views/panel/ReservaTurnoView.vue'),
