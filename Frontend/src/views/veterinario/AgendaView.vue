@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import RuralAvailabilityManager from '@/components/agenda/RuralAvailabilityManager.vue'
 import TurnoEstadoBadge from '@/components/veterinario/TurnoEstadoBadge.vue'
 import { horaDe, mismoDia, useAgendaDemoStore } from '@/stores/agendaDemo'
 
@@ -21,7 +22,11 @@ function moverSemana(semanas: number) {
   inicioSemana.value = nueva
 }
 
-const formatoDia = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'short' })
+const formatoDia = new Intl.DateTimeFormat('es-AR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'short',
+})
 const formatoRango = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long' })
 
 const dias = computed(() =>
@@ -57,7 +62,9 @@ const rango = computed(() => {
 
       <div class="flex gap-2">
         <button type="button" class="btn-outline" @click="moverSemana(-1)">← Anterior</button>
-        <button type="button" class="btn-outline" @click="inicioSemana = lunesDe(new Date())">Hoy</button>
+        <button type="button" class="btn-outline" @click="inicioSemana = lunesDe(new Date())">
+          Hoy
+        </button>
         <button type="button" class="btn-outline" @click="moverSemana(1)">Siguiente →</button>
       </div>
     </header>
@@ -69,12 +76,16 @@ const rango = computed(() => {
         class="rounded border bg-brand-surface"
         :class="dia.esHoy ? 'border-brand-accent' : 'border-brand-line'"
       >
-        <h2 class="flex items-center justify-between border-b border-brand-line px-4 py-3 text-sm font-medium">
+        <h2
+          class="flex items-center justify-between border-b border-brand-line px-4 py-3 text-sm font-medium"
+        >
           {{ dia.etiqueta }}
           <span v-if="dia.esHoy" class="text-xs font-normal text-brand-accentInk">Hoy</span>
         </h2>
 
-        <p v-if="dia.turnos.length === 0" class="px-4 py-6 text-center text-xs text-brand-inkSoft">Sin turnos.</p>
+        <p v-if="dia.turnos.length === 0" class="px-4 py-6 text-center text-xs text-brand-inkSoft">
+          Sin turnos.
+        </p>
 
         <ul v-else>
           <li
@@ -82,7 +93,9 @@ const rango = computed(() => {
             :key="turno.id"
             class="flex items-start gap-3 border-b border-brand-line px-4 py-3 last:border-b-0"
           >
-            <span class="w-11 shrink-0 text-sm text-brand-inkSoft">{{ horaDe(turno.fechaHora) }}</span>
+            <span class="w-11 shrink-0 text-sm text-brand-inkSoft">{{
+              horaDe(turno.fechaHora)
+            }}</span>
             <div class="min-w-0 flex-1">
               <p class="text-sm">{{ turno.animal }}</p>
               <p class="mt-0.5 text-xs text-brand-inkSoft">
@@ -95,5 +108,6 @@ const rango = computed(() => {
         </ul>
       </section>
     </div>
+    <RuralAvailabilityManager class="mt-8" />
   </div>
 </template>

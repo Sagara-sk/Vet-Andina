@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import PublicLayout from '../layouts/PublicLayout.vue'
 import HomeView from '../views/HomeView.vue'
 
-const PanelPlaceholderView = () => import('../views/panel/PanelPlaceholderView.vue')
 import LoginView from '../views/LoginView.vue'
 import RegistroView from '../views/RegistroView.vue'
 import { useSessionStore } from '@/stores/session'
@@ -35,20 +34,41 @@ const router = createRouter({
       component: () => import('../views/AccesoDenegadoView.vue'),
     },
     {
+      // Inicio común de todos los paneles: DashboardView muestra los módulos que
+      // corresponden al rol de la sesión. Las secciones de cada rol siguen en
+      // /panel, /panel-veterinario y /panel-administrativo.
+      path: '/dashboard',
+      meta: {
+        requiresAuth: true,
+        allowedRoles: ['CLIENTE', 'VETERINARIO', 'ADMINISTRATIVO', 'SUPERADMIN'],
+      },
+      component: () => import('../layouts/PanelLayout.vue'),
+      children: [
+        { path: '', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
+      ],
+    },
+    {
       path: '/panel',
       meta: { requiresAuth: true, allowedRoles: ['CLIENTE'] },
       component: () => import('../layouts/PanelLayout.vue'),
       children: [
-        { path: '', name: 'panel', component: () => import('../views/panel/PanelHomeView.vue') },
+        // Inicio anterior del panel cliente; se conserva para enlaces guardados.
+        { path: '', redirect: { name: 'dashboard' } },
         {
           path: 'mascotas',
           name: 'panel-mascotas',
           component: () => import('../views/panel/PetsView.vue'),
         },
         {
+          path: 'establecimientos',
+          name: 'panel-establecimientos',
+          component: () => import('../views/panel/EstablishmentsView.vue'),
+          meta: { title: 'Mis establecimientos' },
+        },
+        {
           path: 'reservar',
           name: 'panel-reservar',
-          component: PanelPlaceholderView,
+          component: () => import('../views/panel/ReservaTurnoView.vue'),
           meta: { title: 'Reservar turno' },
         },
         {
@@ -68,11 +88,8 @@ const router = createRouter({
       meta: { requiresAuth: true, allowedRoles: ['VETERINARIO', 'SUPERADMIN'] },
       component: () => import('../layouts/PanelLayout.vue'),
       children: [
-        {
-          path: '',
-          name: 'vet-dashboard',
-          component: () => import('@/views/veterinario/DashboardView.vue'),
-        },
+        // Inicio anterior del panel veterinario; se conserva para enlaces guardados.
+        { path: '', redirect: { name: 'dashboard' } },
         {
           path: 'clientes',
           name: 'vet-clientes',
@@ -172,7 +189,7 @@ router.beforeEach(async (to) => {
   }
 
   if (user.rol === 'CLIENTE' && user.profileComplete && to.name === 'client-profile') {
-    return { name: 'panel' }
+    return { name: 'dashboard' }
   }
 
   return true

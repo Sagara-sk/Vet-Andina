@@ -11,12 +11,27 @@ import {
   type NewTurno,
   type TurnoRecord,
 } from "../models/turno.model";
-import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "./errors";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from "./errors";
 
 // Estados desde los que se permite cada acción.
 const CONFIRMABLE: EstadoTurno[] = ["PENDIENTE", "REPROGRAMADO"];
-const RESCHEDULABLE: EstadoTurno[] = ["PENDIENTE", "PENDIENTE_PAGO", "CONFIRMADO", "REPROGRAMADO"];
-const CANCELLABLE: EstadoTurno[] = ["PENDIENTE", "PENDIENTE_PAGO", "CONFIRMADO", "REPROGRAMADO"];
+const RESCHEDULABLE: EstadoTurno[] = [
+  "PENDIENTE",
+  "PENDIENTE_PAGO",
+  "CONFIRMADO",
+  "REPROGRAMADO",
+];
+const CANCELLABLE: EstadoTurno[] = [
+  "PENDIENTE",
+  "PENDIENTE_PAGO",
+  "CONFIRMADO",
+  "REPROGRAMADO",
+];
 
 const CHANGED_MEANWHILE =
   "El turno cambió de estado mientras lo editabas. Recargá la agenda y volvé a intentarlo.";
@@ -28,27 +43,43 @@ function canManage(user: AuthenticatedUserRecord, turno: TurnoRecord): boolean {
   return user.role === "VETERINARIO" && turno.vet?.id === user.userId;
 }
 
-async function loadManageable(user: AuthenticatedUserRecord, id: string): Promise<TurnoRecord> {
+async function loadManageable(
+  user: AuthenticatedUserRecord,
+  id: string,
+): Promise<TurnoRecord> {
   const turno = await findTurnoById(id);
   if (!turno) throw new NotFoundError("El turno no existe.");
   if (!canManage(user, turno)) {
-    throw new ForbiddenError("Solo podés modificar los turnos asignados a vos.");
+    throw new ForbiddenError(
+      "Solo podés modificar los turnos asignados a vos.",
+    );
   }
   return turno;
 }
 
 function assertFuture(dateTime: Date): void {
   if (dateTime.getTime() < Date.now()) {
-    throw new BadRequestError("La fecha y hora del turno tiene que ser futura.");
+    throw new BadRequestError(
+      "La fecha y hora del turno tiene que ser futura.",
+    );
   }
 }
 
-async function assertVetAvailable(vetId: string, dateTime: Date, excludeId: string | null) {
+async function assertVetAvailable(
+  vetId: string,
+  dateTime: Date,
+  durationMinutes: number,
+  excludeId: string | null,
+) {
   if (!(await isAssignableVet(vetId))) {
-    throw new BadRequestError("El profesional elegido no puede atender turnos.");
+    throw new BadRequestError(
+      "El profesional elegido no puede atender turnos.",
+    );
   }
-  if (await vetHasTurnoAt(vetId, dateTime, excludeId)) {
-    throw new ConflictError("El profesional ya tiene un turno en ese horario.");
+  if (await vetHasTurnoAt(vetId, dateTime, excludeId, durationMinutes)) {
+    throw new ConflictError(
+      "El profesional ya tiene un turno en ese intervalo.",
+    );
   }
 }
 
@@ -58,17 +89,30 @@ export async function createTurno(input: NewTurno): Promise<TurnoRecord> {
   const ownerId = await findAnimalOwner(input.animalId);
   if (!ownerId) throw new BadRequestError("El animal no existe.");
 
-  if (input.vetId) await assertVetAvailable(input.vetId, input.dateTime, null);
+  const durationMinutes =
+    input.durationMinutes ?? (input.modality === "RURAL" ? 120 : 30);
+  if (input.vetId)
+    await assertVetAvailable(
+      input.vetId,
+      input.dateTime,
+      durationMinutes,
+      null,
+    );
 
-  const id = await insertTurno(ownerId, input);
+  const id = await insertTurno(ownerId, { ...input, durationMinutes });
   return (await findTurnoById(id))!;
 }
 
-export async function confirmTurno(user: AuthenticatedUserRecord, id: string): Promise<TurnoRecord> {
+export async function confirmTurno(
+  user: AuthenticatedUserRecord,
+  id: string,
+): Promise<TurnoRecord> {
   const turno = await loadManageable(user, id);
 
   if (!CONFIRMABLE.includes(turno.status)) {
-    throw new ConflictError("Solo se pueden confirmar turnos pendientes o reprogramados.");
+    throw new ConflictError(
+      "Solo se pueden confirmar turnos pendientes o reprogramados.",
+    );
   }
   if (!(await updateTurnoStatus(id, CONFIRMABLE, "CONFIRMADO"))) {
     throw new ConflictError(CHANGED_MEANWHILE);
@@ -95,7 +139,8 @@ export async function rescheduleTurnoFor(
 
   assertFuture(dateTime);
   const finalVet = vetId ?? turno.vet?.id ?? null;
-  if (finalVet) await assertVetAvailable(finalVet, dateTime, id);
+  if (finalVet)
+    await assertVetAvailable(finalVet, dateTime, turno.durationMinutes, id);
 
   if (!(await rescheduleTurno(id, RESCHEDULABLE, dateTime, vetId))) {
     throw new ConflictError(CHANGED_MEANWHILE);

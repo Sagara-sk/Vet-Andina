@@ -17,14 +17,7 @@ export interface OwnerAccountRecord {
   role: "CLIENTE";
 }
 
-export interface UserCredentialsRecord {
-  userId: string;
-  fullName: string;
-  email: string;
-  passwordHash: string;
-  role: string;
-  profileComplete: boolean;
-}
+export type TipoPersona = "INDIVIDUAL" | "EMPRESA_PRODUCTOR";
 
 export interface AuthenticatedUserRecord {
   userId: string;
@@ -32,6 +25,13 @@ export interface AuthenticatedUserRecord {
   email: string;
   role: string;
   profileComplete: boolean;
+  // Tipo de tutor (duenio.tipo_persona). null para el personal y para clientes
+  // que todavía no completaron el perfil.
+  personType: TipoPersona | null;
+}
+
+export interface UserCredentialsRecord extends AuthenticatedUserRecord {
+  passwordHash: string;
 }
 
 interface AuthenticatedUserRow {
@@ -40,10 +40,11 @@ interface AuthenticatedUserRow {
   email: string;
   rol: string;
   perfil_completo: boolean;
+  tipo_persona: TipoPersona | null;
 }
 
 const AUTHENTICATED_USER_COLUMNS = `
-  u.id_usuario, u.nombre_completo, u.email, u.rol,
+  u.id_usuario, u.nombre_completo, u.email, u.rol, d.tipo_persona,
   CASE
     WHEN u.rol <> 'CLIENTE' THEN TRUE
     WHEN d.dni_cuit IS NULL OR btrim(d.dni_cuit) = '' OR d.tipo_persona IS NULL THEN FALSE
@@ -61,6 +62,7 @@ function toAuthenticatedUser(row: AuthenticatedUserRow): AuthenticatedUserRecord
     email: row.email,
     role: row.rol,
     profileComplete: row.perfil_completo,
+    personType: row.tipo_persona,
   };
 }
 
@@ -85,14 +87,7 @@ export async function findAuthenticatedUserById(
 export async function findUserCredentialsByEmail(
   email: string,
 ): Promise<UserCredentialsRecord | undefined> {
-  const result = await db.query<{
-    id_usuario: string;
-    nombre_completo: string;
-    email: string;
-    password_hash: string;
-    rol: string;
-    perfil_completo: boolean;
-  }>(
+  const result = await db.query<AuthenticatedUserRow & { password_hash: string }>(
     `SELECT ${AUTHENTICATED_USER_COLUMNS}, u.password_hash
      FROM usuario u
      LEFT JOIN duenio d ON d.id_usuario = u.id_usuario
@@ -104,20 +99,13 @@ export async function findUserCredentialsByEmail(
 
   if (!user) return undefined;
 
-  return {
-    userId: user.id_usuario,
-    fullName: user.nombre_completo,
-    email: user.email,
-    passwordHash: user.password_hash,
-    role: user.rol,
-    profileComplete: user.perfil_completo,
-  };
+  return { ...toAuthenticatedUser(user), passwordHash: user.password_hash };
 }
 
 export interface OwnerProfileInput {
   dniCuit: string;
   address: string | null;
-  personType: "INDIVIDUAL" | "EMPRESA_PRODUCTOR";
+  personType: TipoPersona;
   farmName: string | null;
 }
 

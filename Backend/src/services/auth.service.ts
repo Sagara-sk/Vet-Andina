@@ -6,6 +6,7 @@ import {
   findUserCredentialsByEmail,
   insertOwnerAccount,
   updateOwnerProfile,
+  type AuthenticatedUserRecord,
   type OwnerProfileInput,
   type OwnerAccountRecord,
 } from "../models/owner.model";
@@ -23,13 +24,7 @@ if (
 
 export const SESSION_COOKIE_NAME = "vet_andina_session";
 
-export interface AuthenticatedUser {
-  userId: string;
-  fullName: string;
-  email: string;
-  role: string;
-  profileComplete: boolean;
-}
+export type AuthenticatedUser = AuthenticatedUserRecord;
 
 export class InvalidCredentialsError extends Error {
   constructor() {
@@ -66,13 +61,8 @@ export async function authenticateUser(
     throw new InvalidCredentialsError();
   }
 
-  return {
-    userId: user.userId,
-    fullName: user.fullName,
-    email: user.email,
-    role: user.role,
-    profileComplete: user.profileComplete,
-  };
+  const { passwordHash: _passwordHash, ...authenticatedUser } = user;
+  return authenticatedUser;
 }
 
 export function createSessionToken(user: Pick<AuthenticatedUser, "userId" | "role">): string {
