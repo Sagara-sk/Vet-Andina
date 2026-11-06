@@ -25,19 +25,12 @@ export function canAccess(matched: readonly RouteRecordNormalized[], rol: string
   return restrictions.every((roles) => roles.some((allowed) => allowed === rol))
 }
 
-// Panel propio de cada rol.
+const PANEL_ROLES: readonly Rol[] = ['CLIENTE', 'VETERINARIO', 'ADMINISTRATIVO', 'SUPERADMIN']
+
+// Inicio del panel: todos los roles conocidos comparten /dashboard, que pinta
+// los módulos según el rol. Un rol desconocido no tiene panel.
 export function panelRouteForRole(rol: string): RouteLocationRaw | null {
-  switch (rol) {
-    case 'CLIENTE':
-      return { name: 'panel' }
-    case 'VETERINARIO':
-    case 'SUPERADMIN':
-      return { name: 'vet-dashboard' }
-    case 'ADMINISTRATIVO':
-      return { name: 'admin-turnos' }
-    default:
-      return null
-  }
+  return PANEL_ROLES.some((known) => known === rol) ? { name: 'dashboard' } : null
 }
 
 // Destino tras el login: el panel del rol o, si no tiene, el inicio público.

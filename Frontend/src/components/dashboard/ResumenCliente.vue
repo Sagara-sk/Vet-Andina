@@ -4,10 +4,14 @@ import { RouterLink } from 'vue-router'
 import PetCard from '@/components/panel/PetCard.vue'
 import StatusBadge from '@/components/panel/StatusBadge.vue'
 import { appointments, pets } from '@/data/panelMock'
-import { useSessionStore } from '@/stores/session'
+import type { TipoPersona } from '@/services/auth'
 import { formatLongDate, formatShortDate } from '@/utils/format'
 
-const session = useSessionStore()
+// Módulo de inicio del tutor: próximo turno, mascotas y turnos (demostración).
+// Los productores ven además el acceso a sus establecimientos, que sí son reales.
+const props = defineProps<{ tipoPersona: TipoPersona | null }>()
+
+const esProductor = computed(() => props.tipoPersona === 'EMPRESA_PRODUCTOR')
 
 const petName = (id: number) => pets.find((p) => p.id === id)?.name ?? '—'
 
@@ -19,17 +23,24 @@ const nextAppointment = computed(() =>
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1210px]">
-    <header class="flex flex-wrap items-start justify-between gap-4">
+  <div>
+    <p class="mt-2 text-xs text-brand-inkSoft" role="note">
+      Vista de demostración. Las mascotas y turnos no provienen de tu cuenta ni de la base de datos.
+    </p>
+
+    <section
+      v-if="esProductor"
+      class="mt-9 flex flex-wrap items-center justify-between gap-6 border border-brand-line bg-brand-surface px-7 py-6"
+    >
       <div>
-        <h1 class="font-serif text-3xl text-brand-ink">Hola, {{ session.firstName }}</h1>
-        <p class="mt-3 text-brand-inkSoft">Así está la agenda de tus mascotas.</p>
-        <p class="mt-2 text-xs text-brand-inkSoft" role="note">
-          Vista de demostración. Las mascotas y turnos no provienen de tu cuenta ni de la base de datos.
-        </p>
+        <p class="text-xs text-brand-inkSoft">Productor rural</p>
+        <h2 class="mt-2 font-serif text-xl text-brand-ink">Tus establecimientos</h2>
+        <p class="mt-2 text-sm text-brand-inkSoft">Campos, lotes y animales registrados a tu nombre.</p>
       </div>
-      <RouterLink to="/panel/reservar" class="btn-primary">Reservar turno</RouterLink>
-    </header>
+      <RouterLink :to="{ name: 'panel-establecimientos' }" class="btn-outline">
+        Ver establecimientos
+      </RouterLink>
+    </section>
 
     <section
       v-if="nextAppointment"
@@ -45,16 +56,23 @@ const nextAppointment = computed(() =>
           {{ nextAppointment.vet }}
         </p>
       </div>
-      <RouterLink to="/panel/turnos" class="btn-primary">Ver detalle</RouterLink>
+      <RouterLink :to="{ name: 'panel-turnos' }" class="btn-primary">Ver detalle</RouterLink>
     </section>
-    <p v-else class="mt-9 border border-brand-line bg-brand-surface px-7 py-6 text-sm text-brand-inkSoft" role="status">
+    <p
+      v-else
+      class="mt-9 border border-brand-line bg-brand-surface px-7 py-6 text-sm text-brand-inkSoft"
+      role="status"
+    >
       No hay próximos turnos en esta vista de demostración.
     </p>
 
     <section class="mt-11">
       <div class="flex items-baseline justify-between">
         <h2 class="text-base text-brand-ink">Tus mascotas</h2>
-        <RouterLink to="/panel/mascotas" class="text-xs text-brand-inkSoft hover:text-brand-ink">
+        <RouterLink
+          :to="{ name: 'panel-mascotas' }"
+          class="text-xs text-brand-inkSoft hover:text-brand-ink"
+        >
           Ver todas
         </RouterLink>
       </div>
@@ -66,7 +84,10 @@ const nextAppointment = computed(() =>
     <section class="mt-10">
       <div class="flex items-baseline justify-between">
         <h2 class="text-base text-brand-ink">Tus turnos</h2>
-        <RouterLink to="/panel/turnos" class="text-xs text-brand-inkSoft hover:text-brand-ink">
+        <RouterLink
+          :to="{ name: 'panel-turnos' }"
+          class="text-xs text-brand-inkSoft hover:text-brand-ink"
+        >
           Ver todos
         </RouterLink>
       </div>
@@ -81,7 +102,11 @@ const nextAppointment = computed(() =>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="a in appointments" :key="a.id" class="border-t border-brand-line text-brand-ink">
+            <tr
+              v-for="a in appointments"
+              :key="a.id"
+              class="border-t border-brand-line text-brand-ink"
+            >
               <td class="px-4 py-4">{{ petName(a.petId) }}</td>
               <td class="px-4 py-4">{{ a.service }}</td>
               <td class="px-4 py-4">{{ formatShortDate(a.date) }}</td>
@@ -91,6 +116,5 @@ const nextAppointment = computed(() =>
         </table>
       </div>
     </section>
-
   </div>
 </template>

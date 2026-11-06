@@ -2,10 +2,8 @@
 import { reactive, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { canAccess } from '@/router/access'
-import { saveClientProfile } from '@/services/auth'
+import { saveClientProfile, type TipoPersona } from '@/services/auth'
 import { useSessionStore } from '@/stores/session'
-
-type TipoPersona = 'INDIVIDUAL' | 'EMPRESA_PRODUCTOR'
 
 type ClientProfileForm = {
   dni_cuit: string
@@ -94,9 +92,11 @@ async function handleSubmit() {
   submitting.value = true
 
   try {
-    await saveClientProfile(buildPayload())
+    const payload = buildPayload()
+    await saveClientProfile(payload)
+    // El servidor confirmó el guardado: se refleja en la sesión sin volver a pedirla.
     const user = session.user
-    if (user) session.setUser({ ...user, profileComplete: true })
+    if (user) session.setUser({ ...user, profileComplete: true, tipoPersona: payload.tipo_persona })
 
     const redirect = route.query.redirect
     if (
@@ -108,7 +108,7 @@ async function handleSubmit() {
     ) {
       await router.replace(redirect)
     } else {
-      await router.replace({ name: 'panel' })
+      await router.replace({ name: 'dashboard' })
     }
   } catch (error) {
     feedback.value =
