@@ -123,7 +123,7 @@ Vet Andina/
 | Página principal            | `Frontend/src/views/HomeView.vue`, `Frontend/src/components/home/`                                          | Vista de inicio y sus secciones.                                                                                                                  |
 | Turnos públicos             | `Frontend/src/views/TurnosView.vue`                                                                         | Vista de turnos públicos.                                                                                                                         |
 | Registro e inicio de sesión | `Frontend/src/views/RegistroView.vue`, `Frontend/src/views/LoginView.vue`, `Frontend/src/components/login/` | Registro y login conectados a la API.                                                                                                             |
-| Panel                       | `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/views/panel/`, `Frontend/src/components/panel/`       | Diseño del panel, resumen, mascotas y turnos.                                                                                                     |
+| Panel                       | `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/views/panel/`, `Frontend/src/components/panel/`       | Diseño del panel, resumen, mascotas, establecimientos y turnos.                                                                                   |
 | Datos del panel             | `Frontend/src/data/panelMock.ts`                                                                            | Datos locales ilustrativos; no representan datos obtenidos de la base real.                                                                       |
 | Contenido institucional     | `Frontend/src/config/site.ts`                                                                               | Nombre, dirección, contacto y horarios que usan las secciones públicas.                                                                           |
 | Formato y estilos           | `Frontend/src/utils/format.ts`, `Frontend/src/assets/main.css`, `Frontend/tailwind.config.js`               | Formateo de datos, estilos base/componentes y tema visual.                                                                                        |
@@ -225,7 +225,7 @@ Hay una cuenta de prueba por rol. Julián, referente clínico del proyecto, es e
 
 Julián y Martín tienen matrículas ficticias (`DEMO-0001` y `DEMO-0002`). Laura tiene además su perfil de dueño (teléfono `+54 9 299 000 0001`, Cipolletti), igual que un cliente registrado desde `/registro`.
 
-Las cuentas ya están creadas en la base de desarrollo de Neon. Si se usa otra base, se crean con:
+Las cuentas de esta tabla ya están creadas en la base de desarrollo de Neon; las [cuentas simples](#cuentas-simples) todavía no. Para crear las que falten en cualquier base:
 
 ```powershell
 cd Backend
@@ -233,6 +233,41 @@ npm run seed:test-users
 ```
 
 El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuyo email no existe; las que ya existen no se modifican. No se ejecuta con `NODE_ENV=production`.
+
+### Cuentas simples
+
+El mismo script crea además un juego de cuentas con credenciales fáciles de recordar, para entrar rápido durante el desarrollo. Hay dos clientes: uno particular y uno productor rural.
+
+| Rol              | Nombre              | Email                          | Contraseña          | Perfil                                                                     |
+| ---------------- | ------------------- | ------------------------------ | ------------------- | -------------------------------------------------------------------------- |
+| `SUPERADMIN`     | Super Admin         | `superadmin@vetandina.com`     | `admin123`          | Matrícula ficticia `DEMO-0003`.                                            |
+| `ADMINISTRATIVO` | Administrativo Demo | `administrativo@vetandina.com` | `administrativo123` | —                                                                          |
+| `VETERINARIO`    | Veterinario Demo    | `veterinario@vetandina.com`    | `veterinario123`    | Matrícula ficticia `DEMO-0004`.                                            |
+| `CLIENTE`        | Cliente Demo        | `cliente@vetandina.com`        | `cliente123`        | Particular (`INDIVIDUAL`), perfil completo.                                |
+| `CLIENTE`        | Productor Demo      | `productor@vetandina.com`      | `productor123`      | Productor (`EMPRESA_PRODUCTOR`); su campo lo carga `npm run seed:rural-demo`. |
+
+El perfil de un productor se considera completo cuando tiene al menos una finca. Hasta correr `npm run seed:rural-demo`, al entrar con `productor@vetandina.com` se pide completar el perfil.
+
+### Productores rurales de prueba
+
+Para probar `/panel/establecimientos` y comprobar que cada tutor ve solo sus propios campos, hay datos rurales ficticios que se cargan con:
+
+```powershell
+cd Backend
+npm run seed:rural-demo
+```
+
+El script (`Backend/src/scripts/create-rural-demo.ts`) necesita que Laura y Productor Demo ya existan (`npm run seed:test-users`). Les agrega campos y lotes a esas dos cuentas y crea tres productores con rol `CLIENTE`, perfil completo y tipo de persona `EMPRESA_PRODUCTOR`:
+
+| Nombre          | Email                         | Contraseña                  | Establecimientos y lotes                                                                                           |
+| --------------- | ----------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Laura Giménez   | `laura.gimenez@example.com`   | `VetAndina-Cliente2026`     | La Esperanza (2 lotes bovinos, 165 animales) y Los Álamos (ovinos y equinos, 86 animales).                         |
+| Productor Demo  | `productor@vetandina.com`     | `productor123`              | El Productor (bovinos y ovinos, 100 animales).                                                                     |
+| Ricardo Benítez | `ricardo.benitez@example.com` | `VetAndina-Productor1-2026` | El Mirador (bovinos y equinos, 278 animales).                                                                      |
+| Marta Quiroga   | `marta.quiroga@example.com`   | `VetAndina-Productor2-2026` | San Javier (caprinos y ovinos, 90 animales) y Puesto Chacra 14 (porcinos, 18 animales).                            |
+| Hugo Fernández  | `hugo.fernandez@example.com`  | `VetAndina-Productor3-2026` | La Querencia (bovinos, 95 animales) y Campo nuevo, que no tiene lotes y sirve para ver el estado vacío.            |
+
+Los nombres de los campos llevan `(demo)`. Cada lote se crea con su ficha médica, como en el alta desde la API. Las cuentas, campos y lotes que ya existen no se modifican ni se duplican, y el script no se ejecuta con `NODE_ENV=production`. Los DNI/CUIT, teléfonos y nombres son ficticios.
 
 > **Importante:** estas contraseñas son públicas porque están en este README. Usalas solo en bases de desarrollo o prueba. Antes de cargar datos reales o desplegar para el cliente, eliminá estas cuentas o cambiales la contraseña.
 
@@ -258,6 +293,7 @@ El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuy
 | `npm run build`           | Compila TypeScript a `dist/`.                                                                     |
 | `npm start`               | Inicia la aplicación compilada desde `dist/index.js`.                                             |
 | `npm run seed:test-users` | Crea las cuentas de prueba de cada rol que no existan.                                            |
+| `npm run seed:rural-demo` | Carga productores, establecimientos y lotes ganaderos ficticios que no existan.                   |
 | `npm run db:migrate`      | Aplica las migraciones pendientes de `Backend/migrations/` y las registra en `schema_migrations`. |
 
 `server.js` es una implementación JavaScript anterior y no la utilizan los scripts del paquete. La aplicación activa es la de `src/`, con PostgreSQL (`pg`); todavía no hay un ORM instalado o configurado. Si se incorpora uno, debe integrarse en esta aplicación TypeScript y sus scripts de arranque.
@@ -275,6 +311,7 @@ El script (`Backend/src/scripts/create-test-users.ts`) crea solo las cuentas cuy
 | `/acceso-denegado`                  | `AccesoDenegadoView.vue`                  | Página 403 para una sesión sin permiso sobre la ruta pedida.                                   |
 | `/panel`                            | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.                                      |
 | `/panel/mascotas`                   | `PetsView.vue`                            | Mascotas con datos de ejemplo.                                                                 |
+| `/panel/establecimientos`           | `EstablishmentsView.vue`                  | Campos y lotes ganaderos del tutor de la sesión, leídos de la API.                             |
 | `/panel/reservar`                   | `ReservaTurnoView.vue`                    | Calendario conectado a disponibilidad y solicitudes reales.                                    |
 | `/panel/turnos`                     | `AppointmentsView.vue`                    | Historial de turnos con datos de ejemplo.                                                      |
 | `/panel-veterinario`                | `DashboardView.vue` con `PanelLayout.vue` | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; agenda de demostración.                  |
@@ -310,6 +347,7 @@ Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el me
 | `GET`    | `/api/animales?buscar=`                                          | Personal. Busca pacientes por nombre del animal o del tutor (mín. 2 letras).                                                                        |
 | `GET`    | `/api/animales/:id/ficha`                                        | Personal. Ficha y evoluciones clínicas en solo lectura.                                                                                             |
 | `GET`    | `/api/animales/mios`                                             | `CLIENTE`. Animales propios para solicitar turnos.                                                                                                  |
+| `GET`    | `/api/establecimientos/mios`                                     | `CLIENTE`. Establecimientos propios con sus lotes (especie, raza y cantidad) y el total de animales. Filtra por el dueño de la sesión en la consulta. |
 | `GET`    | `/api/turnos/disponibilidad?desde&hasta&modalidad&idVeterinario` | Usuario autenticado. Días y horarios libres (rango máx. 62 días); un veterinario omitido consulta disponibilidad conjunta.                          |
 | `GET`    | `/api/turnos/mios`                                               | `CLIENTE`. Turnos de su cuenta.                                                                                                                     |
 | `POST`   | `/api/turnos/solicitudes`                                        | `CLIENTE`. Solicita un turno para uno de sus animales; el servidor valida disponibilidad y asigna un profesional libre. Estado inicial `PENDIENTE`. |
@@ -388,6 +426,7 @@ La API escribe en `usuario`, `duenio`, `animal`, `ficha_medica` y `turno`, y lee
 - **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`, cookie y CORS del entorno de despliegue.
 - **Panel administrativo conectado a la API:** turnos, asignación/reasignación, feriados, hoja de ruta rural, tutores, alta de animales y lectura de fichas, con autorización por rol en el backend.
 - **Pendiente de implementación:** endpoints de visitas y evoluciones clínicas, notas administrativas, señas y pagos, sesión revocable y sincronización clínica offline. El dashboard y varias secciones del panel veterinario siguen siendo demostrativos; la gestión de sus turnos asignados y la hoja de ruta rural usan la API. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
+- **Establecimientos del cliente:** `/panel/establecimientos` lista los campos y lotes del tutor de la sesión desde `GET /api/establecimientos/mios`, en solo lectura. El alta de establecimientos por parte del propio tutor sigue pendiente.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 
 ## Contexto y planificación

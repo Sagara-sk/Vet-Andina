@@ -25,6 +25,7 @@ const ACTIVE_CLASS = '!bg-brand-accentSoft !text-brand-ink'
 const clientLinks: NavLink[] = [
   { label: 'Inicio', to: { name: 'panel' }, exact: true },
   { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
+  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' } },
   { label: 'Reservar turno', to: { name: 'panel-reservar' } },
   { label: 'Mis turnos', to: { name: 'panel-turnos' } },
 ]
