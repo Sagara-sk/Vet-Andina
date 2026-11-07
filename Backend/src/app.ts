@@ -11,6 +11,7 @@ import healthRouter from "./routes/health.routes";
 import turnoRouter from "./routes/turno.routes";
 import tutorRouter from "./routes/tutor.routes";
 import userRouter from "./routes/user.routes";
+import { envs } from "./config/env";
 
 export const app = express();
 
@@ -51,3 +52,23 @@ app.use("/api/establecimientos", establecimientoRouter);
 app.use("/api/turnos", turnoRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
+app.set('port', envs.PORT);
+
+app.get("/", (_request, response) => {
+  response.status(200).json({
+    status: "ok",
+    message: "Bienvenido a la API de Vet Andina",
+    version: "1.0.0",
+    endpoints: {
+      health: "/api/health",
+      database: "/api/db/health",
+      auth: "/api/auth",
+      users: "/api/users",
+      tutors: "/api/tutores",
+      animals: "/api/animales",
+      appointments: "/api/turnos"
+    }
+  });
+});
+
+export default app;
