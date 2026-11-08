@@ -123,7 +123,7 @@ Vet Andina/
 | Página principal            | `Frontend/src/views/HomeView.vue`, `Frontend/src/components/home/`                                          | Vista de inicio y sus secciones.                                                                                                                  |
 | Turnos públicos             | `Frontend/src/views/TurnosView.vue`                                                                         | Vista de turnos públicos.                                                                                                                         |
 | Registro e inicio de sesión | `Frontend/src/views/RegistroView.vue`, `Frontend/src/views/LoginView.vue`, `Frontend/src/components/login/` | Registro y login conectados a la API.                                                                                                             |
-| Panel                       | `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/views/panel/`, `Frontend/src/components/panel/`       | Diseño del panel, resumen, mascotas, establecimientos y turnos.                                                                                   |
+| Panel                       | `Frontend/src/layouts/PanelLayout.vue`, `Frontend/src/views/DashboardView.vue`, `Frontend/src/components/dashboard/`, `Frontend/src/views/panel/`, `Frontend/src/components/panel/` | Diseño del panel, inicio común por rol (`/dashboard`), mascotas, establecimientos y turnos. |
 | Datos del panel             | `Frontend/src/data/panelMock.ts`                                                                            | Datos locales ilustrativos; no representan datos obtenidos de la base real.                                                                       |
 | Contenido institucional     | `Frontend/src/config/site.ts`                                                                               | Nombre, dirección, contacto y horarios que usan las secciones públicas.                                                                           |
 | Formato y estilos           | `Frontend/src/utils/format.ts`, `Frontend/src/assets/main.css`, `Frontend/tailwind.config.js`               | Formateo de datos, estilos base/componentes y tema visual.                                                                                        |
@@ -218,10 +218,10 @@ Hay una cuenta de prueba por rol. Julián, referente clínico del proyecto, es e
 
 | Rol              | Nombre         | Email                             | Contraseña              | Al iniciar sesión abre  |
 | ---------------- | -------------- | --------------------------------- | ----------------------- | ----------------------- |
-| `SUPERADMIN`     | Julián Paredes | `julian.paredes@vetandina.com.ar` | `VetAndina-Julian2026`  | `/panel-veterinario`    |
-| `ADMINISTRATIVO` | Carla Méndez   | `carla.mendez@vetandina.com.ar`   | `VetAndina-Admin2026`   | `/panel-administrativo` |
-| `VETERINARIO`    | Martín Sosa    | `martin.sosa@vetandina.com.ar`    | `VetAndina-Vet2026`     | `/panel-veterinario`    |
-| `CLIENTE`        | Laura Giménez  | `laura.gimenez@example.com`       | `VetAndina-Cliente2026` | `/panel`                |
+| `SUPERADMIN`     | Julián Paredes | `julian.paredes@vetandina.com.ar` | `VetAndina-Julian2026`  | `/dashboard`            |
+| `ADMINISTRATIVO` | Carla Méndez   | `carla.mendez@vetandina.com.ar`   | `VetAndina-Admin2026`   | `/dashboard`            |
+| `VETERINARIO`    | Martín Sosa    | `martin.sosa@vetandina.com.ar`    | `VetAndina-Vet2026`     | `/dashboard`            |
+| `CLIENTE`        | Laura Giménez  | `laura.gimenez@example.com`       | `VetAndina-Cliente2026` | `/dashboard`            |
 
 Julián y Martín tienen matrículas ficticias (`DEMO-0001` y `DEMO-0002`). Laura tiene además su perfil de dueño (teléfono `+54 9 299 000 0001`, Cipolletti), igual que un cliente registrado desde `/registro`.
 
@@ -309,12 +309,13 @@ Los nombres de los campos llevan `(demo)`. Cada lote se crea con su ficha médic
 | `/login`                            | `LoginView.vue`                           | Inicia sesión mediante la API y establece una cookie HttpOnly.                                 |
 | `/registro`                         | `RegistroView.vue`                        | Envía el registro de un cliente a la API.                                                      |
 | `/acceso-denegado`                  | `AccesoDenegadoView.vue`                  | Página 403 para una sesión sin permiso sobre la ruta pedida.                                   |
-| `/panel`                            | `PanelHomeView.vue` con `PanelLayout.vue` | Requiere sesión de cliente; resumen con datos de ejemplo.                                      |
+| `/dashboard`                        | `DashboardView.vue` con `PanelLayout.vue` | Inicio común de los cuatro roles. Muestra módulos según el rol: resumen del tutor (datos de ejemplo; acceso a establecimientos si es productor), agenda veterinaria de demostración (`VETERINARIO`, `SUPERADMIN`) y accesos administrativos (`ADMINISTRATIVO`, `SUPERADMIN`). |
+| `/panel`                            | Redirección                               | Requiere sesión de cliente; redirige a `/dashboard`.                                           |
 | `/panel/mascotas`                   | `PetsView.vue`                            | Mascotas con datos de ejemplo.                                                                 |
 | `/panel/establecimientos`           | `EstablishmentsView.vue`                  | Campos y lotes ganaderos del tutor de la sesión, leídos de la API.                             |
 | `/panel/reservar`                   | `ReservaTurnoView.vue`                    | Calendario conectado a disponibilidad y solicitudes reales.                                    |
 | `/panel/turnos`                     | `AppointmentsView.vue`                    | Historial de turnos con datos de ejemplo.                                                      |
-| `/panel-veterinario`                | `DashboardView.vue` con `PanelLayout.vue` | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; agenda de demostración.                  |
+| `/panel-veterinario`                | Redirección                               | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; redirige a `/dashboard`.                 |
 | `/panel-veterinario/clientes`       | `ClientesView.vue`                        | Clientes de demostración.                                                                      |
 | `/panel-veterinario/agenda`         | `AgendaView.vue`                          | Agenda de demostración y administración de franjas rurales reales.                             |
 | `/panel-veterinario/turnos`         | `TurnosGestionView.vue`                   | Turnos asignados reales; el veterinario confirma los pendientes propios.                       |
@@ -326,7 +327,7 @@ Los nombres de los campos llevan `(demo)`. Cada lote se crea con su ficha médic
 | `/panel-administrativo/fichas`      | `admin/FichasView.vue`                    | Búsqueda de pacientes.                                                                         |
 | `/panel-administrativo/fichas/:id`  | `admin/FichaView.vue`                     | Ficha clínica en solo lectura.                                                                 |
 
-Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú según el rol de la sesión. El modo oscuro está disponible para todos los roles desde el menú lateral: los colores de la marca son variables CSS (`Frontend/src/assets/main.css`) que la clase `.theme-dark` reemplaza, y la preferencia se guarda en el navegador (`useTheme`). Los datos de demostración del panel veterinario están en `Frontend/src/data/agendaMock.ts` y se comparten entre vistas mediante el store `agendaDemo`.
+Los paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú según el rol de la sesión. El logo del menú lateral lleva a `/dashboard` con el router (sin recargar ni cerrar la sesión); el del encabezado público lleva a `/dashboard` si hay sesión y a `/` si no la hay. El modo oscuro está disponible para todos los roles desde el menú lateral: los colores de la marca son variables CSS (`Frontend/src/assets/main.css`) que la clase `.theme-dark` reemplaza, y la preferencia se guarda en el navegador (`useTheme`). Los datos de demostración del panel veterinario están en `Frontend/src/data/agendaMock.ts` y se comparten entre vistas mediante el store `agendaDemo`.
 
 ### API REST disponible
 
@@ -336,7 +337,7 @@ Los dos paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el me
 | `GET`    | `/api/db/health`                                                 | Ejecuta `SELECT 1` para comprobar la conexión a PostgreSQL.                                                                                         |
 | `POST`   | `/api/auth/register`                                             | Valida e inserta un nuevo usuario y su perfil de dueño.                                                                                             |
 | `POST`   | `/api/auth/login`                                                | Valida credenciales y establece una cookie de sesión HttpOnly.                                                                                      |
-| `GET`    | `/api/auth/session`                                              | Valida la cookie y devuelve el identificador y rol de la sesión.                                                                                    |
+| `GET`    | `/api/auth/session`                                              | Valida la cookie y devuelve el usuario leído de la base: `id`, `nombreCompleto`, `email`, `rol`, `tipoPersona` (`INDIVIDUAL`, `EMPRESA_PRODUCTOR` o `null` para personal y perfiles incompletos) y `profileComplete`. Login y registro devuelven la misma forma. |
 | `POST`   | `/api/auth/logout`                                               | Elimina la cookie de sesión del navegador.                                                                                                          |
 | `POST`   | `/api/users`                                                     | Solo `SUPERADMIN` (403 para otros roles). Crea un usuario `VETERINARIO` (con `matriculaProfesional`) o `ADMINISTRATIVO`.                            |
 | `GET`    | `/api/tutores?buscar=`                                           | Personal. Lista tutores (máx. 100), con búsqueda por nombre, email, teléfono, DNI o mascota.                                                        |
@@ -387,7 +388,7 @@ Una solicitud correcta devuelve `201`; datos inválidos devuelven `400`; un corr
 
 Al acceder al panel, los clientes con DNI/CUIT o tipo de persona pendientes son enviados a `/panel/perfil` hasta completar el formulario. Para productores también se requiere una finca. La API calcula este estado con los datos persistidos del tutor cada vez que inicia o restaura una sesión; por eso un perfil completo cargado por personal administrativo no vuelve a pedir el formulario.
 
-Tras el login, cada rol va a su panel: `CLIENTE` a `/panel`; `VETERINARIO` y `SUPERADMIN` a `/panel-veterinario`; `ADMINISTRATIVO` a `/panel-administrativo`. Si el login trae un `redirect` a una ruta que el rol no puede abrir, se ignora y se usa el panel del rol.
+Tras el login, todos los roles van a `/dashboard`, que muestra los módulos de su rol. Si el login trae un `redirect` a una ruta que el rol no puede abrir, se ignora y se usa el panel del rol.
 
 **Límite de intentos:** `POST /api/auth/login` admite 10 intentos fallidos cada 15 minutos por IP (los logins correctos no cuentan) y `POST /api/auth/register`, 5 registros por hora por IP. Al superarlos responde `429` con las cabeceras `RateLimit` y `RateLimit-Policy`. Los contadores viven en memoria, así que se reinician al reiniciar la API y no se comparten entre instancias. El login compara contra un hash descartable cuando el email no existe, así el tiempo de respuesta no revela qué correos están registrados.
 

@@ -5,9 +5,9 @@ import TurnoActionModal, { type TipoModal } from '@/components/veterinario/Turno
 import TurnoEstadoBadge from '@/components/veterinario/TurnoEstadoBadge.vue'
 import type { TurnoDemo } from '@/data/agendaMock'
 import { horaDe, useAgendaDemoStore } from '@/stores/agendaDemo'
-import { useSessionStore } from '@/stores/session'
 
-const session = useSessionStore()
+// Módulo de inicio del veterinario y del superadmin: métricas, agenda del día y
+// estado offline. Todo sale de la agenda de demostración en memoria.
 const agendaDemo = useAgendaDemoStore()
 
 const agenda = computed(() => agendaDemo.turnosDelDia(new Date()))
@@ -29,17 +29,6 @@ const OFFLINE = [
   { clave: 'Visitas a campo hoy', valor: '1 programada' },
 ]
 
-const saludo = computed(() => (session.firstName ? `Hola, ${session.firstName}` : 'Hola'))
-
-const fechaHoy = (() => {
-  const texto = new Intl.DateTimeFormat('es-AR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).format(new Date())
-  return texto.charAt(0).toUpperCase() + texto.slice(1)
-})()
-
 const quien = (turno: TurnoDemo) =>
   `${turno.animal} · ${agendaDemo.cliente(turno.idCliente)?.nombreCompleto ?? '—'}`
 
@@ -57,23 +46,11 @@ function accionRealizada(mensaje: string) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-brand-bg text-brand-ink font-sans">
-
-    <!-- CABECERA -->
-    <div class="flex items-start justify-between gap-6">
-      <div>
-        <h1 class="font-serif text-[1.6rem]">
-          {{ saludo }}
-        </h1>
-
-        <p class="mt-1.5 text-base text-brand-inkSoft">
-          {{ fechaHoy }}
-        </p>
-
-        <p class="mt-2 text-xs text-brand-inkSoft" role="note">
-          Vista de demostración. Turnos, clientes y métricas no provienen de la base de datos.
-        </p>
-      </div>
+  <div>
+    <div class="mt-2 flex flex-wrap items-center justify-between gap-4">
+      <p class="text-xs text-brand-inkSoft" role="note">
+        Vista de demostración. Turnos, clientes y métricas no provienen de la base de datos.
+      </p>
 
       <div class="flex items-center gap-2 whitespace-nowrap text-xs text-brand-accentInk">
         <span class="h-[7px] w-[7px] rounded-full bg-brand-accent" />
@@ -100,15 +77,15 @@ function accionRealizada(mensaje: string) {
 
     <!-- AGENDA + OFFLINE -->
     <div class="mt-9 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.6fr_1fr]">
-
       <!-- AGENDA -->
       <section>
         <div class="mb-3.5 flex items-baseline justify-between">
-          <h3 class="text-base font-medium">
-            Agenda de hoy
-          </h3>
+          <h2 class="text-base font-medium">Agenda de hoy</h2>
 
-          <RouterLink :to="{ name: 'vet-agenda' }" class="text-xs text-brand-inkSoft hover:underline">
+          <RouterLink
+            :to="{ name: 'vet-agenda' }"
+            class="text-xs text-brand-inkSoft hover:underline"
+          >
             Ver agenda completa
           </RouterLink>
         </div>
@@ -146,6 +123,7 @@ function accionRealizada(mensaje: string) {
 
             <div v-if="agendaDemo.puedeModificar(turno)" class="flex shrink-0 gap-1.5">
               <button
+                type="button"
                 class="rounded-md border border-brand-line px-2.5 py-1 text-xs text-brand-inkSoft transition-all hover:opacity-80"
                 @click="modal = { turno, tipo: 'reprogramar' }"
               >
@@ -153,6 +131,7 @@ function accionRealizada(mensaje: string) {
               </button>
 
               <button
+                type="button"
                 class="rounded-md border border-brand-dangerLine bg-brand-dangerSoft px-2.5 py-1 text-xs text-brand-dangerInk transition-all hover:opacity-80"
                 @click="modal = { turno, tipo: 'cancelar' }"
               >
@@ -161,10 +140,7 @@ function accionRealizada(mensaje: string) {
             </div>
           </div>
 
-          <p
-            v-if="agenda.length === 0"
-            class="px-5 py-6 text-center text-sm text-brand-inkSoft"
-          >
+          <p v-if="agenda.length === 0" class="px-5 py-6 text-center text-sm text-brand-inkSoft">
             Sin turnos para hoy.
           </p>
         </div>
@@ -173,11 +149,12 @@ function accionRealizada(mensaje: string) {
       <!-- MODO OFFLINE -->
       <section>
         <div class="mb-3.5 flex items-baseline justify-between">
-          <h3 class="text-base font-medium">
-            Modo offline
-          </h3>
+          <h2 class="text-base font-medium">Modo offline</h2>
 
-          <RouterLink :to="{ name: 'vet-offline' }" class="text-xs text-brand-inkSoft hover:underline">
+          <RouterLink
+            :to="{ name: 'vet-offline' }"
+            class="text-xs text-brand-inkSoft hover:underline"
+          >
             Ver detalle
           </RouterLink>
         </div>
@@ -186,9 +163,7 @@ function accionRealizada(mensaje: string) {
           <div class="mb-3.5 flex items-center gap-2">
             <span class="h-[7px] w-[7px] rounded-full bg-brand-accent" />
 
-            <p class="text-sm font-medium">
-              Todo sincronizado
-            </p>
+            <p class="text-sm font-medium">Todo sincronizado</p>
           </div>
 
           <div
@@ -223,6 +198,5 @@ function accionRealizada(mensaje: string) {
       @close="modal = null"
       @done="accionRealizada"
     />
-
   </div>
 </template>

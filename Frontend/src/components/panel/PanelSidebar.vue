@@ -22,8 +22,12 @@ interface PanelConfig {
 
 const ACTIVE_CLASS = '!bg-brand-accentSoft !text-brand-ink'
 
+// Inicio común de todos los roles (DashboardView). Ruta propia, así que no
+// necesita `exact` para no quedar marcada en otras secciones.
+const DASHBOARD_ROUTE: RouteLocationRaw = { name: 'dashboard' }
+
 const clientLinks: NavLink[] = [
-  { label: 'Inicio', to: { name: 'panel' }, exact: true },
+  { label: 'Inicio', to: DASHBOARD_ROUTE },
   { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
   { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' } },
   { label: 'Reservar turno', to: { name: 'panel-reservar' } },
@@ -31,7 +35,7 @@ const clientLinks: NavLink[] = [
 ]
 
 const vetLinks: NavLink[] = [
-  { label: 'Dashboard', to: { name: 'vet-dashboard' }, exact: true },
+  { label: 'Dashboard', to: DASHBOARD_ROUTE },
   { label: 'Clientes', to: { name: 'vet-clientes' } },
   { label: 'Agenda', to: { name: 'vet-agenda' } },
   { label: 'Gestión de turnos', to: { name: 'vet-turnos' } },
@@ -50,14 +54,17 @@ const adminLinks: NavLink[] = [
 const panels: Partial<Record<Rol, PanelConfig>> = {
   CLIENTE: { subtitle: 'Panel del cliente', links: clientLinks },
   VETERINARIO: { subtitle: 'Panel veterinario', links: vetLinks },
-  ADMINISTRATIVO: { subtitle: 'Panel administrativo', links: adminLinks },
+  ADMINISTRATIVO: {
+    subtitle: 'Panel administrativo',
+    links: [{ label: 'Inicio', to: DASHBOARD_ROUTE }, ...adminLinks],
+  },
   // El superadmin hace todo lo del resto del personal. Usa las secciones reales
   // de turnos y tutores en lugar de las de demostración del panel veterinario.
   SUPERADMIN: {
     subtitle: 'Panel de administración',
     links: [
-      { label: 'Dashboard', to: { name: 'vet-dashboard' }, exact: true },
-      ...adminLinks.map((link) => ({ ...link, exact: false })),
+      { label: 'Dashboard', to: DASHBOARD_ROUTE },
+      ...adminLinks,
       { label: 'Agenda', to: { name: 'vet-agenda' } },
       { label: 'Modo offline', to: { name: 'vet-offline' } },
       { label: 'Usuarios', to: { name: 'vet-usuarios' } },
@@ -77,7 +84,8 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
     v-if="panel"
     class="flex flex-col border-b border-brand-line bg-brand-sidebar px-6 py-6 md:sticky md:top-0 md:h-screen md:w-58.5 md:shrink-0 md:border-b-0 md:border-r md:py-8"
   >
-    <RouterLink to="/" class="block">
+    <!-- Navegación SPA al inicio del panel: no recarga la página ni toca la sesión. -->
+    <RouterLink :to="DASHBOARD_ROUTE" class="block">
       <span class="block font-serif text-xl text-brand-ink">Vet Andina</span>
       <span class="mt-1 block text-xs text-brand-inkSoft">{{ panel.subtitle }}</span>
     </RouterLink>
