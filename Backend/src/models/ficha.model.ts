@@ -1,4 +1,3 @@
-
 import type { PoolClient } from "pg";
 import { db } from "../config/database";
 import { NotFoundError } from "../services/errors";
