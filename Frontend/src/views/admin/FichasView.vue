@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useSessionStore } from '@/stores/session'
 import { searchAnimals, type AnimalSearchResult } from '@/services/fichas'
 
 const busqueda = ref('')
 const resultados = ref<AnimalSearchResult[]>([])
 const error = ref('')
 const buscado = ref(false)
+const session = useSessionStore()
+
+const fichaRouteName = computed(() =>
+  session.user?.rol === 'VETERINARIO' ? 'vet-ficha' : 'admin-ficha',
+)
 
 let timer: ReturnType<typeof setTimeout> | undefined
 watch(busqueda, (texto) => {
@@ -31,8 +37,9 @@ watch(busqueda, (texto) => {
 <template>
   <div class="mx-auto max-w-302.5">
     <h1 class="font-serif text-3xl text-brand-ink">Fichas</h1>
-    <p class="mt-2 text-brand-inkSoft">Consultá la ficha clínica de un paciente. Solo lectura.</p>
-
+    <p class="mt-2 text-brand-inkSoft">
+      Buscá un animal o tutor para consultar y gestionar su ficha médica.
+    </p>
     <input
       v-model="busqueda"
       type="search"
@@ -55,7 +62,7 @@ watch(busqueda, (texto) => {
     >
       <li v-for="r in resultados" :key="r.id">
         <RouterLink
-          :to="{ name: 'admin-ficha', params: { id: r.id } }"
+          :to="{ name: fichaRouteName, params: { id: r.id } }"
           class="flex items-center justify-between px-5 py-4 text-sm text-brand-ink hover:bg-brand-accentSoft"
         >
           <span

@@ -162,6 +162,12 @@ const router = createRouter({
 
         // Gestión de establecimientos (cliente rural).
         {
+          path: 'mascotas/:id/ficha',
+          name: 'panel-mascota-ficha',
+          props: true,
+          component: () => import('@/views/admin/FichaView.vue'),
+        },
+        {
           path: 'establecimientos',
           name: 'panel-establecimientos',
           component: () => import('../views/panel/EstablishmentsView.vue'),
@@ -259,6 +265,22 @@ const router = createRouter({
 
         // Administración de usuarios.
         // Acceso exclusivo del SUPERADMIN.
+        {
+          path: 'fichas',
+          children: [
+            {
+              path: '',
+              name: 'vet-fichas',
+              component: () => import('@/views/admin/FichasView.vue'),
+            },
+            {
+              path: ':id',
+              name: 'vet-ficha',
+              props: true,
+              component: () => import('@/views/admin/FichaView.vue'),
+            },
+          ],
+        },
         {
           path: 'usuarios',
           name: 'vet-usuarios',
