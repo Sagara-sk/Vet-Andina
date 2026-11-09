@@ -2,7 +2,7 @@ import { API_BASE_URL } from '@/config/api'
 
 export type TipoPersona = 'INDIVIDUAL' | 'EMPRESA_PRODUCTOR'
 
-// Usuario tal como lo devuelven login, registro y GET /api/auth/session. El rol y
+// Usuario tal como lo devuelven login, registro y GET /api/auth/me. El rol y
 // el tipo de cliente salen de la base en cada request, no del token.
 export interface AuthUser {
   id: string
@@ -62,7 +62,7 @@ export async function registerOwner(input: {
 }
 
 export async function getAuthSession(): Promise<AuthUser | null> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/session`, {
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
     credentials: 'include',
     cache: 'no-store',
   })
