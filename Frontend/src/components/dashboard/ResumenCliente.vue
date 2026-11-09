@@ -4,14 +4,14 @@ import { RouterLink } from 'vue-router'
 import PetCard from '@/components/panel/PetCard.vue'
 import StatusBadge from '@/components/panel/StatusBadge.vue'
 import { appointments, pets } from '@/data/panelMock'
-import type { TipoPersona } from '@/services/auth'
+import type { TipoAtencion } from '@/services/auth'
 import { formatLongDate, formatShortDate } from '@/utils/format'
 
 // Módulo de inicio del tutor: próximo turno, mascotas y turnos (demostración).
-// Los productores ven además el acceso a sus establecimientos, que sí son reales.
-const props = defineProps<{ tipoPersona: TipoPersona | null }>()
+// Los clientes RURAL ven además el acceso a sus establecimientos, que sí son reales.
+const props = defineProps<{ tipoAtencion: TipoAtencion | null }>()
 
-const esProductor = computed(() => props.tipoPersona === 'EMPRESA_PRODUCTOR')
+const esRural = computed(() => props.tipoAtencion === 'RURAL')
 
 const petName = (id: number) => pets.find((p) => p.id === id)?.name ?? '—'
 
@@ -29,7 +29,7 @@ const nextAppointment = computed(() =>
     </p>
 
     <section
-      v-if="esProductor"
+      v-if="esRural"
       class="mt-9 flex flex-wrap items-center justify-between gap-6 border border-brand-line bg-brand-surface px-7 py-6"
     >
       <div>

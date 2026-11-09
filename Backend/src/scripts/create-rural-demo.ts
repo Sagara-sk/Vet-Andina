@@ -6,7 +6,8 @@ import { db } from "../config/database";
 // Carga establecimientos y lotes ganaderos ficticios para probar la vista
 // /panel/establecimientos y comprobar que cada tutor ve solo los suyos:
 // - Laura Giménez y Productor Demo (clientes creados con `npm run seed:test-users`)
-//   reciben sus campos.
+//   reciben sus campos. A Laura además se le completan como productora los datos
+//   de perfil que tenga vacíos y se le agrega una mascota urbana.
 // - Se crean tres productores de prueba con cuenta CLIENTE y perfil completo.
 // Las credenciales están publicadas en el README: son cuentas de desarrollo y no
 // deben existir en una base con datos reales. Los nombres de los campos llevan
@@ -36,12 +37,31 @@ interface DemoProducer {
     locality: string;
     dniCuit: string;
   };
+  // Para una cuenta que ya existe (creada por seed:test-users): completa como
+  // productor solo los campos del perfil que estén vacíos; nunca sobrescribe.
+  completeProfile?: {
+    dniCuit: string;
+    address: string;
+  };
+  // Mascotas urbanas (consultorio, sin establecimiento) para ver "Mis mascotas".
+  pets?: DemoPet[];
   establishments: DemoEstablishment[];
+}
+
+interface DemoPet {
+  name: string;
+  species: string;
+  breed: string;
 }
 
 const demoProducers: DemoProducer[] = [
   {
     email: "laura.gimenez@example.com",
+    completeProfile: {
+      dniCuit: "27-00000001-0",
+      address: "Calle Falsa 123, Cipolletti",
+    },
+    pets: [{ name: "Luna (demo)", species: "Canino", breed: "Mestizo" }],
     establishments: [
       {
         name: "La Esperanza (demo)",
@@ -156,7 +176,7 @@ async function findOrCreateProducer(client: PoolClient, producer: DemoProducer):
   );
   const existingId = existing.rows[0]?.id_duenio;
   if (existingId) {
-    console.log(`Productor ya existente: ${producer.email}; su cuenta no se modificó.`);
+    console.log(`Productor ya existente: ${producer.email}; no se vuelve a crear la cuenta.`);
     return existingId;
   }
 
@@ -254,12 +274,70 @@ async function createLotIfMissing(
   console.log(`    Lote creado: ${lot.name} (${lot.animalCount} ${lot.species})`);
 }
 
+// Completa el perfil de una cuenta existente como productor. COALESCE conserva
+// cualquier dato ya cargado (por la persona o por personal administrativo).
+async function completeProfileIfMissing(
+  client: PoolClient,
+  ownerId: string,
+  profile: NonNullable<DemoProducer["completeProfile"]>,
+): Promise<void> {
+  const updated = await client.query(
+    `UPDATE duenio
+     SET dni_cuit = COALESCE(NULLIF(btrim(dni_cuit), ''), $2),
+         tipo_persona = COALESCE(tipo_persona, 'EMPRESA_PRODUCTOR'),
+         direccion_urbana = COALESCE(NULLIF(btrim(direccion_urbana), ''), $3)
+     WHERE id_duenio = $1
+       AND (dni_cuit IS NULL OR btrim(dni_cuit) = ''
+            OR tipo_persona IS NULL
+            OR direccion_urbana IS NULL OR btrim(direccion_urbana) = '')`,
+    [ownerId, profile.dniCuit, profile.address],
+  );
+  console.log(
+    updated.rowCount
+      ? "  Perfil completado con los datos que faltaban."
+      : "  Perfil ya completo; no se modificó.",
+  );
+}
+
+// Mascota urbana (sin establecimiento) con su ficha médica, como el alta desde la API.
+async function createPetIfMissing(client: PoolClient, ownerId: string, pet: DemoPet): Promise<void> {
+  const existing = await client.query(
+    `SELECT 1 FROM animal
+     WHERE id_duenio = $1 AND id_finca IS NULL
+       AND lower(btrim(nombre_identificacion)) = lower(btrim($2))`,
+    [ownerId, pet.name],
+  );
+  if (existing.rowCount) {
+    console.log(`  Mascota ya existente: ${pet.name}`);
+    return;
+  }
+
+  const animal = await client.query<{ id_animal: string }>(
+    `INSERT INTO animal (id_duenio, id_finca, tipo_atencion, nombre_identificacion, especie, raza,
+                         cantidad_en_lote, fecha_nacimiento)
+     VALUES ($1, NULL, 'URBANO', $2, $3, $4, 1, NULL)
+     RETURNING id_animal`,
+    [ownerId, pet.name, pet.species, pet.breed],
+  );
+  const animalId = animal.rows[0]?.id_animal;
+  if (!animalId) throw new Error(`No se pudo crear la mascota ${pet.name}.`);
+
+  await client.query(`INSERT INTO ficha_medica (id_animal) VALUES ($1)`, [animalId]);
+  console.log(`  Mascota creada: ${pet.name} (${pet.species})`);
+}
+
 // Cada productor va en su propia transacción: si uno falla, no queda a medias.
 async function seedProducer(producer: DemoProducer): Promise<void> {
   const client = await db.connect();
   try {
     await client.query("BEGIN");
     const ownerId = await findOrCreateProducer(client, producer);
+    if (producer.completeProfile) {
+      await completeProfileIfMissing(client, ownerId, producer.completeProfile);
+    }
+    for (const pet of producer.pets ?? []) {
+      await createPetIfMissing(client, ownerId, pet);
+    }
     for (const establishment of producer.establishments) {
       const farmId = await findOrCreateEstablishment(client, ownerId, establishment);
       for (const lot of establishment.lots) {

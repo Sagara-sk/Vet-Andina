@@ -7,6 +7,7 @@ const animales = ref<AnimalPropio[]>([])
 const loading = ref(true)
 const error = ref('')
 
+// La API ya filtra por tutor y tipo URBANO; el filtro local solo es resguardo.
 const mascotas = computed(() =>
   animales.value.filter((animal) => animal.modality === 'URBANO'),
 )
@@ -16,7 +17,7 @@ async function cargarMascotas() {
   error.value = ''
 
   try {
-    animales.value = await listMisAnimales()
+    animales.value = await listMisAnimales('URBANO')
   } catch (e) {
     error.value =
       e instanceof Error
@@ -31,7 +32,7 @@ onMounted(cargarMascotas)
 </script>
 
 <template>
-  <div class="mx-auto max-w -[1210px]">
+  <div class="mx-auto max-w-[1210px]">
     <header>
       <h1 class="font-serif text-3xl text-brand-ink">Mis mascotas</h1>
       <p class="mt-2 text-sm text-brand-inkSoft">

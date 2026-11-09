@@ -107,12 +107,31 @@ export const getPublicAvailability: RequestHandler = async (
   }
 };
 
+// ?tipo=URBANO lista solo las mascotas; ?tipo=RURAL, solo animales y lotes de
+// campo y únicamente para tutores rurales. Sin tipo (reserva de turnos) devuelve
+// todos los animales propios. El dueño siempre sale de la sesión.
+const myAnimalsQuerySchema = Joi.object({
+  tipo: Joi.string().valid("URBANO", "RURAL"),
+}).unknown(false);
+
 export const getMyAnimals: RequestHandler = async (request, response) => {
   const user = request.user as AuthenticatedUserRecord;
+  const { error, value } = myAnimalsQuerySchema.validate(request.query);
+  if (error) return sendValidationError(response, error);
+
+  const careType = value.tipo as "URBANO" | "RURAL" | undefined;
+  if (careType === "RURAL" && user.careType !== "RURAL") {
+    response.status(403).json({
+      status: "error",
+      message: "Tu cuenta no tiene atención rural.",
+    });
+    return;
+  }
+
   try {
     response.json({
       status: "ok",
-      animales: await listOwnerAnimals(user.userId),
+      animales: await listOwnerAnimals(user.userId, careType),
     });
   } catch (error) {
     sendError(

@@ -12,6 +12,8 @@ interface NavLink {
   label: string
   to: RouteLocationRaw
   exact?: boolean
+  // Solo para clientes con atención RURAL (establecimientos y lotes).
+  soloRural?: boolean
 }
 
 interface PanelConfig {
@@ -23,27 +25,14 @@ const ACTIVE_CLASS = '!bg-brand-accentSoft !text-brand-ink'
 
 const DASHBOARD_ROUTE: RouteLocationRaw = { name: 'dashboard' }
 
-// Secciones compartidas por clientes urbanos y rurales.
-const clientCommonLinks: NavLink[] = [
+// Menú del cliente. "Mis establecimientos" se oculta con v-if a los clientes
+// URBANO; los RURAL ven mascotas y establecimientos.
+const clientLinks: NavLink[] = [
   { label: 'Inicio', to: DASHBOARD_ROUTE },
+  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
+  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' }, soloRural: true },
   { label: 'Reservar turno', to: { name: 'panel-reservar' } },
   { label: 'Mis turnos', to: { name: 'panel-turnos' } },
-
-]
-
-// Secciones exclusivas de clientes urbanos.
-const urbanClientLinks: NavLink[] = [
-  { label: 'Inicio', to: DASHBOARD_ROUTE },
-  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
-  ...clientCommonLinks.slice(1),
-]
-
-// Secciones exclusivas de clientes rurales.
-const ruralClientLinks: NavLink[] = [
-  { label: 'Inicio', to: DASHBOARD_ROUTE },
-  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
-  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' } },
-  ...clientCommonLinks.slice(1),
 ]
 
 const vetLinks: NavLink[] = [
@@ -93,17 +82,11 @@ const panel = computed<PanelConfig | undefined>(() => {
 
   if (user.rol === 'CLIENTE') {
     if (session.isUrbanClient) {
-      return {
-        subtitle: 'Panel del cliente urbano',
-        links: urbanClientLinks,
-      }
+      return { subtitle: 'Panel del cliente urbano', links: clientLinks }
     }
 
     if (session.isRuralClient) {
-      return {
-        subtitle: 'Panel del cliente rural',
-        links: ruralClientLinks,
-      }
+      return { subtitle: 'Panel del cliente rural', links: clientLinks }
     }
 
     // Perfil todavía incompleto: no mostrar secciones específicas.
@@ -134,20 +117,23 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
     <nav
       class="mt-6 flex gap-1 overflow-x-auto md:mt-9 md:flex-col md:gap-2 md:overflow-visible"
     >
-      <RouterLink
-        v-for="link in panel.links"
-        :key="link.label"
-        :to="link.to"
-        :active-class="link.exact ? '' : ACTIVE_CLASS"
-        :exact-active-class="ACTIVE_CLASS"
-        class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
-      >
-        <span
-          class="h-1 w-1 rounded-full bg-current"
-          aria-hidden="true"
-        />
-        {{ link.label }}
-      </RouterLink>
+      <template v-for="link in panel.links" :key="link.label">
+        <!-- Los clientes URBANO no ven las secciones rurales. La API rechaza
+             igual /establecimientos si el tutor no es rural. -->
+        <RouterLink
+          v-if="!link.soloRural || session.isRuralClient"
+          :to="link.to"
+          :active-class="link.exact ? '' : ACTIVE_CLASS"
+          :exact-active-class="ACTIVE_CLASS"
+          class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
+        >
+          <span
+            class="h-1 w-1 rounded-full bg-current"
+            aria-hidden="true"
+          />
+          {{ link.label }}
+        </RouterLink>
+      </template>
     </nav>
 
     <button

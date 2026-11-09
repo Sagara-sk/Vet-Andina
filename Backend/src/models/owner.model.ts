@@ -18,6 +18,17 @@ export interface OwnerAccountRecord {
 }
 
 export type TipoPersona = "INDIVIDUAL" | "EMPRESA_PRODUCTOR";
+export type TipoAtencion = "URBANO" | "RURAL";
+
+// Tipo de atención del tutor, con la misma regla que ya usa el frontend:
+// productor (EMPRESA_PRODUCTOR) = RURAL, particular (INDIVIDUAL) = URBANO y
+// perfil sin tipo de persona = NULL. Requiere el alias `d` para duenio. Se usa
+// en la sesión y para autorizar /establecimientos dentro de la consulta.
+export const CARE_TYPE_SQL = `
+  CASE d.tipo_persona
+    WHEN 'EMPRESA_PRODUCTOR' THEN 'RURAL'
+    WHEN 'INDIVIDUAL' THEN 'URBANO'
+  END`;
 
 export interface AuthenticatedUserRecord {
   userId: string;
@@ -28,6 +39,9 @@ export interface AuthenticatedUserRecord {
   // Tipo de tutor (duenio.tipo_persona). null para el personal y para clientes
   // que todavía no completaron el perfil.
   personType: TipoPersona | null;
+  // Tipo de atención del tutor (ver CARE_TYPE_SQL). null para el personal y
+  // para clientes sin tipo de persona cargado.
+  careType: TipoAtencion | null;
 }
 
 export interface UserCredentialsRecord extends AuthenticatedUserRecord {
@@ -41,10 +55,12 @@ interface AuthenticatedUserRow {
   rol: string;
   perfil_completo: boolean;
   tipo_persona: TipoPersona | null;
+  tipo_atencion: TipoAtencion | null;
 }
 
 const AUTHENTICATED_USER_COLUMNS = `
   u.id_usuario, u.nombre_completo, u.email, u.rol, d.tipo_persona,
+  CASE WHEN u.rol = 'CLIENTE' THEN ${CARE_TYPE_SQL} END AS tipo_atencion,
   CASE
     WHEN u.rol <> 'CLIENTE' THEN TRUE
     WHEN d.dni_cuit IS NULL OR btrim(d.dni_cuit) = '' OR d.tipo_persona IS NULL THEN FALSE
@@ -63,6 +79,7 @@ function toAuthenticatedUser(row: AuthenticatedUserRow): AuthenticatedUserRecord
     role: row.rol,
     profileComplete: row.perfil_completo,
     personType: row.tipo_persona,
+    careType: row.tipo_atencion,
   };
 }
 
