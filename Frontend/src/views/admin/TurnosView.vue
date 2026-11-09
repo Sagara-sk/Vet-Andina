@@ -219,24 +219,7 @@ onMounted(async () => {
       </select>
     </div>
 
-    <RuralAvailabilityManager class="mt-7" />
-
-    <p
-      v-if="feedback"
-      class="mt-5 bg-brand-accentSoft px-4 py-3 text-sm text-brand-accentInk"
-      role="status"
-    >
-      {{ feedback }}
-    </p>
-    <p
-      v-if="error"
-      class="mt-5 border border-brand-dangerLine bg-brand-dangerSoft px-4 py-3 text-sm text-brand-dangerInk"
-      role="alert"
-    >
-      {{ error }}
-    </p>
-
-    <div class="mt-5 overflow-x-auto border border-brand-line bg-brand-surface">
+        <div class="mt-5 overflow-x-auto border border-brand-line bg-brand-surface">
       <table class="w-full min-w-215 text-left text-sm">
         <thead class="text-xs text-brand-inkSoft">
           <tr>
@@ -363,6 +346,25 @@ onMounted(async () => {
         No hay turnos en este período.
       </p>
     </div>
+
+
+    <RuralAvailabilityManager class="mt-7" />
+
+    <p
+      v-if="feedback"
+      class="mt-5 bg-brand-accentSoft px-4 py-3 text-sm text-brand-accentInk"
+      role="status"
+    >
+      {{ feedback }}
+    </p>
+    <p
+      v-if="error"
+      class="mt-5 border border-brand-dangerLine bg-brand-dangerSoft px-4 py-3 text-sm text-brand-dangerInk"
+      role="alert"
+    >
+      {{ error }}
+    </p>
+
 
     <NuevoTurnoModal v-if="nuevo" @close="nuevo = false" @created="onCreado" />
     <TurnoAccionModal
