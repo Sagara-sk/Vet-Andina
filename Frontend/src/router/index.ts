@@ -60,6 +60,12 @@ const router = createRouter({
           component: () => import('../views/panel/PetsView.vue'),
         },
         {
+          path: 'mascotas/:id/ficha',
+          name: 'panel-mascota-ficha',
+          props: true,
+          component: () => import('@/views/admin/FichaView.vue'),
+        },
+        {
           path: 'establecimientos',
           name: 'panel-establecimientos',
           component: () => import('../views/panel/EstablishmentsView.vue'),
@@ -104,6 +110,22 @@ const router = createRouter({
           path: 'turnos',
           name: 'vet-turnos',
           component: () => import('@/views/veterinario/TurnosGestionView.vue'),
+        },
+        {
+          path: 'fichas',
+          children: [
+            {
+              path: '',
+              name: 'vet-fichas',
+              component: () => import('@/views/admin/FichasView.vue'),
+            },
+            {
+              path: ':id',
+              name: 'vet-ficha',
+              props: true,
+              component: () => import('@/views/admin/FichaView.vue'),
+            },
+          ],
         },
         {
           path: 'usuarios',

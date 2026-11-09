@@ -39,6 +39,7 @@ const vetLinks: NavLink[] = [
   { label: 'Clientes', to: { name: 'vet-clientes' } },
   { label: 'Agenda', to: { name: 'vet-agenda' } },
   { label: 'Gestión de turnos', to: { name: 'vet-turnos' } },
+  { label: 'Fichas médicas', to: { name: 'vet-fichas' } },
   { label: 'Modo offline', to: { name: 'vet-offline' } },
 ]
 

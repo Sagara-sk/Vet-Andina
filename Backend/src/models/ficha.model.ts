@@ -61,6 +61,7 @@ export interface NewClinicalEntry {
   vaccines: unknown;
 }
 
+// Busca animales por nombre o por nombre del tutor.
 export async function searchAnimals(
   search: string,
 ): Promise<AnimalSearchResult[]> {
@@ -95,6 +96,7 @@ export async function searchAnimals(
   }));
 }
 
+// Obtiene la ficha médica de un animal y sus evoluciones.
 export async function findMedicalRecord(
   animalId: string,
   ownerUserId: string | null = null,
@@ -139,7 +141,10 @@ export async function findMedicalRecord(
   );
 
   const row = head.rows[0];
-  if (!row) return undefined;
+
+  if (!row) {
+    return undefined;
+  }
 
   const entries = row.id_ficha
     ? await db.query<{
@@ -215,8 +220,7 @@ export async function findMedicalRecord(
   };
 }
 
-// Garantiza que el animal tenga una ficha. Se puede llamar desde cualquier
-// operación transaccional sin generar duplicados.
+// Garantiza que el animal tenga una ficha médica.
 export async function ensureMedicalRecord(
   client: PoolClient,
   animalId: string,
@@ -256,6 +260,7 @@ export async function ensureMedicalRecord(
   return fichaId;
 }
 
+// Actualiza los datos generales de la ficha médica.
 export async function updateMedicalRecord(
   client: PoolClient,
   animalId: string,
@@ -272,6 +277,7 @@ export async function updateMedicalRecord(
   );
 }
 
+// Registra una nueva evolución clínica.
 export async function insertClinicalEntry(
   client: PoolClient,
   input: {
@@ -291,7 +297,7 @@ export async function insertClinicalEntry(
        vacunas_aplicadas,
        es_fe_de_erratas
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, FALSE)
      RETURNING id_evolucion`,
     [
       input.recordId,
@@ -300,7 +306,7 @@ export async function insertClinicalEntry(
       input.entry.reason,
       input.entry.diagnosis,
       input.entry.treatment,
-      input.entry.vaccines,
+      JSON.stringify(input.entry.vaccines ?? []),
     ],
   );
 
@@ -313,6 +319,7 @@ export async function insertClinicalEntry(
   return id;
 }
 
+// Registra una fe de erratas vinculada a una evolución existente.
 export async function insertErratum(
   client: PoolClient,
   input: {
