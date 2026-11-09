@@ -4,7 +4,6 @@ import { ref } from 'vue'
 import { computed, ref } from 'vue'
 import { formatShortDate, initials } from '@/utils/format'
 
-const agenda = useAgendaDemoStore()
 const busqueda = ref('')
 
 const clientes = computed(() => {
