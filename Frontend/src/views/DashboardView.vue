@@ -54,7 +54,7 @@ const fechaHoy = (() => {
       </RouterLink>
     </header>
 
-    <ResumenCliente v-if="modulos.cliente" :tipo-persona="session.user?.tipoPersona ?? null" />
+    <ResumenCliente v-if="modulos.cliente" :tipo-atencion="session.user?.tipoAtencion ?? null" />
     <ResumenVeterinario v-if="modulos.veterinario" />
     <AccesosAdministrativos v-if="modulos.administrativo" :incluir-usuarios="modulos.usuarios" />
   </div>

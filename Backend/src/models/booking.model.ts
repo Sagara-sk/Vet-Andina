@@ -53,8 +53,12 @@ function argentinaDate(dateTime: Date): string {
   return `${value.year}-${value.month}-${value.day}`;
 }
 
+// Animales del tutor de la sesión. El dueño sale siempre del id_usuario
+// autenticado, nunca de un parámetro del cliente. Con careType se limita además
+// al tipo de atención pedido (URBANO = mascotas, RURAL = animales y lotes de campo).
 export async function listOwnerAnimals(
   userId: string,
+  careType?: "URBANO" | "RURAL",
 ): Promise<BookingAnimal[]> {
   const result = await db.query<{
     id_animal: string;
@@ -67,8 +71,9 @@ export async function listOwnerAnimals(
      FROM animal a
      JOIN duenio d ON d.id_duenio = a.id_duenio
      WHERE d.id_usuario = $1
+       AND ($2::text IS NULL OR a.tipo_atencion::text = $2::text)
      ORDER BY a.nombre_identificacion`,
-    [userId],
+    [userId, careType ?? null],
   );
   return result.rows.map((row) => ({
     id: row.id_animal,

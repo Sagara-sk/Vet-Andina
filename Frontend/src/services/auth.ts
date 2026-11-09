@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '@/config/api'
 
 export type TipoPersona = 'INDIVIDUAL' | 'EMPRESA_PRODUCTOR'
+export type TipoAtencion = 'URBANO' | 'RURAL'
 
 // Usuario tal como lo devuelven login, registro y GET /api/auth/me. El rol y
 // el tipo de cliente salen de la base en cada request, no del token.
@@ -11,6 +12,9 @@ export interface AuthUser {
   rol: string
   // null para el personal y para clientes que todavía no completaron el perfil.
   tipoPersona: TipoPersona | null
+  // URBANO o RURAL, calculado por la API con los datos del tutor; null para el
+  // personal. Solo decide qué se muestra: la API valida el acceso.
+  tipoAtencion: TipoAtencion | null
   profileComplete: boolean
 }
 

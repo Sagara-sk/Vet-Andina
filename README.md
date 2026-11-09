@@ -257,11 +257,11 @@ cd Backend
 npm run seed:rural-demo
 ```
 
-El script (`Backend/src/scripts/create-rural-demo.ts`) necesita que Laura y Productor Demo ya existan (`npm run seed:test-users`). Les agrega campos y lotes a esas dos cuentas y crea tres productores con rol `CLIENTE`, perfil completo y tipo de persona `EMPRESA_PRODUCTOR`:
+El script (`Backend/src/scripts/create-rural-demo.ts`) necesita que Laura y Productor Demo ya existan (`npm run seed:test-users`). Les agrega campos y lotes a esas dos cuentas; a Laura además le completa como productora (`EMPRESA_PRODUCTOR`) los datos de perfil vacíos (CUIT ficticio `27-00000001-0` y dirección `Calle Falsa 123, Cipolletti`, sin sobrescribir datos cargados) y le agrega la mascota urbana Luna (demo). También crea tres productores con rol `CLIENTE`, perfil completo y tipo de persona `EMPRESA_PRODUCTOR`:
 
 | Nombre          | Email                         | Contraseña                  | Establecimientos y lotes                                                                                           |
 | --------------- | ----------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Laura Giménez   | `laura.gimenez@example.com`   | `VetAndina-Cliente2026`     | La Esperanza (2 lotes bovinos, 165 animales) y Los Álamos (ovinos y equinos, 86 animales).                         |
+| Laura Giménez   | `laura.gimenez@example.com`   | `VetAndina-Cliente2026`     | La Esperanza (2 lotes bovinos, 165 animales) y Los Álamos (ovinos y equinos, 86 animales). Mascota urbana: Luna (canino). |
 | Productor Demo  | `productor@vetandina.com`     | `productor123`              | El Productor (bovinos y ovinos, 100 animales).                                                                     |
 | Ricardo Benítez | `ricardo.benitez@example.com` | `VetAndina-Productor1-2026` | El Mirador (bovinos y equinos, 278 animales).                                                                      |
 | Marta Quiroga   | `marta.quiroga@example.com`   | `VetAndina-Productor2-2026` | San Javier (caprinos y ovinos, 90 animales) y Puesto Chacra 14 (porcinos, 18 animales).                            |
@@ -347,8 +347,8 @@ Los paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú 
 | `POST`   | `/api/tutores/:id/animales`                                      | `ADMINISTRATIVO` y `SUPERADMIN`. Alta de animal o lote, con su ficha médica, en una transacción.                                                    |
 | `GET`    | `/api/animales?buscar=`                                          | Personal. Busca pacientes por nombre del animal o del tutor (mín. 2 letras).                                                                        |
 | `GET`    | `/api/animales/:id/ficha`                                        | Personal. Ficha y evoluciones clínicas en solo lectura.                                                                                             |
-| `GET`    | `/api/animales/mios`                                             | `CLIENTE`. Animales propios para solicitar turnos.                                                                                                  |
-| `GET`    | `/api/establecimientos/mios`                                     | `CLIENTE`. Establecimientos propios con sus lotes (especie, raza y cantidad) y el total de animales. Filtra por el dueño de la sesión en la consulta. |
+| `GET`    | `/api/animales/mios`                                             | `CLIENTE`. Animales propios. `?tipo=URBANO` devuelve solo mascotas; `?tipo=RURAL` solo animales de campo y responde `403` si el tutor no es `RURAL`. Sin `tipo` (reserva de turnos) devuelve todos.                                                                                                |
+| `GET`    | `/api/establecimientos/mios`                                     | `CLIENTE`. Establecimientos propios con sus lotes (especie, raza y cantidad) y el total de animales. Solo para tutores `RURAL` (`403` para el resto); la consulta filtra por el dueño de la sesión, exige atención rural y lista solo lotes de tipo `RURAL`. |
 | `GET`    | `/api/turnos/disponibilidad?desde&hasta&modalidad&idVeterinario` | Usuario autenticado. Días y horarios libres (rango máx. 62 días); un veterinario omitido consulta disponibilidad conjunta.                          |
 | `GET`    | `/api/turnos/mios`                                               | `CLIENTE`. Turnos de su cuenta.                                                                                                                     |
 | `POST`   | `/api/turnos/solicitudes`                                        | `CLIENTE`. Solicita un turno para uno de sus animales; el servidor valida disponibilidad y asigna un profesional libre. Estado inicial `PENDIENTE`. |
