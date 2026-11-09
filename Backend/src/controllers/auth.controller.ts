@@ -11,7 +11,6 @@ import {
   saveOwnerProfile,
   sessionCookieOptions,
 } from "../services/auth.service";
-import type { AuthenticatedUserRecord } from "../models/owner.model";
 import { sendError, sendValidationError } from "./respond";
 
 const registerSchema = Joi.object({
@@ -57,6 +56,20 @@ const clientProfileSchema = Joi.object({
   }),
 }).unknown(false);
 
+// Forma única del usuario que reciben login, registro y sesión, para que el
+// frontend pinte permisos con los mismos campos sin importar el origen. No
+// incluye datos sensibles (hash, DNI/CUIT) ni se toma del token: sale de la base.
+function toSessionUser(user: AuthenticatedUser) {
+  return {
+    id: user.userId,
+    nombreCompleto: user.fullName,
+    email: user.email,
+    rol: user.role,
+    tipoPersona: user.personType,
+    profileComplete: user.profileComplete,
+  };
+}
+
 function clearSessionCookie(response: Parameters<RequestHandler>[1]): void {
   const { httpOnly, secure, sameSite, path } = sessionCookieOptions();
   response.clearCookie(SESSION_COOKIE_NAME, {
@@ -86,16 +99,7 @@ export const postLogin: RequestHandler = async (request, response) => {
     const token = createSessionToken(user);
 
     response.cookie(SESSION_COOKIE_NAME, token, sessionCookieOptions());
-    response.json({
-      status: "ok",
-      user: {
-        id: user.userId,
-        nombreCompleto: user.fullName,
-        email: user.email,
-        rol: user.role,
-        profileComplete: user.profileComplete,
-      },
-    });
+    response.json({ status: "ok", user: toSessionUser(user) });
   } catch (error) {
     if (error instanceof InvalidCredentialsError) {
       response.status(401).json({ status: "error", message: error.message });
@@ -114,15 +118,7 @@ export const getSession: RequestHandler = (request, response) => {
   response.set("Cache-Control", "no-store");
   const user = request.user as AuthenticatedUser;
 
-  response.json({
-    status: "ok",
-    user: {
-      id: user.userId,
-      nombreCompleto: user.fullName,
-      rol: user.role,
-      profileComplete: user.profileComplete,
-    },
-  });
+  response.json({ status: "ok", user: toSessionUser(user) });
 };
 
 export const postClientProfile: RequestHandler = async (request, response) => {
@@ -133,7 +129,7 @@ export const postClientProfile: RequestHandler = async (request, response) => {
 
   if (error) return sendValidationError(response, error);
 
-  const user = request.user as AuthenticatedUserRecord;
+  const user = request.user as AuthenticatedUser;
 
   try {
     await saveOwnerProfile(user.userId, {
@@ -180,13 +176,14 @@ export const postRegister: RequestHandler = async (request, response) => {
     response.status(201).json({
       status: "ok",
       message: "La cuenta se creó correctamente.",
-      user: {
-        id: account.userId,
-        nombreCompleto: account.fullName,
+      user: toSessionUser({
+        userId: account.userId,
+        fullName: account.fullName,
         email: account.email,
-        rol: account.role,
+        role: account.role,
         profileComplete: false,
-      },
+        personType: null,
+      }),
     });
   } catch (error) {
     if (error instanceof RegistrationConflictError) {

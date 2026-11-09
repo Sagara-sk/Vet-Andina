@@ -1,9 +1,16 @@
 import { API_BASE_URL } from '@/config/api'
 
+export type TipoPersona = 'INDIVIDUAL' | 'EMPRESA_PRODUCTOR'
+
+// Usuario tal como lo devuelven login, registro y GET /api/auth/session. El rol y
+// el tipo de cliente salen de la base en cada request, no del token.
 export interface AuthUser {
   id: string
   nombreCompleto: string
+  email: string
   rol: string
+  // null para el personal y para clientes que todavía no completaron el perfil.
+  tipoPersona: TipoPersona | null
   profileComplete: boolean
 }
 
@@ -81,7 +88,7 @@ export async function logout(): Promise<void> {
 
 export async function saveClientProfile(data: {
   dni_cuit: string
-  tipo_persona: 'INDIVIDUAL' | 'EMPRESA_PRODUCTOR'
+  tipo_persona: TipoPersona
   direccion_urbana: string | null
   nombre_finca: string | null
 }): Promise<void> {

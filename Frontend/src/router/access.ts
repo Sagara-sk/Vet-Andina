@@ -1,46 +1,70 @@
-import type { RouteLocationRaw, RouteRecordNormalized } from 'vue-router'
 
-// Valores del enum rol_usuario de la base.
+import type { RouteLocationRaw, RouteRecordNormalized } from 'vue-router'
+import type { TipoPersona } from '@/services/auth'
+
+// Roles definidos en la base de datos.
 export type Rol = 'SUPERADMIN' | 'ADMINISTRATIVO' | 'VETERINARIO' | 'CLIENTE'
 
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     allowedRoles?: readonly Rol[]
+    allowedTipoPersona?: readonly TipoPersona[]
     title?: string
   }
 }
 
-// Solo decide la navegación: la autorización real tiene que hacerla la API.
-// Una ruta privada sin roles declarados queda denegada.
-export function canAccess(matched: readonly RouteRecordNormalized[], rol: string): boolean {
-  const restrictions = matched
+// Comprueba los permisos de navegación de todos los registros de la ruta.
+// La autorización real siempre debe validarse también desde la API.
+export function canAccess(
+  matched: readonly RouteRecordNormalized[],
+  rol: string,
+  tipoPersona: TipoPersona | null = null,
+): boolean {
+  const requiresAuth = matched.some((record) => record.meta.requiresAuth)
+
+  const roleRestrictions = matched
     .map((record) => record.meta.allowedRoles)
     .filter((roles): roles is readonly Rol[] => Array.isArray(roles))
 
-  if (restrictions.length === 0) {
-    return !matched.some((record) => record.meta.requiresAuth)
+  const personaRestrictions = matched
+    .map((record) => record.meta.allowedTipoPersona)
+    .filter((types): types is readonly TipoPersona[] => Array.isArray(types))
+
+  // Una ruta privada debe declarar al menos una restricción de roles.
+  if (requiresAuth && roleRestrictions.length === 0) {
+    return false
   }
 
-  return restrictions.every((roles) => roles.some((allowed) => allowed === rol))
+  // Cada nivel de la ruta debe permitir el rol del usuario.
+  const hasAllowedRole = roleRestrictions.every((roles) => roles.includes(rol as Rol))
+
+  if (!hasAllowedRole) {
+    return false
+  }
+
+  // Las restricciones de tipoPersona solo se aplican cuando están declaradas.
+  // Un cliente sin tipoPersona no puede acceder a secciones específicas.
+  const hasAllowedPersona = personaRestrictions.every(
+    (types) => tipoPersona !== null && types.includes(tipoPersona),
+  )
+
+  return hasAllowedPersona
 }
 
-// Panel propio de cada rol.
+const PANEL_ROLES: readonly Rol[] = [
+  'CLIENTE',
+  'VETERINARIO',
+  'ADMINISTRATIVO',
+  'SUPERADMIN',
+]
+
+// Todos los roles conocidos comparten el dashboard general.
 export function panelRouteForRole(rol: string): RouteLocationRaw | null {
-  switch (rol) {
-    case 'CLIENTE':
-      return { name: 'panel' }
-    case 'VETERINARIO':
-    case 'SUPERADMIN':
-      return { name: 'vet-dashboard' }
-    case 'ADMINISTRATIVO':
-      return { name: 'admin-turnos' }
-    default:
-      return null
-  }
+  return PANEL_ROLES.includes(rol as Rol) ? { name: 'dashboard' } : null
 }
 
-// Destino tras el login: el panel del rol o, si no tiene, el inicio público.
+// Destino después del login: panel o inicio público.
 export function homeRouteForRole(rol: string): RouteLocationRaw {
   return panelRouteForRole(rol) ?? { name: 'home' }
 }

@@ -14,6 +14,7 @@ export type ModalidadTurno = 'CONSULTORIO' | 'RURAL'
 export interface Turno {
   id: string
   dateTime: string
+  durationMinutes: number
   modality: ModalidadTurno
   status: EstadoTurno
   reason: string | null
@@ -39,7 +40,12 @@ export interface NuevoTurno {
 
 // Estados desde los que la API acepta cada acción (ver turno.service.ts).
 export const CONFIRMABLE: EstadoTurno[] = ['PENDIENTE', 'REPROGRAMADO']
-export const MODIFICABLE: EstadoTurno[] = ['PENDIENTE', 'PENDIENTE_PAGO', 'CONFIRMADO', 'REPROGRAMADO']
+export const MODIFICABLE: EstadoTurno[] = [
+  'PENDIENTE',
+  'PENDIENTE_PAGO',
+  'CONFIRMADO',
+  'REPROGRAMADO',
+]
 
 export async function listTurnos(filters: {
   desde: Date
@@ -58,7 +64,8 @@ export async function listTurnos(filters: {
 }
 
 export async function listVets(): Promise<Veterinario[]> {
-  return (await apiRequest<{ veterinarios: Veterinario[] }>('/api/turnos/veterinarios')).veterinarios
+  return (await apiRequest<{ veterinarios: Veterinario[] }>('/api/turnos/veterinarios'))
+    .veterinarios
 }
 
 export async function createTurno(input: NuevoTurno): Promise<Turno> {
@@ -66,7 +73,8 @@ export async function createTurno(input: NuevoTurno): Promise<Turno> {
 }
 
 export async function confirmTurno(id: string): Promise<Turno> {
-  return (await apiRequest<{ turno: Turno }>(`/api/turnos/${id}/confirmar`, { method: 'POST' })).turno
+  return (await apiRequest<{ turno: Turno }>(`/api/turnos/${id}/confirmar`, { method: 'POST' }))
+    .turno
 }
 
 export async function rescheduleTurno(

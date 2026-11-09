@@ -2,10 +2,13 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import type { PoolClient } from "pg";
 import { db } from "../config/database";
+import { Response } from "express";
+
 import {
   findUserCredentialsByEmail,
   insertOwnerAccount,
   updateOwnerProfile,
+  type AuthenticatedUserRecord,
   type OwnerProfileInput,
   type OwnerAccountRecord,
 } from "../models/owner.model";
@@ -23,13 +26,7 @@ if (
 
 export const SESSION_COOKIE_NAME = "vet_andina_session";
 
-export interface AuthenticatedUser {
-  userId: string;
-  fullName: string;
-  email: string;
-  role: string;
-  profileComplete: boolean;
-}
+export type AuthenticatedUser = AuthenticatedUserRecord;
 
 export class InvalidCredentialsError extends Error {
   constructor() {
@@ -66,15 +63,32 @@ export async function authenticateUser(
     throw new InvalidCredentialsError();
   }
 
-  return {
-    userId: user.userId,
-    fullName: user.fullName,
-    email: user.email,
-    role: user.role,
-    profileComplete: user.profileComplete,
-  };
+  const { passwordHash: _passwordHash, ...authenticatedUser } = user;
+  return authenticatedUser;
 }
 
+export const generateTokenAndSetCookies = (
+  res: Response,
+  userId: string
+): string => {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret || Buffer.byteLength(secret, "utf8") < 32) {
+    throw new Error("JWT_SECRET debe tener al menos 32 bytes.");
+  }
+
+  const token = jwt.sign({ userId }, secret, {
+    expiresIn: "7d",
+  });
+  res.cookie("token", token, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+  });
+
+  return token;
+};
 export function createSessionToken(user: Pick<AuthenticatedUser, "userId" | "role">): string {
   return jwt.sign({ role: user.role }, getJwtSecret(), {
     subject: user.userId,

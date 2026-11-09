@@ -1,6 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import { panelRouteForRole } from '@/router/access'
+import { useSessionStore } from '@/stores/session'
+
+const session = useSessionStore()
+
+// Con sesión abierta, el logo y el acceso llevan al panel en lugar de al inicio
+// público y al login. Es navegación SPA: no recarga ni toca la cookie de sesión.
+const panelRoute = computed(() => (session.user ? panelRouteForRole(session.user.rol) : null))
+const logoRoute = computed<RouteLocationRaw>(() => panelRoute.value ?? { name: 'home' })
+
+// La sesión se consulta a la API una sola vez por carga; si ya se verificó
+// (por ejemplo, al volver desde el panel), sale de Pinia sin otra llamada.
+onMounted(() => {
+  void session.ensureSession()
+})
 
 const links = [
   { label: 'Quiénes somos', hash: '#quienes-somos' },
@@ -14,7 +29,7 @@ const menuOpen = ref(false)
 <template>
   <header class="sticky top-0 z-50 border-b border-brand-line bg-brand-bg/80 backdrop-blur">
     <div class="mx-auto flex h-[82px] w-full items-center justify-between px-6 md:px-12">
-      <RouterLink to="/" class="font-serif text-[22px] text-brand-ink" @click="menuOpen = false">
+      <RouterLink :to="logoRoute" class="font-serif text-[22px] text-brand-ink" @click="menuOpen = false">
         Vet Andina
       </RouterLink>
 
@@ -30,7 +45,8 @@ const menuOpen = ref(false)
       </nav>
 
       <div class="hidden items-center gap-3 md:flex">
-        <RouterLink to="/login" class="btn-outline">Iniciar sesión</RouterLink>
+        <RouterLink v-if="panelRoute" :to="panelRoute" class="btn-outline">Mi panel</RouterLink>
+        <RouterLink v-else to="/login" class="btn-outline">Iniciar sesión</RouterLink>
         <RouterLink to="/turnos" class="btn-primary">Reservar turno</RouterLink>
       </div>
 
@@ -61,7 +77,12 @@ const menuOpen = ref(false)
         </RouterLink>
       </nav>
       <div class="flex flex-col gap-3">
-        <RouterLink to="/login" class="btn-outline" @click="menuOpen = false">Iniciar sesión</RouterLink>
+        <RouterLink v-if="panelRoute" :to="panelRoute" class="btn-outline" @click="menuOpen = false">
+          Mi panel
+        </RouterLink>
+        <RouterLink v-else to="/login" class="btn-outline" @click="menuOpen = false">
+          Iniciar sesión
+        </RouterLink>
         <RouterLink to="/turnos" class="btn-primary" @click="menuOpen = false">Reservar turno</RouterLink>
       </div>
     </div>

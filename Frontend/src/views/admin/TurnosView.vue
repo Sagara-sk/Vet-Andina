@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import RuralAvailabilityManager from '@/components/agenda/RuralAvailabilityManager.vue'
 import EstadoTurnoBadge from '@/components/admin/EstadoTurnoBadge.vue'
 import NuevoTurnoModal from '@/components/admin/NuevoTurnoModal.vue'
 import TurnoAccionModal, { type AccionTurno } from '@/components/admin/TurnoAccionModal.vue'
@@ -14,6 +15,7 @@ import {
   type Turno,
   type Veterinario,
 } from '@/services/turnos'
+import { assignTurno } from '@/services/reservas'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -29,6 +31,8 @@ const error = ref('')
 const feedback = ref('')
 const nuevo = ref(false)
 const accion = ref<{ turno: Turno; tipo: AccionTurno } | null>(null)
+const asignacion = ref<{ turno: Turno; veterinarioId: string } | null>(null)
+const guardandoAsignacion = ref(false)
 
 const ESTADOS: { value: EstadoTurno | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
@@ -47,7 +51,9 @@ function startOfDay(date: Date) {
   return d
 }
 
-const fin = computed(() => new Date(inicio.value.getTime() + (vista.value === 'dia' ? 1 : 7) * DAY_MS))
+const fin = computed(
+  () => new Date(inicio.value.getTime() + (vista.value === 'dia' ? 1 : 7) * DAY_MS),
+)
 
 const titulo = computed(() => {
   const dia = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -116,20 +122,39 @@ async function onAccion(_turno: Turno, mensaje: string) {
   await cargar()
 }
 
+async function guardarAsignacion() {
+  if (!asignacion.value?.veterinarioId) return
+  guardandoAsignacion.value = true
+  error.value = ''
+  try {
+    await assignTurno(asignacion.value.turno.id, asignacion.value.veterinarioId)
+    mostrarFeedback(`Turno de ${asignacion.value.turno.animal.name} asignado.`)
+    asignacion.value = null
+    await cargar()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'No fue posible asignar el veterinario.'
+  } finally {
+    guardandoAsignacion.value = false
+  }
+}
+
 watch([vista, inicio, filtroEstado, filtroVet], cargar)
 
 onMounted(async () => {
   await cargar()
   try {
     vets.value = await listVets()
-  } catch {
-    // El filtro por veterinario queda vacío; la agenda igual se muestra.
+  } catch (cause) {
+    error.value =
+      cause instanceof Error
+        ? `No fue posible cargar los veterinarios para asignación: ${cause.message}`
+        : 'No fue posible cargar los veterinarios para asignación.'
   }
 })
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1210px]">
+  <div class="mx-auto max-w-302.5">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 class="font-serif text-3xl text-brand-ink">Turnos</h1>
@@ -141,9 +166,16 @@ onMounted(async () => {
     </header>
 
     <div class="mt-7 flex flex-wrap items-center gap-2">
-      <div class="flex overflow-hidden rounded-[3px] border border-brand-line" role="group" aria-label="Vista">
+      <div
+        class="flex overflow-hidden rounded-[3px] border border-brand-line"
+        role="group"
+        aria-label="Vista"
+      >
         <button
-          v-for="v in [{ id: 'dia', label: 'Día' }, { id: 'semana', label: 'Semana' }] as const"
+          v-for="v in [
+            { id: 'dia', label: 'Día' },
+            { id: 'semana', label: 'Semana' },
+          ] as const"
           :key="v.id"
           type="button"
           class="px-3 py-2 text-sm"
@@ -154,32 +186,41 @@ onMounted(async () => {
           {{ v.label }}
         </button>
       </div>
-      <button type="button" class="btn-outline !min-h-0 !py-2" aria-label="Anterior" @click="mover(-1)">←</button>
-      <button type="button" class="btn-outline !min-h-0 !py-2" @click="inicio = startOfDay(new Date())">Hoy</button>
-      <button type="button" class="btn-outline !min-h-0 !py-2" aria-label="Siguiente" @click="mover(1)">→</button>
+      <button
+        type="button"
+        class="btn-outline min-h-0! py-2!"
+        aria-label="Anterior"
+        @click="mover(-1)"
+      >
+        ←
+      </button>
+      <button
+        type="button"
+        class="btn-outline min-h-0! py-2!"
+        @click="inicio = startOfDay(new Date())"
+      >
+        Hoy
+      </button>
+      <button
+        type="button"
+        class="btn-outline min-h-0! py-2!"
+        aria-label="Siguiente"
+        @click="mover(1)"
+      >
+        →
+      </button>
 
-      <select v-model="filtroEstado" class="field-input !w-auto" aria-label="Filtrar por estado">
+      <select v-model="filtroEstado" class="field-input w-auto!" aria-label="Filtrar por estado">
         <option v-for="e in ESTADOS" :key="e.value" :value="e.value">{{ e.label }}</option>
       </select>
-      <select v-model="filtroVet" class="field-input !w-auto" aria-label="Filtrar por veterinario">
+      <select v-model="filtroVet" class="field-input w-auto!" aria-label="Filtrar por veterinario">
         <option value="">Todos los veterinarios</option>
         <option v-for="v in vets" :key="v.id" :value="v.id">{{ v.fullName }}</option>
       </select>
     </div>
 
-    <p v-if="feedback" class="mt-5 bg-brand-accentSoft px-4 py-3 text-sm text-brand-accentInk" role="status">
-      {{ feedback }}
-    </p>
-    <p
-      v-if="error"
-      class="mt-5 border border-brand-dangerLine bg-brand-dangerSoft px-4 py-3 text-sm text-brand-dangerInk"
-      role="alert"
-    >
-      {{ error }}
-    </p>
-
-    <div class="mt-5 overflow-x-auto border border-brand-line bg-brand-surface">
-      <table class="w-full min-w-[860px] text-left text-sm">
+        <div class="mt-5 overflow-x-auto border border-brand-line bg-brand-surface">
+      <table class="w-full min-w-215 text-left text-sm">
         <thead class="text-xs text-brand-inkSoft">
           <tr>
             <th class="px-4 py-3 font-normal">{{ vista === 'dia' ? 'Hora' : 'Fecha' }}</th>
@@ -191,7 +232,11 @@ onMounted(async () => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in turnos" :key="t.id" class="border-t border-brand-line align-top text-brand-ink">
+          <tr
+            v-for="t in turnos"
+            :key="t.id"
+            class="border-t border-brand-line align-top text-brand-ink"
+          >
             <td class="whitespace-nowrap px-4 py-3.5">
               <span v-if="vista === 'semana'" class="block text-xs text-brand-inkSoft">
                 {{ diaCorto.format(new Date(t.dateTime)) }}
@@ -199,7 +244,10 @@ onMounted(async () => {
               {{ hora.format(new Date(t.dateTime)) }}
             </td>
             <td class="px-4 py-3.5">
-              <RouterLink :to="{ name: 'admin-ficha', params: { id: t.animal.id } }" class="hover:underline">
+              <RouterLink
+                :to="{ name: 'admin-ficha', params: { id: t.animal.id } }"
+                class="hover:underline"
+              >
                 {{ t.animal.name }}
               </RouterLink>
               <RouterLink
@@ -211,7 +259,9 @@ onMounted(async () => {
             </td>
             <td class="px-4 py-3.5">
               {{ t.reason ?? '—' }}
-              <span v-if="t.modality === 'RURAL'" class="mt-0.5 block text-xs text-brand-inkSoft">Visita rural</span>
+              <span v-if="t.modality === 'RURAL'" class="mt-0.5 block text-xs text-brand-inkSoft"
+                >Visita rural</span
+              >
               <span v-if="t.cancellationReason" class="mt-0.5 block text-xs text-brand-dangerInk">
                 {{ t.cancellationReason }}
               </span>
@@ -220,6 +270,13 @@ onMounted(async () => {
             <td class="px-4 py-3.5"><EstadoTurnoBadge :estado="t.status" /></td>
             <td class="px-4 py-3.5">
               <div v-if="MODIFICABLE.includes(t.status)" class="flex justify-end gap-1.5">
+                <button
+                  type="button"
+                  class="rounded-md border border-brand-line px-2.5 py-1 text-xs text-brand-inkSoft hover:text-brand-ink"
+                  @click="asignacion = { turno: t, veterinarioId: t.vet?.id ?? '' }"
+                >
+                  Asignar
+                </button>
                 <button
                   v-if="CONFIRMABLE.includes(t.status)"
                   type="button"
@@ -243,16 +300,71 @@ onMounted(async () => {
                   Cancelar
                 </button>
               </div>
+              <div
+                v-if="asignacion?.turno.id === t.id"
+                class="mt-2 flex min-w-56 items-center gap-2"
+              >
+                <select
+                  v-model="asignacion.veterinarioId"
+                  class="field-input py-1.5! text-xs"
+                  aria-label="Veterinario para asignar"
+                >
+                  <option value="">Seleccioná</option>
+                  <option v-for="vet in vets" :key="vet.id" :value="vet.id">
+                    {{ vet.fullName }}
+                  </option>
+                </select>
+                <button
+                  type="button"
+                  class="rounded border border-brand-accent px-2 py-1 text-xs text-brand-accentInk disabled:opacity-50"
+                  :disabled="guardandoAsignacion || !asignacion.veterinarioId"
+                  @click="guardarAsignacion"
+                >
+                  {{ guardandoAsignacion ? '...' : 'Guardar' }}
+                </button>
+                <button
+                  type="button"
+                  class="px-1 text-xs text-brand-inkSoft"
+                  aria-label="Cancelar asignación"
+                  @click="asignacion = null"
+                >
+                  ×
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
 
-      <p v-if="cargando && !turnos.length" class="px-5 py-6 text-center text-sm text-brand-inkSoft">Cargando turnos...</p>
-      <p v-else-if="!turnos.length && !error" class="px-5 py-6 text-center text-sm text-brand-inkSoft">
+      <p v-if="cargando && !turnos.length" class="px-5 py-6 text-center text-sm text-brand-inkSoft">
+        Cargando turnos...
+      </p>
+      <p
+        v-else-if="!turnos.length && !error"
+        class="px-5 py-6 text-center text-sm text-brand-inkSoft"
+      >
         No hay turnos en este período.
       </p>
     </div>
+
+
+    <RuralAvailabilityManager class="mt-7" />
+
+    <p
+      v-if="feedback"
+      class="mt-5 bg-brand-accentSoft px-4 py-3 text-sm text-brand-accentInk"
+      role="status"
+    >
+      {{ feedback }}
+    </p>
+    <p
+      v-if="error"
+      class="mt-5 border border-brand-dangerLine bg-brand-dangerSoft px-4 py-3 text-sm text-brand-dangerInk"
+      role="alert"
+    >
+      {{ error }}
+    </p>
+
 
     <NuevoTurnoModal v-if="nuevo" @close="nuevo = false" @created="onCreado" />
     <TurnoAccionModal
