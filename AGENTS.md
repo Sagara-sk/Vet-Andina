@@ -18,7 +18,7 @@ Aplicar autorización en el backend además de ocultar o mostrar elementos en el
 | Rol | Responsabilidades y permisos esperados |
 | --- | --- |
 | **Superadministrador** | Gestión del negocio, dashboard de facturación y turnos, lectura del historial clínico de todos los pacientes, auditoría, creación y suspensión de personal, reasignaciones y parámetros globales. |
-| **Administrativo** | Calendarios y agendas, alta y edición de tutores, animales y lotes, gestión de turnos, recepción de pagos y notas administrativas. No modifica notas médicas. |
+| **Administrativo** | Calendarios y agendas, alta y edición de tutores, animales y lotes, gestión de turnos, recepción de pagos y gestión de fichas médicas: puede modificar sus datos generales (antecedentes, alergias y estado) y agregar evoluciones clínicas. No puede editar ni eliminar evoluciones ya registradas. |
 | **Veterinario** | Agenda propia y general, lectura de historias clínicas para atención y emergencias, nuevas evoluciones médicas append-only, turnos asignados y preparación de datos offline. |
 | **Cliente / Tutor** | Gestión de sus datos, sus animales o lotes, solicitudes y gestión de sus turnos, y lectura exclusiva de las historias clínicas de sus animales. |
 
