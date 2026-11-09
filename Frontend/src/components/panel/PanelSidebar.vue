@@ -26,7 +26,6 @@ const DASHBOARD_ROUTE: RouteLocationRaw = { name: 'dashboard' }
 // Secciones compartidas por clientes urbanos y rurales.
 const clientCommonLinks: NavLink[] = [
   { label: 'Inicio', to: DASHBOARD_ROUTE },
-  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
   { label: 'Reservar turno', to: { name: 'panel-reservar' } },
   { label: 'Mis turnos', to: { name: 'panel-turnos' } },
 
@@ -35,12 +34,14 @@ const clientCommonLinks: NavLink[] = [
 // Secciones exclusivas de clientes urbanos.
 const urbanClientLinks: NavLink[] = [
   { label: 'Inicio', to: DASHBOARD_ROUTE },
+  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
   ...clientCommonLinks.slice(1),
 ]
 
 // Secciones exclusivas de clientes rurales.
 const ruralClientLinks: NavLink[] = [
   { label: 'Inicio', to: DASHBOARD_ROUTE },
+  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
   { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' } },
   ...clientCommonLinks.slice(1),
 ]

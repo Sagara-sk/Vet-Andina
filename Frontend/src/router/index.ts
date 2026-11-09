@@ -167,6 +167,7 @@ const router = createRouter({
           component: () => import('../views/panel/EstablishmentsView.vue'),
           meta: {
             title: 'Mis establecimientos',
+            allowedTipoPersona: ['EMPRESA_PRODUCTOR'],
           },
         },
 
@@ -396,8 +397,6 @@ const router = createRouter({
 // 4. Comprobar los permisos del rol.
 // 5. Exigir que los clientes completen su perfil.
 // ======================================================
-
-
 router.beforeEach(async (to) => {
   const requiresAuth = to.matched.some(
     (record) => record.meta.requiresAuth,
@@ -441,8 +440,6 @@ router.beforeEach(async (to) => {
 
   return true
 })
-
-
 // ======================================================
 // EXPORTACIÓN
 // ======================================================
