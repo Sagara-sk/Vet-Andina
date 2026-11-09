@@ -1,3 +1,4 @@
+
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
@@ -10,8 +11,6 @@ import { initials } from '@/utils/format'
 interface NavLink {
   label: string
   to: RouteLocationRaw
-  // Para la página de inicio de cada panel: sin esto quedaría marcada en todas
-  // las secciones, porque comparten la ruta padre.
   exact?: boolean
 }
 
@@ -22,16 +21,28 @@ interface PanelConfig {
 
 const ACTIVE_CLASS = '!bg-brand-accentSoft !text-brand-ink'
 
-// Inicio común de todos los roles (DashboardView). Ruta propia, así que no
-// necesita `exact` para no quedar marcada en otras secciones.
 const DASHBOARD_ROUTE: RouteLocationRaw = { name: 'dashboard' }
 
-const clientLinks: NavLink[] = [
+// Secciones compartidas por clientes urbanos y rurales.
+const clientCommonLinks: NavLink[] = [
   { label: 'Inicio', to: DASHBOARD_ROUTE },
   { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
-  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' } },
   { label: 'Reservar turno', to: { name: 'panel-reservar' } },
   { label: 'Mis turnos', to: { name: 'panel-turnos' } },
+
+]
+
+// Secciones exclusivas de clientes urbanos.
+const urbanClientLinks: NavLink[] = [
+  { label: 'Inicio', to: DASHBOARD_ROUTE },
+  ...clientCommonLinks.slice(1),
+]
+
+// Secciones exclusivas de clientes rurales.
+const ruralClientLinks: NavLink[] = [
+  { label: 'Inicio', to: DASHBOARD_ROUTE },
+  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' } },
+  ...clientCommonLinks.slice(1),
 ]
 
 const vetLinks: NavLink[] = [
@@ -42,24 +53,22 @@ const vetLinks: NavLink[] = [
   { label: 'Modo offline', to: { name: 'vet-offline' } },
 ]
 
-// Secciones conectadas a la API (turnos, tutores y fichas reales).
 const adminLinks: NavLink[] = [
   { label: 'Turnos', to: { name: 'admin-turnos' }, exact: true },
   { label: 'Tutores', to: { name: 'admin-tutores' } },
   { label: 'Fichas', to: { name: 'admin-fichas' } },
 ]
 
-// Opciones del menú por rol. Ocultar un link no protege nada: la API tiene que
-// validar el rol en cada endpoint.
+// Menús del personal: se mantienen las secciones existentes.
 const panels: Partial<Record<Rol, PanelConfig>> = {
-  CLIENTE: { subtitle: 'Panel del cliente', links: clientLinks },
-  VETERINARIO: { subtitle: 'Panel veterinario', links: vetLinks },
+  VETERINARIO: {
+    subtitle: 'Panel veterinario',
+    links: vetLinks,
+  },
   ADMINISTRATIVO: {
     subtitle: 'Panel administrativo',
     links: [{ label: 'Inicio', to: DASHBOARD_ROUTE }, ...adminLinks],
   },
-  // El superadmin hace todo lo del resto del personal. Usa las secciones reales
-  // de turnos y tutores en lugar de las de demostración del panel veterinario.
   SUPERADMIN: {
     subtitle: 'Panel de administración',
     links: [
@@ -75,7 +84,36 @@ const panels: Partial<Record<Rol, PanelConfig>> = {
 const session = useSessionStore()
 const { isDark, toggleTheme } = useTheme()
 
-const panel = computed(() => panels[session.user?.rol as Rol])
+const panel = computed<PanelConfig | undefined>(() => {
+  const user = session.user
+
+  if (!user) return undefined
+
+  if (user.rol === 'CLIENTE') {
+    if (session.isUrbanClient) {
+      return {
+        subtitle: 'Panel del cliente urbano',
+        links: urbanClientLinks,
+      }
+    }
+
+    if (session.isRuralClient) {
+      return {
+        subtitle: 'Panel del cliente rural',
+        links: ruralClientLinks,
+      }
+    }
+
+    // Perfil todavía incompleto: no mostrar secciones específicas.
+    return {
+      subtitle: 'Panel del cliente',
+      links: [{ label: 'Inicio', to: DASHBOARD_ROUTE }],
+    }
+  }
+
+  return panels[user.rol as Rol]
+})
+
 const fullName = computed(() => session.user?.nombreCompleto ?? '')
 </script>
 
@@ -84,13 +122,16 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
     v-if="panel"
     class="flex flex-col border-b border-brand-line bg-brand-sidebar px-6 py-6 md:sticky md:top-0 md:h-screen md:w-58.5 md:shrink-0 md:border-b-0 md:border-r md:py-8"
   >
-    <!-- Navegación SPA al inicio del panel: no recarga la página ni toca la sesión. -->
     <RouterLink :to="DASHBOARD_ROUTE" class="block">
       <span class="block font-serif text-xl text-brand-ink">Vet Andina</span>
-      <span class="mt-1 block text-xs text-brand-inkSoft">{{ panel.subtitle }}</span>
+      <span class="mt-1 block text-xs text-brand-inkSoft">
+        {{ panel.subtitle }}
+      </span>
     </RouterLink>
 
-    <nav class="mt-6 flex gap-1 overflow-x-auto md:mt-9 md:flex-col md:gap-2 md:overflow-visible">
+    <nav
+      class="mt-6 flex gap-1 overflow-x-auto md:mt-9 md:flex-col md:gap-2 md:overflow-visible"
+    >
       <RouterLink
         v-for="link in panel.links"
         :key="link.label"
@@ -99,7 +140,10 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
         :exact-active-class="ACTIVE_CLASS"
         class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
       >
-        <span class="h-1 w-1 rounded-full bg-current" aria-hidden="true" />
+        <span
+          class="h-1 w-1 rounded-full bg-current"
+          aria-hidden="true"
+        />
         {{ link.label }}
       </RouterLink>
     </nav>
@@ -121,6 +165,7 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
       >
         {{ initials(fullName) }}
       </span>
+
       <div>
         <p class="text-sm text-brand-ink">{{ session.firstName }}</p>
         <LogoutButton />

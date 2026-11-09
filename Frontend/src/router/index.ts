@@ -397,106 +397,48 @@ const router = createRouter({
 // 5. Exigir que los clientes completen su perfil.
 // ======================================================
 
+
 router.beforeEach(async (to) => {
-
-  // ----------------------------------------------------
-  // 1. VALIDACIÓN DE RUTA PÚBLICA
-  // ----------------------------------------------------
-  // Si ningún registro de la ruta requiere autenticación,
-  // permite continuar sin consultar la sesión.
-
   const requiresAuth = to.matched.some(
     (record) => record.meta.requiresAuth,
   )
 
-  if (!requiresAuth) {
-    return true
-  }
-
-
-  // ----------------------------------------------------
-  // 2. RECUPERACIÓN DE LA SESIÓN
-  // ----------------------------------------------------
-  // Pinia mantiene la sesión en memoria.
-  // ensureSession consulta la API solamente cuando todavía
-  // no se verificó la sesión durante la carga actual.
+  if (!requiresAuth) return true
 
   const sessionStore = useSessionStore()
   const user = await sessionStore.ensureSession()
 
-
-  // ----------------------------------------------------
-  // 3. VALIDACIÓN DE AUTENTICACIÓN
-  // ----------------------------------------------------
-  // Si no existe una sesión válida, redirige al login.
-  // Conserva la ruta solicitada para recuperarla después.
-
   if (!user) {
     return {
       name: 'login',
-      query: {
-        redirect: to.fullPath,
-      },
+      query: { redirect: to.fullPath },
     }
   }
 
-
-  // ----------------------------------------------------
-  // 4. VALIDACIÓN DE AUTORIZACIÓN
-  // ----------------------------------------------------
-  // Comprueba que el rol del usuario tenga permiso para
-  // acceder a todos los niveles de la ruta solicitada.
-  //
-  // Las restricciones se centralizan en access.ts.
-
-  if (!canAccess(to.matched, user.rol)) {
-    return {
-      name: 'acceso-denegado',
+  // El cliente debe completar su perfil antes de acceder
+  // a las secciones específicas de su tipo de persona.
+  if (user.rol === 'CLIENTE' && !user.profileComplete) {
+    if (to.name !== 'client-profile') {
+      return {
+        name: 'client-profile',
+        query: { redirect: to.fullPath },
+      }
     }
   }
 
-
-  // ----------------------------------------------------
-  // 5. VALIDACIÓN DEL PERFIL DEL CLIENTE
-  // ----------------------------------------------------
-  // Los clientes deben completar su perfil antes de
-  // utilizar el resto de las funcionalidades.
-  //
-  // Esta condición no afecta a veterinarios,
-  // administrativos ni superadministradores.
-
-  if (
-    user.rol === 'CLIENTE' &&
-    !user.profileComplete &&
-    to.name !== 'client-profile'
-  ) {
-    return {
-      name: 'client-profile',
-      query: {
-        redirect: to.fullPath,
-      },
+  // Un cliente con perfil completo ya no necesita volver
+  // al formulario de configuración inicial.
+  if (user.rol === 'CLIENTE' && user.profileComplete) {
+    if (to.name === 'client-profile') {
+      return { name: 'dashboard' }
     }
   }
 
-
-  // ----------------------------------------------------
-  // 6. VALIDACIÓN DE PERFIL YA COMPLETADO
-  // ----------------------------------------------------
-  // Un cliente con perfil completo no necesita volver
-  // a ingresar al formulario de configuración inicial.
-
-  if (
-    user.rol === 'CLIENTE' &&
-    user.profileComplete &&
-    to.name === 'client-profile'
-  ) {
-    return {
-      name: 'dashboard',
-    }
+  // Comprueba los permisos de todos los niveles de la ruta.
+  if (!canAccess(to.matched, user.rol, user.tipoPersona)) {
+    return { name: 'acceso-denegado' }
   }
 
-
-  // Todas las validaciones fueron superadas.
   return true
 })
 
