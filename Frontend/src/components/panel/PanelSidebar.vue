@@ -37,7 +37,7 @@ const clientLinks: NavLink[] = [
 
 const vetLinks: NavLink[] = [
   { label: 'Dashboard', to: DASHBOARD_ROUTE },
-  { label: 'Clientes', to: { name: 'vet-clientes' } },
+  { label: 'Clientes', to: { name: 'vet-tutores' } },
   { label: 'Agenda', to: { name: 'vet-agenda' } },
   { label: 'Gestión de turnos', to: { name: 'vet-turnos' } },
   { label: 'Fichas médicas', to: { name: 'vet-fichas' } },
@@ -46,7 +46,7 @@ const vetLinks: NavLink[] = [
 
 const adminLinks: NavLink[] = [
   { label: 'Turnos', to: { name: 'admin-turnos' }, exact: true },
-  { label: 'Tutores', to: { name: 'admin-tutores' } },
+  { label: 'Clientes', to: { name: 'admin-tutores' } },
   { label: 'Fichas', to: { name: 'admin-fichas' } },
 ]
 

@@ -213,7 +213,7 @@ const router = createRouter({
     // - VETERINARIO
     // - SUPERADMIN
     //
-    // Permite gestionar clientes, agenda, turnos y
+    // Permite consultar tutores, agenda, turnos y
     // funcionalidades operativas veterinarias.
     // ==================================================
 
@@ -242,11 +242,22 @@ const router = createRouter({
         // FUNCIONALIDADES VETERINARIAS
         // ----------------------------------------------
 
-        // Consulta y gestión de clientes.
+        // Consulta del padrón de tutores.
         {
-          path: 'clientes',
-          name: 'vet-clientes',
-          component: () => import('@/views/veterinario/ClientesView.vue'),
+          path: 'tutores',
+          children: [
+            {
+              path: '',
+              name: 'vet-tutores',
+              component: () => import('@/views/admin/TutoresView.vue'),
+            },
+            {
+              path: ':id',
+              name: 'vet-tutor',
+              props: true,
+              component: () => import('@/views/admin/TutorDetailView.vue'),
+            },
+          ],
         },
 
         // Administración de la agenda veterinaria.

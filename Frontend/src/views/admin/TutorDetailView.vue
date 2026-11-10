@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import NuevoTurnoModal from '@/components/admin/NuevoTurnoModal.vue'
 import TutorForm from '@/components/admin/TutorForm.vue'
 import type { AnimalSearchResult } from '@/services/fichas'
@@ -13,9 +13,11 @@ import {
   type TutorDetail,
   type TutorInput,
 } from '@/services/tutores'
+import { useSessionStore } from '@/stores/session'
 import { whatsappNumber } from '@/utils/format'
 
 const props = defineProps<{ id: string }>()
+const session = useSessionStore()
 
 const tutor = ref<TutorDetail | null>(null)
 const error = ref('')
@@ -36,6 +38,11 @@ const animalError = ref('')
 const guardandoAnimal = ref(false)
 const hoy = new Date().toISOString().slice(0, 10)
 
+const isVeterinarian = computed(() => session.user?.rol === 'VETERINARIO')
+const tutorListRoute = computed<RouteLocationRaw>(() =>
+  isVeterinarian.value ? { name: 'vet-tutores' } : { name: 'admin-tutores' },
+)
+const fichaRouteName = computed(() => (isVeterinarian.value ? 'vet-ficha' : 'admin-ficha'))
 const whatsapp = computed(() => (tutor.value ? `https://wa.me/${whatsappNumber(tutor.value.phone)}` : ''))
 
 async function cargar() {
@@ -96,7 +103,7 @@ watch(() => props.id, cargar, { immediate: true })
 
 <template>
   <div class="mx-auto max-w-[1210px]">
-    <RouterLink :to="{ name: 'admin-tutores' }" class="text-xs text-brand-inkSoft hover:text-brand-ink">← Tutores</RouterLink>
+    <RouterLink :to="tutorListRoute" class="text-xs text-brand-inkSoft hover:text-brand-ink">← Tutores</RouterLink>
 
     <p
       v-if="error"
@@ -117,7 +124,7 @@ watch(() => props.id, cargar, { immediate: true })
         </div>
         <div class="flex gap-2">
           <a :href="whatsapp" target="_blank" rel="noreferrer" class="btn-outline">WhatsApp</a>
-          <button type="button" class="btn-outline" @click="editando = !editando">
+          <button v-if="!isVeterinarian" type="button" class="btn-outline" @click="editando = !editando">
             {{ editando ? 'Cancelar edición' : 'Editar datos' }}
           </button>
         </div>
@@ -162,7 +169,7 @@ watch(() => props.id, cargar, { immediate: true })
               <span v-if="a.herdSize > 1"> · {{ a.herdSize }} cabezas</span>
             </p>
             <div class="mt-4 flex gap-3 text-xs">
-              <RouterLink :to="{ name: 'admin-ficha', params: { id: a.id } }" class="text-brand-accentInk underline">
+              <RouterLink :to="{ name: fichaRouteName, params: { id: a.id } }" class="text-brand-accentInk underline">
                 Ver ficha
               </RouterLink>
               <button type="button" class="text-brand-accentInk underline" @click="nuevoTurno(a)">Nuevo turno</button>
