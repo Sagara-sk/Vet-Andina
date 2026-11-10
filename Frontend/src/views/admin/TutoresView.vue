@@ -4,8 +4,10 @@ import { RouterLink, useRouter } from 'vue-router'
 import BaseModal from '@/components/admin/BaseModal.vue'
 import TutorForm from '@/components/admin/TutorForm.vue'
 import { createTutor, listTutors, type TutorInput, type TutorSummary } from '@/services/tutores'
+import { useSessionStore } from '@/stores/session'
 
 const router = useRouter()
+const session = useSessionStore()
 
 const busqueda = ref('')
 const tutores = ref<TutorSummary[]>([])
@@ -50,10 +52,17 @@ onMounted(cargar)
   <div class="mx-auto max-w-[1210px]">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="font-serif text-3xl text-brand-ink">Tutores</h1>
+        <h1 class="font-serif text-3xl text-brand-ink">Clientes</h1>
         <p class="mt-2 text-brand-inkSoft">Clientes, sus mascotas y establecimientos.</p>
       </div>
-      <button type="button" class="btn-primary" @click="nuevo = true">Nuevo tutor</button>
+      <button
+        v-if="session.user?.rol !== 'VETERINARIO'"
+        type="button"
+        class="btn-primary"
+        @click="nuevo = true"
+      >
+        Nuevo tutor
+      </button>
     </header>
 
     <input

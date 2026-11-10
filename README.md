@@ -316,7 +316,8 @@ Los nombres de los campos llevan `(demo)`. Cada lote se crea con su ficha médic
 | `/panel/reservar`                   | `ReservaTurnoView.vue`                    | Calendario conectado a disponibilidad y solicitudes reales.                                    |
 | `/panel/turnos`                     | `AppointmentsView.vue`                    | Historial de turnos con datos de ejemplo.                                                      |
 | `/panel-veterinario`                | Redirección                               | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; redirige a `/dashboard`.                 |
-| `/panel-veterinario/clientes`       | `ClientesView.vue`                        | Clientes de demostración.                                                                      |
+| `/panel-veterinario/tutores`        | `TutoresView.vue`                          | Consulta de tutores; el veterinario tiene acceso de lectura.                                   |
+| `/panel-veterinario/tutores/:id`    | `TutorDetailView.vue`                      | Consulta del tutor y alta de animales o lotes; el veterinario no puede editar los datos del tutor. |
 | `/panel-veterinario/agenda`         | `AgendaView.vue`                          | Agenda de demostración y administración de franjas rurales reales.                             |
 | `/panel-veterinario/turnos`         | `TurnosGestionView.vue`                   | Turnos asignados reales; el veterinario confirma los pendientes propios.                       |
 | `/panel-veterinario/offline`        | `OfflineView.vue`                         | Prototipo local con IndexedDB.                                                                 |
