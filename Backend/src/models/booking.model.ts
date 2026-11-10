@@ -5,8 +5,11 @@ import {
   ConflictError,
   NotFoundError,
 } from "../services/errors";
-import { lockAgendaDate, lockVetDay } from "./agenda-locks";
-import type { ModalidadTurno } from "./turno.model";
+import { lockAgendaDate, lockVetDay, lockVetInterval } from "./agenda-locks";
+import {
+  vetHasHojaDeRutaOverlap,
+  type ModalidadTurno,
+} from "./turno.model";
 
 export interface BookingAnimal {
   id: string;
@@ -37,6 +40,8 @@ export interface ClientBookingInput {
   dateTime: Date;
   modality: ModalidadTurno;
   reason: string;
+  reasonCategory: string | null;
+  reasonDetail: string | null;
   durationMinutes: number;
 }
 
@@ -236,7 +241,7 @@ export async function createClientBooking(
     if (!ownerId)
       throw new NotFoundError("No se encontró el animal en tu cuenta.");
     const expectedModality =
-      ownerRow.tipo_atencion === "RURAL" ? "RURAL" : "CONSULTORIO";
+      ownerRow.tipo_atencion === "RURAL" ? "RURAL" : "URBANO";
     if (
       expectedModality !== input.modality ||
       (input.modality === "RURAL" && !ownerRow.id_finca)
@@ -262,7 +267,12 @@ export async function createClientBooking(
       );
 
     for (const vet of vets.rows)
-      await lockVetDay(client, vet.id_usuario, input.dateTime);
+      await lockVetInterval(
+        client,
+        vet.id_usuario,
+        input.dateTime,
+        input.durationMinutes,
+      );
 
     const holiday = await client.query(
       `SELECT 1 FROM agenda_feriado
@@ -275,7 +285,20 @@ export async function createClientBooking(
       );
 
     let assignedVet: string | null = null;
+    let routeConflicts = 0;
     for (const vet of vets.rows) {
+      if (
+        await vetHasHojaDeRutaOverlap(
+          client,
+          vet.id_usuario,
+          input.dateTime,
+          input.durationMinutes,
+        )
+      ) {
+        routeConflicts += 1;
+        continue;
+      }
+
       if (input.modality === "RURAL") {
         const routeSlot = await client.query(
           `SELECT 1
@@ -300,13 +323,19 @@ export async function createClientBooking(
       }
     }
 
+    if (!assignedVet && routeConflicts === vets.rowCount)
+      throw new ConflictError(
+        "El veterinario seleccionado tiene un bloque de trabajo externo en ese horario. Elegí otro horario o veterinario.",
+      );
+
     if (!assignedVet)
       throw new ConflictError("Ese horario acaba de ocuparse. Elegí otro.");
 
     const inserted = await client.query<{ id_turno: string }>(
       `INSERT INTO turno
-         (id_duenio, id_animal, id_veterinario, fecha_hora, modalidad, estado, motivo, duracion_minutos)
-       VALUES ($1, $2, $3, $4, $5, 'PENDIENTE', $6, $7)
+         (id_duenio, id_animal, id_veterinario, fecha_hora, modalidad, estado,
+          motivo, motivo_categoria, motivo_detalle, duracion_minutos)
+       VALUES ($1, $2, $3, $4, $5, 'PENDIENTE', $6, $7, $8, $9)
        RETURNING id_turno`,
       [
         ownerId,
@@ -315,6 +344,8 @@ export async function createClientBooking(
         input.dateTime,
         input.modality,
         input.reason,
+        input.reasonCategory,
+        input.reasonDetail,
         input.durationMinutes,
       ],
     );
@@ -566,7 +597,12 @@ export async function assignAppointmentToVet(
       throw new ConflictError("Este turno ya no se puede asignar.");
     }
 
-    await lockVetDay(client, vetId, row.fecha_hora);
+    await lockVetInterval(
+      client,
+      vetId,
+      row.fecha_hora,
+      row.duracion_minutos,
+    );
     const vet = await client.query(
       `SELECT 1 FROM usuario
        WHERE id_usuario = $1 AND rol IN ('VETERINARIO', 'SUPERADMIN')
@@ -577,6 +613,19 @@ export async function assignAppointmentToVet(
       throw new NotFoundError(
         "El veterinario no está habilitado para recibir turnos.",
       );
+
+    if (
+      await vetHasHojaDeRutaOverlap(
+        client,
+        vetId,
+        row.fecha_hora,
+        row.duracion_minutos,
+      )
+    ) {
+      throw new ConflictError(
+        "El veterinario tiene un bloque de trabajo externo en ese horario.",
+      );
+    }
 
     if (row.modalidad === "RURAL") {
       const routeSlot = await client.query(

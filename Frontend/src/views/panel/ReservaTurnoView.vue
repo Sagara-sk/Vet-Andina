@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { motivosTurno } from '@/data/motivosTurno'
 import {
   getDisponibilidad,
-  listMisAnimales,
   listVeterinariosParaReserva,
   solicitarTurno,
-  type AnimalPropio,
   type DiaDisponible,
   type HorarioDisponible,
 } from '@/services/reservas'
+import { listMisAnimales, type AnimalPropio } from '@/services/animales'
 import type { ModalidadTurno, Turno, Veterinario } from '@/services/turnos'
+import { useSessionStore } from '@/stores/session'
 
-const modality = ref<ModalidadTurno>('CONSULTORIO')
+const session = useSessionStore()
+const modality = ref<ModalidadTurno | ''>('')
 const animals = ref<AnimalPropio[]>([])
 const vets = ref<Veterinario[]>([])
 const availability = ref<DiaDisponible[]>([])
@@ -19,7 +21,7 @@ const animalId = ref('')
 const preferredVetId = ref('')
 const selectedDate = ref('')
 const selectedSlot = ref<HorarioDisponible | null>(null)
-const reason = ref('')
+const selectedReason = ref('')
 const currentMonth = ref(firstOfMonth(new Date()))
 const booking = ref(false)
 const loadingSetup = ref(true)
@@ -50,6 +52,14 @@ const monthLabel = computed(() =>
 )
 const today = localDate(new Date())
 const isCurrentMonth = computed(() => monthStart.value === localDate(firstOfMonth(new Date())))
+const isUrbanClient = computed(() => session.user?.tipoAtencion === 'URBANO')
+const hasRuralLots = computed(() =>
+  animals.value.some((animal) => animal.modality === 'RURAL' && animal.farmId !== null),
+)
+const reasonOptions = computed(() => (modality.value ? motivosTurno[modality.value] : []))
+const selectedReasonOption = computed(() =>
+  reasonOptions.value.find((option) => option.id === selectedReason.value),
+)
 const eligibleAnimals = computed(() =>
   animals.value.filter((animal) =>
     modality.value === 'RURAL'
@@ -99,10 +109,17 @@ const displayTime = new Intl.DateTimeFormat('es-AR', {
 
 async function loadAvailability() {
   const requestId = ++availabilityRequest
-  loadingAvailability.value = true
-  error.value = ''
   selectedDate.value = ''
   selectedSlot.value = null
+
+  if (!modality.value) {
+    availability.value = []
+    loadingAvailability.value = false
+    return
+  }
+
+  loadingAvailability.value = true
+  error.value = ''
 
   try {
     const days = await getDisponibilidad({
@@ -142,12 +159,12 @@ function selectSlot(slot: HorarioDisponible) {
 }
 
 async function submitBooking() {
-  if (!animalId.value || !selectedDay.value || !selectedSlot.value) {
+  if (!modality.value || !animalId.value || !selectedDay.value || !selectedSlot.value) {
     error.value = 'Seleccioná el paciente, el día y un horario disponible.'
     return
   }
-  if (reason.value.trim().length < 2) {
-    error.value = 'Indicá el motivo de la consulta.'
+  if (!selectedReasonOption.value) {
+    error.value = 'Seleccioná el motivo de la consulta.'
     return
   }
 
@@ -159,7 +176,9 @@ async function submitBooking() {
       id_veterinario: preferredVetId.value || null,
       fecha_hora: selectedSlot.value.fechaHora,
       modalidad: modality.value,
-      motivo_consulta: reason.value.trim(),
+      motivo_consulta: `${selectedReasonOption.value.id} - ${selectedReasonOption.value.label}`,
+      motivo_categoria: selectedReasonOption.value.id,
+      motivo_detalle: '',
       duracion_minutos: selectedSlot.value.duracionMinutos,
     })
     notice.value = ''
@@ -175,15 +194,17 @@ async function submitBooking() {
 
 function resetForm() {
   confirmedTurn.value = null
+  modality.value = isUrbanClient.value || !hasRuralLots.value ? 'URBANO' : ''
   animalId.value = ''
-  reason.value = ''
+  selectedReason.value = ''
   selectedDate.value = ''
   selectedSlot.value = null
-  void loadAvailability()
 }
 
 onMounted(async () => {
   loadingSetup.value = true
+  if (isUrbanClient.value) modality.value = 'URBANO'
+
   try {
     const [ownAnimals, availableVets] = await Promise.all([
       listMisAnimales(),
@@ -191,18 +212,21 @@ onMounted(async () => {
     ])
     animals.value = ownAnimals
     vets.value = availableVets
+    if (isUrbanClient.value || !hasRuralLots.value) modality.value = 'URBANO'
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'No fue posible cargar tus datos para reservar.'
   } finally {
     loadingSetup.value = false
   }
-  await loadAvailability()
+})
+
+watch(modality, () => {
+  animalId.value = ''
+  selectedReason.value = ''
 })
 
 watch([modality, preferredVetId, currentMonth], () => {
-  selectedDate.value = ''
-  selectedSlot.value = null
   void loadAvailability()
 })
 </script>
@@ -212,7 +236,8 @@ watch([modality, preferredVetId, currentMonth], () => {
     <header class="mb-8">
       <h1 class="font-serif text-3xl">Reservar turno</h1>
       <p class="mt-2 text-sm text-brand-inkSoft">
-        Elegí el paciente, la modalidad y un horario libre de la agenda.
+        Elegí primero la modalidad de atención; luego vas a poder seleccionar el paciente y un
+        horario disponible.
       </p>
     </header>
 
@@ -248,28 +273,42 @@ watch([modality, preferredVetId, currentMonth], () => {
         <h2 class="text-base font-semibold text-brand-accentInk">1. Datos de la consulta</h2>
         <div v-if="loadingSetup" class="mt-4 text-sm text-brand-inkSoft">Cargando tus datos...</div>
         <div v-else class="mt-4 grid gap-4 sm:grid-cols-2">
-          <label class="text-xs font-medium text-brand-inkSoft">
-            Paciente
+          <label
+            v-if="!isUrbanClient && hasRuralLots"
+            class="text-xs font-medium text-brand-inkSoft"
+          >
+            Modalidad de atención
             <select
-              v-model="animalId"
+              v-model="modality"
               class="mt-1 w-full rounded border border-brand-line bg-brand-bg p-2.5 text-sm text-brand-ink outline-none focus:border-brand-accent"
               required
             >
-              <option value="">Seleccioná una mascota o lote</option>
-              <option v-for="animal in eligibleAnimals" :key="animal.id" :value="animal.id">
-                {{ animal.name }} · {{ animal.species }}
-              </option>
+              <option value="" disabled>Seleccioná una modalidad</option>
+              <option value="URBANO">Consultorio (urbano)</option>
+              <option value="RURAL">Visita a campo (rural)</option>
             </select>
           </label>
 
           <label class="text-xs font-medium text-brand-inkSoft">
-            Modalidad
+            Paciente
             <select
-              v-model="modality"
+              v-model="animalId"
+              :disabled="!modality"
               class="mt-1 w-full rounded border border-brand-line bg-brand-bg p-2.5 text-sm text-brand-ink outline-none focus:border-brand-accent"
+              required
             >
-              <option value="CONSULTORIO">Consultorio (urbano)</option>
-              <option value="RURAL">Visita a campo (rural)</option>
+              <option value="">
+                {{
+                  !modality
+                    ? 'Primero seleccioná la modalidad'
+                    : modality === 'RURAL'
+                      ? 'Seleccioná un lote'
+                      : 'Seleccioná una mascota'
+                }}
+              </option>
+              <option v-for="animal in eligibleAnimals" :key="animal.id" :value="animal.id">
+                {{ animal.name }} · {{ animal.species }}
+              </option>
             </select>
           </label>
 
@@ -277,6 +316,7 @@ watch([modality, preferredVetId, currentMonth], () => {
             Veterinario de preferencia
             <select
               v-model="preferredVetId"
+              :disabled="!modality"
               class="mt-1 w-full rounded border border-brand-line bg-brand-bg p-2.5 text-sm text-brand-ink outline-none focus:border-brand-accent"
             >
               <option value="">Cualquier veterinario disponible</option>
@@ -286,17 +326,23 @@ watch([modality, preferredVetId, currentMonth], () => {
 
           <label class="text-xs font-medium text-brand-inkSoft sm:col-span-2">
             Motivo de consulta
-            <input
-              v-model="reason"
-              type="text"
-              minlength="2"
-              maxlength="300"
-              placeholder="Ej.: control clínico, vacunación..."
+            <select
+              v-model="selectedReason"
+              :disabled="!modality"
               class="mt-1 w-full rounded border border-brand-line bg-brand-bg p-2.5 text-sm text-brand-ink outline-none focus:border-brand-accent"
-            />
+              required
+            >
+              <option value="" disabled>Seleccioná un motivo</option>
+              <option v-for="option in reasonOptions" :key="option.id" :value="option.id">
+                {{ option.label }}
+              </option>
+            </select>
           </label>
         </div>
-        <p v-if="!loadingSetup && !eligibleAnimals.length" class="mt-3 text-sm text-brand-warnInk">
+        <p
+          v-if="modality && !eligibleAnimals.length"
+          class="mt-3 text-sm text-brand-warnInk"
+        >
           {{
             modality === 'RURAL'
               ? 'No tenés animales o lotes rurales registrados para reservar una visita a campo.'
@@ -305,7 +351,10 @@ watch([modality, preferredVetId, currentMonth], () => {
         </p>
       </section>
 
-      <section class="rounded-lg border border-brand-line bg-brand-surface p-5 shadow-sm">
+      <section
+        v-if="modality"
+        class="rounded-lg border border-brand-line bg-brand-surface p-5 shadow-sm"
+      >
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-base font-semibold text-brand-accentInk">2. Elegí un día disponible</h2>
@@ -414,7 +463,12 @@ watch([modality, preferredVetId, currentMonth], () => {
       <button
         type="button"
         :disabled="
-          loadingSetup || booking || !animalId || !selectedSlot || reason.trim().length < 2
+          loadingSetup ||
+          booking ||
+          !modality ||
+          !animalId ||
+          !selectedReasonOption ||
+          !selectedSlot
         "
         class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
         @click="submitBooking"

@@ -4,6 +4,7 @@ import {
   getVets,
   postCancel,
   postConfirm,
+  postHojaDeRuta,
   postReschedule,
   postTurno,
 } from "../controllers/turno.controller";
@@ -42,6 +43,7 @@ turnoRouter.get("/mios", client, getMyTurnos);
 turnoRouter.post("/solicitudes", client, postClientBooking);
 turnoRouter.get("/", staff, getTurnos);
 turnoRouter.get("/veterinarios", clientOrStaff, getVets);
+turnoRouter.post("/hoja-de-ruta", staff, postHojaDeRuta);
 turnoRouter.get("/disponibilidad-rural", staff, getRuralAvailability);
 turnoRouter.post("/disponibilidad-rural", staff, postRuralAvailability);
 turnoRouter.delete(

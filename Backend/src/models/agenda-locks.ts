@@ -19,3 +19,25 @@ export async function lockVetDay(
     `${vetId}:${day}`,
   ]);
 }
+
+export async function lockVetInterval(
+  client: PoolClient,
+  vetId: string,
+  startsAt: Date,
+  durationMinutes: number,
+): Promise<void> {
+  const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
+  for (
+    const day = new Date(
+      Date.UTC(
+        startsAt.getUTCFullYear(),
+        startsAt.getUTCMonth(),
+        startsAt.getUTCDate(),
+      ),
+    );
+    day < endsAt;
+    day.setUTCDate(day.getUTCDate() + 1)
+  ) {
+    await lockVetDay(client, vetId, day);
+  }
+}

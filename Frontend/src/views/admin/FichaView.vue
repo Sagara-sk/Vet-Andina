@@ -31,7 +31,7 @@ const savingErratum = ref(false)
 const allergiesHistory = ref('')
 const status = ref<MedicalRecordStatus>('ACTIVO')
 
-const modality = ref<'CONSULTORIO' | 'RURAL'>('CONSULTORIO')
+const modality = ref<'URBANO' | 'RURAL'>('URBANO')
 const reason = ref('')
 const diagnosis = ref('')
 const treatment = ref('')
@@ -69,7 +69,7 @@ function syncForm() {
   allergiesHistory.value = ficha.value.record?.allergiesHistory ?? ''
   status.value = ficha.value.record?.status ?? 'ACTIVO'
   modality.value =
-    ficha.value.animal.careType === 'RURAL' ? 'RURAL' : 'CONSULTORIO'
+    ficha.value.animal.careType === 'RURAL' ? 'RURAL' : 'URBANO'
 }
 
 async function cargar() {
@@ -398,7 +398,7 @@ watch(() => props.id, cargar, { immediate: true })
             </label>
 
             <select id="entry-modality" v-model="modality" class="field-input w-full">
-              <option value="CONSULTORIO">Consultorio</option>
+              <option value="URBANO">Consultorio (urbano)</option>
               <option value="RURAL">Rural</option>
             </select>
           </div>

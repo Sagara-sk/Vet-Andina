@@ -28,6 +28,8 @@ export interface SolicitudTurno {
   fecha_hora: string
   modalidad: ModalidadTurno
   motivo_consulta: string
+  motivo_categoria: string
+  motivo_detalle: string
   duracion_minutos: number
 }
 

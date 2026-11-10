@@ -12,7 +12,7 @@ export interface ClinicalEntry {
   id: string
   recordedAt: string
   authorName: string
-  modality: 'CONSULTORIO' | 'RURAL'
+  modality: 'URBANO' | 'RURAL'
   reason: string
   diagnosis: string | null
   treatment: string | null
@@ -54,7 +54,7 @@ export interface UpdateMedicalRecordPayload {
 }
 
 export interface NewClinicalEntryPayload {
-  modalidad: 'CONSULTORIO' | 'RURAL'
+  modalidad: 'URBANO' | 'RURAL'
   motivoConsulta: string
   diagnostico: string | null
   tratamiento: string | null

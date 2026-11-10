@@ -1,6 +1,7 @@
+import type { PoolClient } from "pg";
 import { db } from "../config/database";
-import { ConflictError } from "../services/errors";
-import { lockVetDay } from "./agenda-locks";
+import { ConflictError, NotFoundError } from "../services/errors";
+import { lockVetInterval } from "./agenda-locks";
 
 export type EstadoTurno =
   | "PENDIENTE"
@@ -11,7 +12,14 @@ export type EstadoTurno =
   | "COMPLETADO"
   | "AUSENTE";
 
-export type ModalidadTurno = "CONSULTORIO" | "RURAL";
+export type ModalidadTurno = "URBANO" | "RURAL";
+export type ModalidadTurnoInput = ModalidadTurno | "CONSULTORIO";
+
+export function normalizeModalidadTurno(
+  modality: ModalidadTurnoInput,
+): ModalidadTurno {
+  return modality === "CONSULTORIO" ? "URBANO" : modality;
+}
 
 export interface TurnoRecord {
   id: string;
@@ -20,6 +28,8 @@ export interface TurnoRecord {
   modality: ModalidadTurno;
   status: EstadoTurno;
   reason: string | null;
+  reasonCategory: string | null;
+  reasonDetail: string | null;
   cancellationReason: string | null;
   animal: { id: string; name: string; species: string };
   tutor: { id: string; fullName: string; phone: string };
@@ -40,7 +50,22 @@ export interface NewTurno {
   modality: ModalidadTurno;
   status: "PENDIENTE" | "PENDIENTE_PAGO" | "CONFIRMADO";
   reason: string;
+  reasonCategory: string | null;
+  reasonDetail: string | null;
   durationMinutes?: number;
+}
+
+export interface HojaDeRutaBlock {
+  vetId: string;
+  startsAt: Date;
+  endsAt: Date;
+}
+
+export interface NewHojaDeRutaBlock {
+  vetId: string;
+  startsAt: Date;
+  endsAt: Date;
+  detail: string | null;
 }
 
 interface TurnoRow {
@@ -49,6 +74,8 @@ interface TurnoRow {
   modalidad: ModalidadTurno;
   estado: EstadoTurno;
   motivo: string | null;
+  motivo_categoria: string | null;
+  motivo_detalle: string | null;
   motivo_cancelacion: string | null;
   id_animal: string;
   nombre_identificacion: string;
@@ -62,7 +89,8 @@ interface TurnoRow {
 }
 
 const SELECT_TURNO = `
-  SELECT t.id_turno, t.fecha_hora, t.duracion_minutos, t.modalidad, t.estado, t.motivo, t.motivo_cancelacion,
+  SELECT t.id_turno, t.fecha_hora, t.duracion_minutos, t.modalidad, t.estado, t.motivo,
+         t.motivo_categoria, t.motivo_detalle, t.motivo_cancelacion,
          a.id_animal, a.nombre_identificacion, a.especie,
          d.id_duenio, d.nombre_completo AS duenio_nombre, d.telefono,
          t.id_veterinario, v.nombre_completo AS veterinario_nombre
@@ -79,6 +107,8 @@ function toRecord(row: TurnoRow): TurnoRecord {
     modality: row.modalidad,
     status: row.estado,
     reason: row.motivo,
+    reasonCategory: row.motivo_categoria,
+    reasonDetail: row.motivo_detalle,
     cancellationReason: row.motivo_cancelacion,
     animal: {
       id: row.id_animal,
@@ -171,6 +201,23 @@ export async function listAssignableVets(): Promise<
   }));
 }
 
+export async function listVeterinarians(): Promise<
+  { id: string; fullName: string }[]
+> {
+  const result = await db.query<{
+    id_usuario: string;
+    nombre_completo: string;
+  }>(
+    `SELECT id_usuario, nombre_completo FROM usuario
+     WHERE rol = 'VETERINARIO' AND matricula_profesional IS NOT NULL
+     ORDER BY nombre_completo`,
+  );
+  return result.rows.map((row) => ({
+    id: row.id_usuario,
+    fullName: row.nombre_completo,
+  }));
+}
+
 // Otro turno activo del mismo veterinario en el mismo horario exacto.
 export async function vetHasTurnoAt(
   vetId: string,
@@ -191,6 +238,118 @@ export async function vetHasTurnoAt(
   return result.rowCount === 1;
 }
 
+export async function vetHasHojaDeRutaOverlap(
+  client: PoolClient,
+  vetId: string,
+  dateTime: Date,
+  durationMinutes: number,
+): Promise<boolean> {
+  const result = await client.query(
+    `SELECT 1 FROM hoja_de_ruta
+     WHERE id_veterinario = $1
+       AND fecha_hora_inicio < $2::timestamptz + ($3 * interval '1 minute')
+       AND fecha_hora_fin > $2
+     LIMIT 1`,
+    [vetId, dateTime, durationMinutes],
+  );
+  return result.rowCount === 1;
+}
+
+export async function listHojaDeRutaBlocks(
+  from: Date,
+  to: Date,
+  vetId?: string | null,
+): Promise<HojaDeRutaBlock[]> {
+  const result = await db.query<{
+    id_veterinario: string;
+    fecha_hora_inicio: Date;
+    fecha_hora_fin: Date;
+  }>(
+    `SELECT id_veterinario, fecha_hora_inicio, fecha_hora_fin
+     FROM hoja_de_ruta
+     WHERE fecha_hora_inicio < $2
+       AND fecha_hora_fin > $1
+       AND ($3::uuid IS NULL OR id_veterinario = $3)`,
+    [from, to, vetId ?? null],
+  );
+  return result.rows.map((row) => ({
+    vetId: row.id_veterinario,
+    startsAt: row.fecha_hora_inicio,
+    endsAt: row.fecha_hora_fin,
+  }));
+}
+
+export async function insertHojaDeRutaBlock(
+  input: NewHojaDeRutaBlock,
+): Promise<void> {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    await lockVetInterval(
+      client,
+      input.vetId,
+      input.startsAt,
+      (input.endsAt.getTime() - input.startsAt.getTime()) / 60_000,
+    );
+
+    const veterinarian = await client.query(
+      `SELECT 1 FROM usuario
+       WHERE id_usuario = $1 AND rol = 'VETERINARIO'
+         AND matricula_profesional IS NOT NULL`,
+      [input.vetId],
+    );
+    if (!veterinarian.rowCount) {
+      throw new NotFoundError(
+        "No se encontró un veterinario habilitado para la hoja de ruta.",
+      );
+    }
+
+    const appointment = await client.query(
+      `SELECT 1 FROM turno
+       WHERE id_veterinario = $1
+         AND fecha_hora < $3
+         AND fecha_hora + (duracion_minutos * interval '1 minute') > $2
+         AND estado NOT IN ('CANCELADA', 'AUSENTE')
+       LIMIT 1`,
+      [input.vetId, input.startsAt, input.endsAt],
+    );
+    if (appointment.rowCount) {
+      throw new ConflictError(
+        "No se puede agregar el bloque externo porque el veterinario ya tiene un turno en ese horario.",
+      );
+    }
+
+    const routeBlock = await client.query(
+      `SELECT 1 FROM hoja_de_ruta
+       WHERE id_veterinario = $1
+         AND fecha_hora_inicio < $3
+         AND fecha_hora_fin > $2
+       LIMIT 1`,
+      [input.vetId, input.startsAt, input.endsAt],
+    );
+    if (routeBlock.rowCount) {
+      throw new ConflictError(
+        "El veterinario ya tiene un bloque de trabajo externo superpuesto.",
+      );
+    }
+
+    await client.query(
+      `INSERT INTO hoja_de_ruta
+         (id_veterinario, fecha_hora_inicio, fecha_hora_fin, detalle)
+       VALUES ($1, $2, $3, $4)`,
+      [input.vetId, input.startsAt, input.endsAt, input.detail],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch((rollbackError: unknown) => {
+      console.error("No se pudo revertir el bloque de hoja de ruta:", rollbackError);
+    });
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function insertTurno(
   ownerId: string,
   input: NewTurno,
@@ -201,7 +360,24 @@ export async function insertTurno(
   try {
     await client.query("BEGIN");
     if (input.vetId) {
-      await lockVetDay(client, input.vetId, input.dateTime);
+      await lockVetInterval(
+        client,
+        input.vetId,
+        input.dateTime,
+        durationMinutes,
+      );
+      if (
+        await vetHasHojaDeRutaOverlap(
+          client,
+          input.vetId,
+          input.dateTime,
+          durationMinutes,
+        )
+      ) {
+        throw new ConflictError(
+          "El profesional seleccionado tiene un bloque de trabajo externo en ese horario. Elegí otro horario o veterinario.",
+        );
+      }
       const overlap = await client.query(
         `SELECT 1 FROM turno
          WHERE id_veterinario = $1
@@ -220,8 +396,9 @@ export async function insertTurno(
 
     const result = await client.query<{ id_turno: string }>(
       `INSERT INTO turno
-         (id_duenio, id_animal, id_veterinario, fecha_hora, modalidad, estado, motivo, duracion_minutos)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (id_duenio, id_animal, id_veterinario, fecha_hora, modalidad, estado,
+          motivo, motivo_categoria, motivo_detalle, duracion_minutos)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id_turno`,
       [
         ownerId,
@@ -231,6 +408,8 @@ export async function insertTurno(
         input.modality,
         input.status,
         input.reason,
+        input.reasonCategory,
+        input.reasonDetail,
         durationMinutes,
       ],
     );
@@ -296,7 +475,24 @@ export async function rescheduleTurno(
 
     const targetVetId = vetId ?? row.id_veterinario;
     if (targetVetId) {
-      await lockVetDay(client, targetVetId, dateTime);
+      await lockVetInterval(
+        client,
+        targetVetId,
+        dateTime,
+        row.duracion_minutos,
+      );
+      if (
+        await vetHasHojaDeRutaOverlap(
+          client,
+          targetVetId,
+          dateTime,
+          row.duracion_minutos,
+        )
+      ) {
+        throw new ConflictError(
+          "El profesional seleccionado tiene un bloque de trabajo externo en ese horario.",
+        );
+      }
       const overlap = await client.query(
         `SELECT 1 FROM turno
          WHERE id_veterinario = $1
