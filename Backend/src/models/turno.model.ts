@@ -142,6 +142,29 @@ export async function listTurnos(
   return result.rows.map(toRecord);
 }
 
+// Turnos asignados que se superponen con el rango (incluye los que empezaron
+// antes y siguen en curso). Sin vetId devuelve los de todos los veterinarios;
+// los turnos sin profesional asignado no forman parte de ninguna agenda.
+export async function listAgendaTurnos(
+  from: Date,
+  to: Date,
+  vetId: string | null,
+): Promise<TurnoRecord[]> {
+  const result = await db.query<TurnoRow>(
+    `${SELECT_TURNO}
+     WHERE t.id_veterinario IS NOT NULL
+       AND ($3::uuid IS NULL OR t.id_veterinario = $3)
+       AND t.estado <> 'CANCELADA'
+       AND t.fecha_hora < $2
+       AND t.fecha_hora + (t.duracion_minutos * interval '1 minute') > $1
+     ORDER BY t.fecha_hora
+     LIMIT 500`,
+    [from, to, vetId],
+  );
+
+  return result.rows.map(toRecord);
+}
+
 export async function listOwnerTurnos(ownerId: string): Promise<TurnoRecord[]> {
   const result = await db.query<TurnoRow>(
     `${SELECT_TURNO}
@@ -276,6 +299,50 @@ export async function listHojaDeRutaBlocks(
     vetId: row.id_veterinario,
     startsAt: row.fecha_hora_inicio,
     endsAt: row.fecha_hora_fin,
+  }));
+}
+
+export interface HojaDeRutaRecord {
+  id: string;
+  startsAt: Date;
+  endsAt: Date;
+  detail: string | null;
+  vet: { id: string; fullName: string };
+}
+
+// Bloques de hoja de ruta que se superponen con el rango, con su detalle para
+// mostrarlos en la agenda. Sin vetId devuelve los de todos los veterinarios.
+export async function listHojaDeRutaRecords(
+  from: Date,
+  to: Date,
+  vetId: string | null,
+): Promise<HojaDeRutaRecord[]> {
+  const result = await db.query<{
+    id_hoja_de_ruta: string;
+    fecha_hora_inicio: Date;
+    fecha_hora_fin: Date;
+    detalle: string | null;
+    id_veterinario: string;
+    veterinario_nombre: string;
+  }>(
+    `SELECT h.id_hoja_de_ruta, h.fecha_hora_inicio, h.fecha_hora_fin, h.detalle,
+            h.id_veterinario, v.nombre_completo AS veterinario_nombre
+     FROM hoja_de_ruta h
+     JOIN usuario v ON v.id_usuario = h.id_veterinario
+     WHERE h.fecha_hora_inicio < $2
+       AND h.fecha_hora_fin > $1
+       AND ($3::uuid IS NULL OR h.id_veterinario = $3)
+     ORDER BY h.fecha_hora_inicio
+     LIMIT 500`,
+    [from, to, vetId],
+  );
+
+  return result.rows.map((row) => ({
+    id: String(row.id_hoja_de_ruta),
+    startsAt: row.fecha_hora_inicio,
+    endsAt: row.fecha_hora_fin,
+    detail: row.detalle,
+    vet: { id: row.id_veterinario, fullName: row.veterinario_nombre },
   }));
 }
 
