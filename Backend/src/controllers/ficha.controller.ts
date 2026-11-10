@@ -2,6 +2,7 @@ import Joi from "joi";
 import type { RequestHandler } from "express";
 import type { AuthenticatedUserRecord } from "../models/owner.model";
 import { findMedicalRecord, searchAnimals } from "../models/ficha.model";
+import { normalizeModalidadTurno } from "../models/turno.model";
 import {
   addClinicalEntry,
   addErratum,
@@ -22,7 +23,7 @@ const medicalRecordSchema = Joi.object({
 
 const clinicalEntrySchema = Joi.object({
   modalidad: Joi.string()
-    .valid("CONSULTORIO", "RURAL")
+    .valid("URBANO", "CONSULTORIO", "RURAL")
     .required(),
   motivoConsulta: Joi.string()
     .trim()
@@ -167,7 +168,7 @@ export const postClinicalEntry: RequestHandler = async (
 
   try {
     await addClinicalEntry(id, user.userId, {
-      modality: value.modalidad,
+      modality: normalizeModalidadTurno(value.modalidad),
       reason: value.motivoConsulta,
       diagnosis: value.diagnostico || null,
       treatment: value.tratamiento || null,

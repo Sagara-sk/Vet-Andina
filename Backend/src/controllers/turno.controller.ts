@@ -1,7 +1,13 @@
 import Joi from "joi";
 import type { RequestHandler } from "express";
 import type { AuthenticatedUserRecord } from "../models/owner.model";
-import { listAssignableVets, listTurnos } from "../models/turno.model";
+import {
+  listAssignableVets,
+  listTurnos,
+  listVeterinarians,
+  insertHojaDeRutaBlock,
+  normalizeModalidadTurno,
+} from "../models/turno.model";
 import {
   cancelTurno,
   confirmTurno,
@@ -25,10 +31,14 @@ const createSchema = Joi.object({
   idAnimal: Joi.string().guid().required(),
   idVeterinario: Joi.string().guid().allow(null).default(null),
   fechaHora: Joi.date().iso().required(),
-  modalidad: Joi.string().valid("CONSULTORIO", "RURAL").required(),
+  modalidad: Joi.string().valid("URBANO", "CONSULTORIO", "RURAL").required(),
   estado: Joi.string().valid("PENDIENTE", "CONFIRMADO").default("PENDIENTE"),
-  motivo: Joi.string().trim().min(2).max(300).required(),
-}).unknown(false);
+  motivo: Joi.string().trim().min(2).max(300),
+  motivo_categoria: Joi.string().trim().min(2).max(80),
+  motivo_detalle: Joi.string().trim().max(300).allow("", null).default(null),
+})
+  .or("motivo", "motivo_categoria")
+  .unknown(false);
 
 const rescheduleSchema = Joi.object({
   fechaHora: Joi.date().iso().required(),
@@ -37,6 +47,13 @@ const rescheduleSchema = Joi.object({
 
 const cancelSchema = Joi.object({
   motivo: Joi.string().trim().max(500).allow("", null).empty("").default(null),
+}).unknown(false);
+
+const hojaDeRutaSchema = Joi.object({
+  id_veterinario: Joi.string().guid().required(),
+  fecha_hora_inicio: Joi.date().iso().required(),
+  fecha_hora_fin: Joi.date().iso().required(),
+  detalle: Joi.string().trim().max(300).allow("", null).default(null),
 }).unknown(false);
 
 export const getTurnos: RequestHandler = async (request, response) => {
@@ -71,11 +88,56 @@ export const getTurnos: RequestHandler = async (request, response) => {
   }
 };
 
-export const getVets: RequestHandler = async (_request, response) => {
+export const getVets: RequestHandler = async (request, response) => {
   try {
-    response.json({ status: "ok", veterinarios: await listAssignableVets() });
+    const user = request.user as AuthenticatedUserRecord;
+    const veterinarios =
+      user.role === "CLIENTE"
+        ? await listVeterinarians()
+        : await listAssignableVets();
+    response.json({ status: "ok", veterinarios });
   } catch (error) {
     sendError(response, error, "Error al listar veterinarios", "No fue posible obtener los veterinarios.");
+  }
+};
+
+export const postHojaDeRuta: RequestHandler = async (request, response) => {
+  const { error, value } = hojaDeRutaSchema.validate(request.body, {
+    abortEarly: false,
+  });
+  if (error) return sendValidationError(response, error);
+
+  const user = request.user as AuthenticatedUserRecord;
+  if (value.fecha_hora_fin <= value.fecha_hora_inicio) {
+    response.status(400).json({
+      status: "error",
+      message: "La hora de fin debe ser posterior a la hora de inicio.",
+    });
+    return;
+  }
+  if (user.role === "VETERINARIO" && value.id_veterinario !== user.userId) {
+    response.status(403).json({
+      status: "error",
+      message: "Solo podés registrar bloques externos en tu propia agenda.",
+    });
+    return;
+  }
+
+  try {
+    await insertHojaDeRutaBlock({
+      vetId: value.id_veterinario,
+      startsAt: value.fecha_hora_inicio,
+      endsAt: value.fecha_hora_fin,
+      detail: value.detalle || null,
+    });
+    response.status(201).json({ status: "ok" });
+  } catch (error) {
+    sendError(
+      response,
+      error,
+      "Error al registrar un bloque de trabajo externo",
+      "No fue posible registrar el bloque en la hoja de ruta.",
+    );
   }
 };
 
@@ -88,9 +150,15 @@ export const postTurno: RequestHandler = async (request, response) => {
       animalId: value.idAnimal,
       vetId: value.idVeterinario,
       dateTime: value.fechaHora,
-      modality: value.modalidad,
+      modality: normalizeModalidadTurno(value.modalidad),
       status: value.estado,
-      reason: value.motivo,
+      reason:
+        value.motivo ??
+        [value.motivo_categoria, value.motivo_detalle].filter(Boolean).join(" - "),
+      reasonCategory: value.motivo_categoria ?? null,
+      reasonDetail:
+        value.motivo_detalle ||
+        (value.motivo_categoria ? null : value.motivo ?? null),
     });
     response.status(201).json({ status: "ok", turno });
   } catch (error) {

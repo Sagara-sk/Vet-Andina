@@ -54,7 +54,7 @@ export interface MedicalRecordUpdate {
 }
 
 export interface NewClinicalEntry {
-  modality: "CONSULTORIO" | "RURAL";
+  modality: "URBANO" | "RURAL";
   reason: string;
   diagnosis: string | null;
   treatment: string | null;
@@ -331,7 +331,7 @@ export async function insertErratum(
 ): Promise<string> {
   // La evolución original debe pertenecer a esta misma ficha.
   const original = await client.query<{
-    modalidad: "CONSULTORIO" | "RURAL";
+    modalidad: "URBANO" | "RURAL";
   }>(
     `SELECT modalidad
      FROM evolucion_clinica

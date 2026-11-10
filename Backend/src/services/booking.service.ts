@@ -6,7 +6,11 @@ import {
   createClientBooking,
   type RuralAvailability,
 } from "../models/booking.model";
-import { listAssignableVets, type ModalidadTurno } from "../models/turno.model";
+import {
+  listAssignableVets,
+  listHojaDeRutaBlocks,
+  type ModalidadTurno,
+} from "../models/turno.model";
 
 const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
 const MAX_RANGE_DAYS = 62;
@@ -101,7 +105,7 @@ export async function getAvailability(input: {
 }): Promise<AvailableDay[]> {
   assertRange(input.from, input.to);
 
-  const [vets, holidays, busySlots, ruralSlots] = await Promise.all([
+  const [vets, holidays, busySlots, ruralSlots, routeBlocks] = await Promise.all([
     listAssignableVets(),
     listAgendaHolidays(input.from, input.to),
     listBusySlots(
@@ -112,6 +116,11 @@ export async function getAvailability(input: {
     input.modality === "RURAL"
       ? listRuralAvailability(input.from, input.to, input.vetId)
       : Promise.resolve([] as RuralAvailability[]),
+    listHojaDeRutaBlocks(
+      new Date(input.from.getTime() - 2 * 60 * 60 * 1000),
+      input.to,
+      input.vetId,
+    ),
   ]);
   if (input.vetId && !vets.some((vet) => vet.id === input.vetId)) {
     throw new BadRequestError(
@@ -134,19 +143,29 @@ export async function getAvailability(input: {
     const date = cursor.toISOString().slice(0, 10);
     const hours: AvailableSlot[] = [];
 
-    if (!holidaySet.has(date) && input.modality === "CONSULTORIO") {
+    if (!holidaySet.has(date) && input.modality === "URBANO") {
       for (const time of consultHours(date)) {
         const start = dateAtArgentinaTime(date, time);
         if (start.getTime() <= Date.now()) continue;
 
         const availableVets = vets.filter(
-          (vet) =>
-            (!input.vetId || input.vetId === vet.id) &&
-            !busySlots.some(
+          (vet) => {
+            const endsAt = new Date(start.getTime() + 30 * 60_000);
+            return (
+              (!input.vetId || input.vetId === vet.id) &&
+              !routeBlocks.some(
+                (block) =>
+                  block.vetId === vet.id &&
+                  block.startsAt < endsAt &&
+                  block.endsAt > start,
+              ) &&
+              !busySlots.some(
               (busy) =>
                 busy.vetId === vet.id &&
                 overlaps(start, 30, busy.dateTime, busy.durationMinutes),
-            ),
+              )
+            );
+          },
         );
 
         if (availableVets.length) {
@@ -172,6 +191,15 @@ export async function getAvailability(input: {
         )
           continue;
         if (
+          routeBlocks.some(
+            (block) =>
+              block.vetId === slot.vetId &&
+              block.startsAt <
+                new Date(
+                  slot.dateTime.getTime() + slot.durationMinutes * 60_000,
+                ) &&
+              block.endsAt > slot.dateTime,
+          ) ||
           busySlots.some(
             (busy) =>
               busy.vetId === slot.vetId &&
@@ -215,6 +243,8 @@ export async function requestClientBooking(input: {
   dateTime: Date;
   modality: ModalidadTurno;
   reason: string;
+  reasonCategory: string | null;
+  reasonDetail: string | null;
   durationMinutes: number;
 }): Promise<string> {
   if (input.dateTime.getTime() <= Date.now()) {
@@ -228,7 +258,7 @@ export async function requestClientBooking(input: {
     throw new BadRequestError("No se reciben reservas los domingos.");
   }
 
-  if (input.modality === "CONSULTORIO") {
+  if (input.modality === "URBANO") {
     if (
       input.durationMinutes !== 30 ||
       !consultHours(date).some(
