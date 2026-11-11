@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink, useRoute, type RouteLocationRaw } from 'vue-router'
+import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import LogoutButton from '@/components/Redireccion/LogoutButton.vue'
 import { useTheme } from '@/composables/useTheme'
 import { resolvePanelNavigation } from '@/router/navigation'
@@ -13,6 +13,7 @@ const DASHBOARD_ROUTE: RouteLocationRaw = { name: 'dashboard' }
 
 const session = useSessionStore()
 const route = useRoute()
+const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 
 // Menú desplegable en celular; en escritorio siempre está visible.
@@ -26,29 +27,9 @@ watch(
   },
 )
 
-const panel = computed<PanelConfig | undefined>(() => {
-  const user = session.user
-
-  if (!user) return undefined
-
-  if (user.rol === 'CLIENTE') {
-    if (session.isUrbanClient) {
-      return { subtitle: 'Panel del cliente urbano', links: clientLinks }
-    }
-
-    if (session.isRuralClient) {
-      return { subtitle: 'Panel del cliente rural', links: clientLinks }
-    }
-
-    // Perfil todavía incompleto: no mostrar secciones específicas.
-    return {
-      subtitle: 'Panel del cliente',
-      links: [{ label: 'Inicio', to: DASHBOARD_ROUTE }],
-    }
-  }
-
-  return panels[user.rol as Rol]
-})
+// Los ítems de cada rol se configuran en src/router/navigation.ts. Acá solo se
+// muestran los que quedaron después de filtrar por rol y permisos de ruta.
+const panel = computed(() => resolvePanelNavigation(session.user, router))
 
 const fullName = computed(() => session.user?.nombreCompleto ?? '')
 </script>
@@ -85,20 +66,17 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
       :class="menuAbierto ? 'flex' : 'hidden'"
     >
       <nav class="mt-4 flex flex-col gap-1 md:mt-9 md:gap-2">
-        <template v-for="link in panel.links" :key="link.label">
-          <!-- Los clientes URBANO no ven las secciones rurales. La API rechaza
-             igual /establecimientos si el tutor no es rural. -->
-          <RouterLink
-            v-if="!link.soloRural || session.isRuralClient"
-            :to="link.to"
-            :active-class="link.exact ? '' : ACTIVE_CLASS"
-            :exact-active-class="ACTIVE_CLASS"
-            class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
-          >
-            <span class="h-1 w-1 rounded-full bg-current" aria-hidden="true" />
-            {{ link.label }}
-          </RouterLink>
-        </template>
+        <RouterLink
+          v-for="link in panel.items"
+          :key="link.label"
+          :to="link.to"
+          :active-class="link.exact ? '' : ACTIVE_CLASS"
+          :exact-active-class="ACTIVE_CLASS"
+          class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
+        >
+          <span class="h-1 w-1 rounded-full bg-current" aria-hidden="true" />
+          {{ link.label }}
+        </RouterLink>
       </nav>
 
       <button
