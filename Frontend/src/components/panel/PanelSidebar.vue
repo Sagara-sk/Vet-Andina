@@ -1,104 +1,23 @@
-
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import { RouterLink, useRouter, type RouteLocationRaw } from 'vue-router'
 import LogoutButton from '@/components/Redireccion/LogoutButton.vue'
 import { useTheme } from '@/composables/useTheme'
-import type { Rol } from '@/router/access'
+import { resolvePanelNavigation } from '@/router/navigation'
 import { useSessionStore } from '@/stores/session'
 import { initials } from '@/utils/format'
-
-interface NavLink {
-  label: string
-  to: RouteLocationRaw
-  exact?: boolean
-  // Solo para clientes con atención RURAL (establecimientos y lotes).
-  soloRural?: boolean
-}
-
-interface PanelConfig {
-  subtitle: string
-  links: NavLink[]
-}
 
 const ACTIVE_CLASS = '!bg-brand-accentSoft !text-brand-ink'
 
 const DASHBOARD_ROUTE: RouteLocationRaw = { name: 'dashboard' }
 
-// Menú del cliente. "Mis establecimientos" se oculta con v-if a los clientes
-// URBANO; los RURAL ven mascotas y establecimientos.
-const clientLinks: NavLink[] = [
-  { label: 'Inicio', to: DASHBOARD_ROUTE },
-  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
-  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' }, soloRural: true },
-  { label: 'Reservar turno', to: { name: 'panel-reservar' } },
-  { label: 'Mis turnos', to: { name: 'panel-turnos' } },
-]
-
-const vetLinks: NavLink[] = [
-  { label: 'Dashboard', to: DASHBOARD_ROUTE },
-  { label: 'Clientes', to: { name: 'vet-tutores' } },
-  { label: 'Agenda', to: { name: 'vet-agenda' } },
-  { label: 'Gestión de turnos', to: { name: 'vet-turnos' } },
-  { label: 'Fichas médicas', to: { name: 'vet-fichas' } },
-  { label: 'Modo offline', to: { name: 'vet-offline' } },
-]
-
-const adminLinks: NavLink[] = [
-  { label: 'Turnos', to: { name: 'admin-turnos' }, exact: true },
-  { label: 'Agenda general', to: { name: 'admin-agenda' } },
-  { label: 'Clientes', to: { name: 'admin-tutores' } },
-  { label: 'Fichas', to: { name: 'admin-fichas' } },
-]
-
-// Menús del personal: se mantienen las secciones existentes.
-const panels: Partial<Record<Rol, PanelConfig>> = {
-  VETERINARIO: {
-    subtitle: 'Panel veterinario',
-    links: vetLinks,
-  },
-  ADMINISTRATIVO: {
-    subtitle: 'Panel administrativo',
-    links: [{ label: 'Inicio', to: DASHBOARD_ROUTE }, ...adminLinks],
-  },
-  SUPERADMIN: {
-    subtitle: 'Panel de administración',
-    links: [
-      { label: 'Dashboard', to: DASHBOARD_ROUTE },
-      ...adminLinks,
-      { label: 'Agenda', to: { name: 'vet-agenda' } },
-      { label: 'Modo offline', to: { name: 'vet-offline' } },
-      { label: 'Usuarios', to: { name: 'vet-usuarios' } },
-    ],
-  },
-}
-
 const session = useSessionStore()
+const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 
-const panel = computed<PanelConfig | undefined>(() => {
-  const user = session.user
-
-  if (!user) return undefined
-
-  if (user.rol === 'CLIENTE') {
-    if (session.isUrbanClient) {
-      return { subtitle: 'Panel del cliente urbano', links: clientLinks }
-    }
-
-    if (session.isRuralClient) {
-      return { subtitle: 'Panel del cliente rural', links: clientLinks }
-    }
-
-    // Perfil todavía incompleto: no mostrar secciones específicas.
-    return {
-      subtitle: 'Panel del cliente',
-      links: [{ label: 'Inicio', to: DASHBOARD_ROUTE }],
-    }
-  }
-
-  return panels[user.rol as Rol]
-})
+// Los ítems de cada rol se configuran en src/router/navigation.ts. Acá solo se
+// muestran los que quedaron después de filtrar por rol y permisos de ruta.
+const panel = computed(() => resolvePanelNavigation(session.user, router))
 
 const fullName = computed(() => session.user?.nombreCompleto ?? '')
 </script>
@@ -115,26 +34,18 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
       </span>
     </RouterLink>
 
-    <nav
-      class="mt-6 flex gap-1 overflow-x-auto md:mt-9 md:flex-col md:gap-2 md:overflow-visible"
-    >
-      <template v-for="link in panel.links" :key="link.label">
-        <!-- Los clientes URBANO no ven las secciones rurales. La API rechaza
-             igual /establecimientos si el tutor no es rural. -->
-        <RouterLink
-          v-if="!link.soloRural || session.isRuralClient"
-          :to="link.to"
-          :active-class="link.exact ? '' : ACTIVE_CLASS"
-          :exact-active-class="ACTIVE_CLASS"
-          class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
-        >
-          <span
-            class="h-1 w-1 rounded-full bg-current"
-            aria-hidden="true"
-          />
-          {{ link.label }}
-        </RouterLink>
-      </template>
+    <nav class="mt-6 flex gap-1 overflow-x-auto md:mt-9 md:flex-col md:gap-2 md:overflow-visible">
+      <RouterLink
+        v-for="link in panel.items"
+        :key="link.label"
+        :to="link.to"
+        :active-class="link.exact ? '' : ACTIVE_CLASS"
+        :exact-active-class="ACTIVE_CLASS"
+        class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
+      >
+        <span class="h-1 w-1 rounded-full bg-current" aria-hidden="true" />
+        {{ link.label }}
+      </RouterLink>
     </nav>
 
     <button
