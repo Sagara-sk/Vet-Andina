@@ -71,7 +71,7 @@ onMounted(cargar)
     <input
       v-model="busqueda"
       type="search"
-      class="field-input mt-7 !w-[320px] max-w-full"
+      class="field-input mt-7 sm:w-80"
       placeholder="Buscar por nombre, email, teléfono, DNI o mascota"
       aria-label="Buscar tutores"
     />
@@ -84,9 +84,10 @@ onMounted(cargar)
       {{ error }}
     </p>
 
-    <div class="mt-5 overflow-x-auto border border-brand-line bg-brand-surface">
-      <table class="w-full min-w-[720px] text-left text-sm">
-        <thead class="text-xs text-brand-inkSoft">
+    <!-- En celular cada cliente es una tarjeta; desde md se muestra como tabla. -->
+    <div class="mt-5 border border-brand-line bg-brand-surface md:overflow-x-auto">
+      <table class="block w-full text-left text-sm md:table md:min-w-180">
+        <thead class="hidden text-xs text-brand-inkSoft md:table-header-group">
           <tr>
             <th class="px-4 py-3 font-normal">Nombre</th>
             <th class="px-4 py-3 font-normal">Contacto</th>
@@ -96,24 +97,38 @@ onMounted(cargar)
             <th class="px-4 py-3 text-right font-normal">Acceso clínico</th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-for="t in tutores" :key="t.id" class="border-t border-brand-line text-brand-ink">
-            <td class="px-4 py-3.5">
-              <RouterLink :to="{ name: tutorRouteName, params: { id: t.id } }" class="hover:underline">
+        <tbody class="block md:table-row-group">
+          <tr
+            v-for="t in tutores"
+            :key="t.id"
+            class="grid grid-cols-2 gap-x-4 gap-y-1 border-brand-line p-4 text-brand-ink not-first:border-t md:table-row md:border-t md:p-0"
+          >
+            <td class="col-span-2 font-medium md:px-4 md:py-3.5 md:font-normal">
+              <RouterLink
+                :to="{ name: tutorRouteName, params: { id: t.id } }"
+                class="hover:underline"
+              >
                 {{ t.fullName }}
               </RouterLink>
             </td>
-            <td class="px-4 py-3.5">
+            <td class="col-span-2 md:px-4 md:py-3.5">
               {{ t.phone }}
               <span class="mt-0.5 block text-xs text-brand-inkSoft">{{ t.email }}</span>
             </td>
-            <td class="px-4 py-3.5">{{ t.locality }}</td>
-            <td class="px-4 py-3.5">{{ t.animalCount }}</td>
-            <td class="px-4 py-3.5 text-xs text-brand-inkSoft">{{ t.hasAccount ? 'Registrado' : 'Sin cuenta' }}</td>
-            <td class="px-4 py-3.5 text-right">
+            <td class="text-brand-inkSoft md:px-4 md:py-3.5 md:text-brand-ink">{{ t.locality }}</td>
+            <td
+              class="text-right text-brand-inkSoft md:px-4 md:py-3.5 md:text-left md:text-brand-ink"
+            >
+              {{ t.animalCount
+              }}<span class="md:hidden"> {{ t.animalCount === 1 ? 'animal' : 'animales' }}</span>
+            </td>
+            <td class="self-center text-xs text-brand-inkSoft md:px-4 md:py-3.5">
+              {{ t.hasAccount ? 'Registrado' : 'Sin cuenta' }}
+            </td>
+            <td class="mt-2 text-right md:mt-0 md:px-4 md:py-3.5">
               <RouterLink
                 :to="{ name: tutorRouteName, params: { id: t.id } }"
-                class="btn-outline inline-block !px-3 !py-2 text-xs"
+                class="btn-outline !px-3 text-xs md:!min-h-0 md:!py-2"
                 :aria-label="`Acceder a las fichas clínicas de ${t.fullName} y sus pacientes`"
               >
                 Ver fichas
@@ -123,8 +138,16 @@ onMounted(cargar)
         </tbody>
       </table>
 
-      <p v-if="cargando && !tutores.length" class="px-5 py-6 text-center text-sm text-brand-inkSoft">Cargando...</p>
-      <p v-else-if="!tutores.length && !error" class="px-5 py-6 text-center text-sm text-brand-inkSoft">
+      <p
+        v-if="cargando && !tutores.length"
+        class="px-5 py-6 text-center text-sm text-brand-inkSoft"
+      >
+        Cargando...
+      </p>
+      <p
+        v-else-if="!tutores.length && !error"
+        class="px-5 py-6 text-center text-sm text-brand-inkSoft"
+      >
         No hay tutores que coincidan con la búsqueda.
       </p>
     </div>

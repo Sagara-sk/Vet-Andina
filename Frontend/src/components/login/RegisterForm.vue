@@ -53,7 +53,7 @@ async function envioFormulario() {
 
       <div
         v-if="mensajeError"
-        class="mt-6 border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        class="mt-6 border border-brand-dangerLine bg-brand-dangerSoft p-3 text-sm text-brand-dangerInk"
         role="alert"
       >
         {{ mensajeError }}

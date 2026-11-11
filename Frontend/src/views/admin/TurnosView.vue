@@ -219,9 +219,10 @@ onMounted(async () => {
       </select>
     </div>
 
-        <div class="mt-5 overflow-x-auto border border-brand-line bg-brand-surface">
-      <table class="w-full min-w-215 text-left text-sm">
-        <thead class="text-xs text-brand-inkSoft">
+    <!-- En celular cada turno es una tarjeta; desde md se muestra como tabla. -->
+    <div class="mt-5 border border-brand-line bg-brand-surface md:overflow-x-auto">
+      <table class="block w-full text-left text-sm md:table md:min-w-215">
+        <thead class="hidden text-xs text-brand-inkSoft md:table-header-group">
           <tr>
             <th class="px-4 py-3 font-normal">{{ vista === 'dia' ? 'Hora' : 'Fecha' }}</th>
             <th class="px-4 py-3 font-normal">Paciente</th>
@@ -231,19 +232,19 @@ onMounted(async () => {
             <th class="px-4 py-3 font-normal"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="block md:table-row-group">
           <tr
             v-for="t in turnos"
             :key="t.id"
-            class="border-t border-brand-line align-top text-brand-ink"
+            class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-brand-line p-4 align-top text-brand-ink not-first:border-t md:table-row md:border-t md:p-0"
           >
-            <td class="whitespace-nowrap px-4 py-3.5">
+            <td class="whitespace-nowrap font-medium md:px-4 md:py-3.5 md:font-normal">
               <span v-if="vista === 'semana'" class="block text-xs text-brand-inkSoft">
                 {{ diaCorto.format(new Date(t.dateTime)) }}
               </span>
               {{ hora.format(new Date(t.dateTime)) }}
             </td>
-            <td class="px-4 py-3.5">
+            <td class="md:px-4 md:py-3.5">
               <RouterLink
                 :to="{ name: 'admin-ficha', params: { id: t.animal.id } }"
                 class="hover:underline"
@@ -257,7 +258,7 @@ onMounted(async () => {
                 {{ t.tutor.fullName }}
               </RouterLink>
             </td>
-            <td class="px-4 py-3.5">
+            <td class="col-span-2 md:px-4 md:py-3.5">
               {{ t.reason ?? '—' }}
               <span v-if="t.modality === 'RURAL'" class="mt-0.5 block text-xs text-brand-inkSoft"
                 >Visita rural</span
@@ -266,13 +267,21 @@ onMounted(async () => {
                 {{ t.cancellationReason }}
               </span>
             </td>
-            <td class="px-4 py-3.5">{{ t.vet?.fullName ?? 'Sin asignar' }}</td>
-            <td class="px-4 py-3.5"><EstadoTurnoBadge :estado="t.status" /></td>
-            <td class="px-4 py-3.5">
-              <div v-if="MODIFICABLE.includes(t.status)" class="flex justify-end gap-1.5">
+            <td class="text-brand-inkSoft md:px-4 md:py-3.5 md:text-brand-ink">
+              <span class="text-xs md:hidden">Veterinario: </span
+              >{{ t.vet?.fullName ?? 'Sin asignar' }}
+            </td>
+            <td class="justify-self-end md:px-4 md:py-3.5">
+              <EstadoTurnoBadge :estado="t.status" />
+            </td>
+            <td class="col-span-2 empty:hidden md:px-4 md:py-3.5">
+              <div
+                v-if="MODIFICABLE.includes(t.status)"
+                class="grid grid-cols-2 gap-2 md:flex md:justify-end md:gap-1.5"
+              >
                 <button
                   type="button"
-                  class="rounded-md border border-brand-line px-2.5 py-1 text-xs text-brand-inkSoft hover:text-brand-ink"
+                  class="rounded-md border border-brand-line min-h-11 px-3 text-xs md:min-h-0 md:px-2.5 md:py-1 text-brand-inkSoft hover:text-brand-ink"
                   @click="asignacion = { turno: t, veterinarioId: t.vet?.id ?? '' }"
                 >
                   Asignar
@@ -280,21 +289,21 @@ onMounted(async () => {
                 <button
                   v-if="CONFIRMABLE.includes(t.status)"
                   type="button"
-                  class="rounded-md border border-brand-accent bg-brand-accentSoft px-2.5 py-1 text-xs text-brand-accentInk hover:opacity-80"
+                  class="rounded-md border border-brand-accent bg-brand-accentSoft min-h-11 px-3 text-xs md:min-h-0 md:px-2.5 md:py-1 text-brand-accentInk hover:opacity-80"
                   @click="confirmar(t)"
                 >
                   Confirmar
                 </button>
                 <button
                   type="button"
-                  class="rounded-md border border-brand-line px-2.5 py-1 text-xs text-brand-inkSoft hover:text-brand-ink"
+                  class="rounded-md border border-brand-line min-h-11 px-3 text-xs md:min-h-0 md:px-2.5 md:py-1 text-brand-inkSoft hover:text-brand-ink"
                   @click="accion = { turno: t, tipo: 'reprogramar' }"
                 >
                   Reprogramar
                 </button>
                 <button
                   type="button"
-                  class="rounded-md border border-brand-dangerLine bg-brand-dangerSoft px-2.5 py-1 text-xs text-brand-dangerInk hover:opacity-80"
+                  class="rounded-md border border-brand-dangerLine bg-brand-dangerSoft min-h-11 px-3 text-xs md:min-h-0 md:px-2.5 md:py-1 text-brand-dangerInk hover:opacity-80"
                   @click="accion = { turno: t, tipo: 'cancelar' }"
                 >
                   Cancelar
@@ -302,11 +311,11 @@ onMounted(async () => {
               </div>
               <div
                 v-if="asignacion?.turno.id === t.id"
-                class="mt-2 flex min-w-56 items-center gap-2"
+                class="mt-2 flex items-center gap-2 md:min-w-56"
               >
                 <select
                   v-model="asignacion.veterinarioId"
-                  class="field-input py-1.5! text-xs"
+                  class="field-input text-xs md:py-1.5!"
                   aria-label="Veterinario para asignar"
                 >
                   <option value="">Seleccioná</option>
@@ -316,7 +325,7 @@ onMounted(async () => {
                 </select>
                 <button
                   type="button"
-                  class="rounded border border-brand-accent px-2 py-1 text-xs text-brand-accentInk disabled:opacity-50"
+                  class="min-h-11 rounded-sm border border-brand-accent px-3 text-xs text-brand-accentInk disabled:opacity-50 md:min-h-0 md:px-2 md:py-1"
                   :disabled="guardandoAsignacion || !asignacion.veterinarioId"
                   @click="guardarAsignacion"
                 >
@@ -324,7 +333,7 @@ onMounted(async () => {
                 </button>
                 <button
                   type="button"
-                  class="px-1 text-xs text-brand-inkSoft"
+                  class="min-h-11 min-w-11 text-base text-brand-inkSoft md:min-h-0 md:min-w-0 md:px-1 md:text-xs"
                   aria-label="Cancelar asignación"
                   @click="asignacion = null"
                 >
@@ -347,7 +356,6 @@ onMounted(async () => {
       </p>
     </div>
 
-
     <RuralAvailabilityManager class="mt-7" />
 
     <p
@@ -364,7 +372,6 @@ onMounted(async () => {
     >
       {{ error }}
     </p>
-
 
     <NuevoTurnoModal v-if="nuevo" @close="nuevo = false" @created="onCreado" />
     <TurnoAccionModal

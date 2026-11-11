@@ -21,6 +21,7 @@ export default {
           accentHover: 'var(--brand-accent-hover)',
           accentSoft: 'var(--brand-accent-soft)',
           accentInk: 'var(--brand-accent-ink)',
+          warn: 'var(--brand-warn)',
           warnSoft: 'var(--brand-warn-soft)',
           warnInk: 'var(--brand-warn-ink)',
           warnLine: 'var(--brand-warn-line)',

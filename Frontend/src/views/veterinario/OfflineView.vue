@@ -180,7 +180,7 @@ onUnmounted(() => {
       >
         <span
           class="h-[7px] w-[7px] rounded-full"
-          :class="conectado ? 'bg-brand-accent' : 'bg-[#c49a3a]'"
+          :class="conectado ? 'bg-brand-accent' : 'bg-brand-warn'"
         />
 
         {{ conectado ? 'Conectado' : 'Desconectado' }}
