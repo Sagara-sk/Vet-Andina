@@ -145,10 +145,11 @@ export async function updateOwnerProfile(
   if (input.farmName) {
     await client.query(
       `INSERT INTO finca (id_duenio, nombre_finca, localidad)
-       SELECT $1, $2, $3
+       SELECT $1, $2::text, $3
        WHERE NOT EXISTS (
          SELECT 1 FROM finca
-         WHERE id_duenio = $1 AND lower(btrim(nombre_finca)) = lower(btrim($2))
+         WHERE id_duenio = $1
+           AND lower(btrim(nombre_finca)) = lower(btrim($2::text))
        )`,
       [owner.id_duenio, input.farmName, owner.localidad],
     );

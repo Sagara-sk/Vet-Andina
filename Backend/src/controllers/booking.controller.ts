@@ -12,6 +12,7 @@ import {
   listRuralAvailabilityForStaff,
   upsertAgendaHoliday,
 } from "../models/booking.model";
+import { addAnimal } from "../services/tutor.service";
 import {
   findTurnoById,
   listOwnerTurnos,
@@ -122,6 +123,28 @@ const myAnimalsQuerySchema = Joi.object({
   tipo: Joi.string().valid("URBANO", "RURAL"),
 }).unknown(false);
 
+const createMyAnimalSchema = Joi.object({
+  nombre: Joi.string().trim().min(1).max(150).required(),
+  especie: Joi.string().trim().min(2).max(100).required(),
+  raza: Joi.string().trim().max(100).allow("", null).default(null),
+  tipoAtencion: Joi.string().valid("URBANO", "RURAL").required(),
+  cantidadEnLote: Joi.when("tipoAtencion", {
+    is: "RURAL",
+    then: Joi.number().integer().min(1).max(100000).required(),
+    otherwise: Joi.number().integer().valid(1).default(1),
+  }),
+  fechaNacimiento: Joi.when("tipoAtencion", {
+    is: "URBANO",
+    then: Joi.date().iso().max("now").allow(null).default(null),
+    otherwise: Joi.valid(null).default(null),
+  }),
+  idFinca: Joi.when("tipoAtencion", {
+    is: "RURAL",
+    then: Joi.string().guid().required(),
+    otherwise: Joi.valid(null).default(null),
+  }),
+}).unknown(false);
+
 export const getMyAnimals: RequestHandler = async (request, response) => {
   const user = request.user as AuthenticatedUserRecord;
   const { error, value } = myAnimalsQuerySchema.validate(request.query);
@@ -151,7 +174,63 @@ export const getMyAnimals: RequestHandler = async (request, response) => {
   }
 };
 
+export const postMyAnimal: RequestHandler = async (request, response) => {
+  const { error, value } = createMyAnimalSchema.validate(request.body, {
+    abortEarly: false,
+  });
+  if (error) return sendValidationError(response, error);
+
+  const user = request.user as AuthenticatedUserRecord;
+  if (!user.profileComplete || !user.careType) {
+    response.status(403).json({
+      status: "error",
+      message: "Completá tu perfil antes de registrar animales.",
+    });
+    return;
+  }
+
+  const ruralOwnerPet =
+    user.careType === "RURAL" && value.tipoAtencion === "URBANO";
+  if (value.tipoAtencion !== user.careType && !ruralOwnerPet) {
+    response.status(403).json({
+      status: "error",
+      message: "No podés registrar animales para otra modalidad de atención.",
+    });
+    return;
+  }
+
+  try {
+    const ownerId = await findOwnerIdForUser(user.userId);
+    if (!ownerId) {
+      sendNotFound(response, "No se encontró el perfil del tutor.");
+      return;
+    }
+
+    await addAnimal(ownerId, {
+      name: value.nombre,
+      species: value.especie,
+      breed: value.raza,
+      careType: value.tipoAtencion,
+      herdSize: value.cantidadEnLote,
+      birthDate: value.fechaNacimiento
+        ? value.fechaNacimiento.toISOString().slice(0, 10)
+        : null,
+      farmId: value.idFinca,
+    });
+
+    response.status(201).json({ status: "ok", message: "Animal registrado." });
+  } catch (error) {
+    sendError(
+      response,
+      error,
+      "Error al registrar un animal del cliente",
+      "No fue posible registrar el animal.",
+    );
+  }
+};
+
 export const getMyTurnos: RequestHandler = async (request, response) => {
+  response.set("Cache-Control", "no-store");
   const user = request.user as AuthenticatedUserRecord;
   try {
     const ownerId = await findOwnerIdForUser(user.userId);

@@ -1,5 +1,6 @@
 import type { AuthenticatedUserRecord } from "../models/owner.model";
 import {
+  findTurnoByIdForUser,
   findAnimalOwner,
   findTurnoById,
   insertTurno,
@@ -11,6 +12,7 @@ import {
   type NewTurno,
   type TurnoRecord,
 } from "../models/turno.model";
+import { getAvailability } from "./booking.service";
 import {
   BadRequestError,
   ConflictError,
@@ -143,6 +145,79 @@ export async function rescheduleTurnoFor(
     await assertVetAvailable(finalVet, dateTime, turno.durationMinutes, id);
 
   if (!(await rescheduleTurno(id, RESCHEDULABLE, dateTime, vetId))) {
+    throw new ConflictError(CHANGED_MEANWHILE);
+  }
+
+  return (await findTurnoById(id))!;
+}
+
+export async function rescheduleClientTurno(
+  user: AuthenticatedUserRecord,
+  id: string,
+  dateTime: Date,
+): Promise<TurnoRecord> {
+  const turno = await findTurnoByIdForUser(id, user.userId);
+  if (!turno) throw new NotFoundError("El turno no existe.");
+  if (!RESCHEDULABLE.includes(turno.status)) {
+    throw new ConflictError("Este turno ya no se puede reprogramar.");
+  }
+  if (!turno.vet) {
+    throw new ConflictError("No se puede reprogramar un turno sin veterinario asignado.");
+  }
+
+  assertFuture(dateTime);
+  const localDateParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(dateTime);
+  const localDateValues = Object.fromEntries(
+    localDateParts.map((part) => [part.type, part.value]),
+  );
+  const localDate = `${localDateValues.year}-${localDateValues.month}-${localDateValues.day}`;
+  const from = new Date(`${localDate}T00:00:00.000Z`);
+  const to = new Date(from);
+  to.setUTCDate(to.getUTCDate() + 1);
+  const availableDays = await getAvailability({
+    from,
+    to,
+    modality: turno.modality,
+    vetId: turno.vet.id,
+  });
+  const availableSlot = availableDays
+    .flatMap((day) => day.horarios)
+    .some(
+      (slot) =>
+        new Date(slot.fechaHora).getTime() === dateTime.getTime() &&
+        slot.duracionMinutos === turno.durationMinutes,
+    );
+  if (!availableSlot) {
+    throw new ConflictError(
+      "Ese horario ya no está disponible. Elegí otro horario de la agenda.",
+    );
+  }
+
+  if (!(await rescheduleTurno(id, RESCHEDULABLE, dateTime, turno.vet.id))) {
+    throw new ConflictError(CHANGED_MEANWHILE);
+  }
+
+  return (await findTurnoById(id))!;
+}
+
+export async function cancelClientTurno(
+  user: AuthenticatedUserRecord,
+  id: string,
+): Promise<TurnoRecord> {
+  const turno = await findTurnoByIdForUser(id, user.userId);
+  if (!turno) throw new NotFoundError("El turno no existe.");
+  if (!CANCELLABLE.includes(turno.status)) {
+    throw new ConflictError("Este turno ya no se puede cancelar.");
+  }
+  if (turno.dateTime.getTime() <= Date.now()) {
+    throw new BadRequestError("Solo se pueden cancelar turnos futuros.");
+  }
+  if (!(await updateTurnoStatus(id, CANCELLABLE, "CANCELADA"))) {
     throw new ConflictError(CHANGED_MEANWHILE);
   }
 

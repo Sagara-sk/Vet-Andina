@@ -169,8 +169,7 @@ export async function listOwnerTurnos(ownerId: string): Promise<TurnoRecord[]> {
   const result = await db.query<TurnoRow>(
     `${SELECT_TURNO}
      WHERE t.id_duenio = $1
-     ORDER BY t.fecha_hora DESC
-     LIMIT 100`,
+     ORDER BY t.fecha_hora DESC`,
     [ownerId],
   );
   return result.rows.map(toRecord);
@@ -182,6 +181,19 @@ export async function findTurnoById(
   const result = await db.query<TurnoRow>(
     `${SELECT_TURNO} WHERE t.id_turno = $1`,
     [id],
+  );
+  const row = result.rows[0];
+  return row ? toRecord(row) : undefined;
+}
+
+export async function findTurnoByIdForUser(
+  id: string,
+  userId: string,
+): Promise<TurnoRecord | undefined> {
+  const result = await db.query<TurnoRow>(
+    `${SELECT_TURNO}
+     WHERE t.id_turno = $1 AND d.id_usuario = $2`,
+    [id, userId],
   );
   const row = result.rows[0];
   return row ? toRecord(row) : undefined;
@@ -527,8 +539,9 @@ export async function rescheduleTurno(
     const current = await client.query<{
       id_veterinario: string | null;
       duracion_minutos: number;
+      modalidad: ModalidadTurno;
     }>(
-      `SELECT id_veterinario, duracion_minutos
+      `SELECT id_veterinario, duracion_minutos, modalidad
        FROM turno
        WHERE id_turno = $1 AND estado = ANY($2::estado_turno[])
        FOR UPDATE`,
@@ -559,6 +572,22 @@ export async function rescheduleTurno(
         throw new ConflictError(
           "El profesional seleccionado tiene un bloque de trabajo externo en ese horario.",
         );
+      }
+      if (row.modalidad === "RURAL") {
+        const ruralSlot = await client.query(
+          `SELECT 1
+           FROM agenda_disponibilidad_rural
+           WHERE id_veterinario = $1
+             AND fecha_hora = $2
+             AND duracion_minutos = $3
+           FOR UPDATE`,
+          [targetVetId, dateTime, row.duracion_minutos],
+        );
+        if (!ruralSlot.rowCount) {
+          throw new ConflictError(
+            "La disponibilidad rural ya no existe. Elegí otro horario.",
+          );
+        }
       }
       const overlap = await client.query(
         `SELECT 1 FROM turno

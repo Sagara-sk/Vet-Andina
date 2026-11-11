@@ -157,6 +157,14 @@ const router = createRouter({
           name: 'panel-mascotas',
           component: () => import('../views/panel/PetsView.vue'),
         },
+        {
+          path: 'animales/nuevo',
+          name: 'panel-animal-nuevo',
+          component: () => import('../views/panel/ClientAnimalRegistrationView.vue'),
+          meta: {
+            title: 'Registrar mascota o lote',
+          },
+        },
 
         // Gestión de establecimientos (cliente rural).
         {

@@ -1,4 +1,3 @@
-
 import type { RouteLocationRaw, RouteRecordNormalized } from 'vue-router'
 import type { TipoPersona } from '@/services/auth'
 
@@ -52,16 +51,28 @@ export function canAccess(
   return hasAllowedPersona
 }
 
-const PANEL_ROLES: readonly Rol[] = [
-  'CLIENTE',
-  'VETERINARIO',
-  'ADMINISTRATIVO',
-  'SUPERADMIN',
-]
+const PANEL_ROLES: readonly Rol[] = ['CLIENTE', 'VETERINARIO', 'ADMINISTRATIVO', 'SUPERADMIN']
 
 // Todos los roles conocidos comparten el dashboard general.
 export function panelRouteForRole(rol: string): RouteLocationRaw | null {
   return PANEL_ROLES.includes(rol as Rol) ? { name: 'dashboard' } : null
+}
+
+export function primaryActionForRole(
+  rol: string,
+): { label: 'Reservar turno' | 'Mi agenda'; to: RouteLocationRaw } | null {
+  switch (rol) {
+    case 'CLIENTE':
+      return { label: 'Reservar turno', to: { name: 'panel-reservar' } }
+    case 'VETERINARIO':
+      return { label: 'Mi agenda', to: { name: 'vet-agenda' } }
+    case 'ADMINISTRATIVO':
+      return { label: 'Mi agenda', to: { name: 'admin-agenda' } }
+    case 'SUPERADMIN':
+      return { label: 'Mi agenda', to: { name: 'vet-agenda' } }
+    default:
+      return null
+  }
 }
 
 // Destino después del login: panel o inicio público.

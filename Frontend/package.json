@@ -15,6 +15,7 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "@fullcalendar/core": "^7.1.4",
     "@fullcalendar/vue3": "^7.1.4",
     "@tailwindcss/vite": "^4.3.3",
     "pinia": "^4.0.3",
