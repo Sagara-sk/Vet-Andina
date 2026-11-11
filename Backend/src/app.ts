@@ -11,6 +11,7 @@ import healthRouter from "./routes/health.routes";
 import turnoRouter from "./routes/turno.routes";
 import tutorRouter from "./routes/tutor.routes";
 import userRouter from "./routes/user.routes";
+import veterinarioRouter from "./routes/veterinario.routes";
 import { envs } from "./config/env";
 
 export const app = express();
@@ -50,6 +51,7 @@ app.use("/api/tutores", tutorRouter);
 app.use("/api/animales", animalRouter);
 app.use("/api/establecimientos", establecimientoRouter);
 app.use("/api/turnos", turnoRouter);
+app.use("/api/veterinarios", veterinarioRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 app.set('port', envs.PORT);

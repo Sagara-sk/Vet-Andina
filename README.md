@@ -269,6 +269,15 @@ El script (`Backend/src/scripts/create-rural-demo.ts`) necesita que Laura y Prod
 
 Los nombres de los campos llevan `(demo)`. Cada lote se crea con su ficha médica, como en el alta desde la API. Las cuentas, campos y lotes que ya existen no se modifican ni se duplican, y el script no se ejecuta con `NODE_ENV=production`. Los DNI/CUIT, teléfonos y nombres son ficticios.
 
+### Agenda de prueba
+
+```powershell
+cd Backend
+npm run seed:agenda-demo
+```
+
+El script (`Backend/src/scripts/create-agenda-demo.ts`) necesita las cuentas de `seed:test-users`, los lotes de `seed:rural-demo` y las mascotas Rogelio (`papita@gmail.com`) y Rocky (`manzana_rallada@hotmail.com`). Le agrega a Cliente Demo la mascota Milo (demo) con su ficha médica y carga, para los 7 días siguientes a la ejecución, 18 turnos (urbanos de particulares y rurales de productores, confirmados y pendientes) y 5 hojas de ruta repartidos entre Martín Sosa, Veterinario Demo, Julián Paredes y Super Admin. Los turnos llevan «(demo)» en el detalle del motivo y las hojas de ruta en su detalle. No duplica lo ya cargado, omite con aviso cualquier ítem que se cruce con la agenda existente del profesional y no se ejecuta con `NODE_ENV=production`. Como las fechas son relativas, se puede volver a correr para tener datos en semanas posteriores.
+
 > **Importante:** estas contraseñas son públicas porque están en este README. Usalas solo en bases de desarrollo o prueba. Antes de cargar datos reales o desplegar para el cliente, eliminá estas cuentas o cambiales la contraseña.
 
 ## Comandos
@@ -294,7 +303,9 @@ Los nombres de los campos llevan `(demo)`. Cada lote se crea con su ficha médic
 | `npm start`               | Inicia la aplicación compilada desde `dist/index.js`.                                             |
 | `npm run seed:test-users` | Crea las cuentas de prueba de cada rol que no existan.                                            |
 | `npm run seed:rural-demo` | Carga productores, establecimientos y lotes ganaderos ficticios que no existan.                   |
-| `npm run db:migrate`      | Aplica migraciones pendientes de `Backend/migrations/` y las registra en `schema_migrations`; 004 normaliza modalidades urbanas, 005 agrega motivos y hoja de ruta, y 006 agrega datos tipados para fichas especializadas. |
+| `npm run seed:agenda-demo` | Carga turnos y hojas de ruta ficticios para los próximos 7 días (ver «Agenda de prueba»).        |
+| `npm run db:migrate`      | Aplica migraciones pendientes de `Backend/migrations/` y las registra en `schema_migrations`; 004 normaliza modalidades urbanas y 005 agrega motivos estructurados y hoja de ruta. |
+| `npm test`                | Ejecuta los tests de `Backend/tests/` con Vitest y Supertest. Mockean los modelos, así que no necesitan conexión a la base. |
 
 `server.js` es una implementación JavaScript anterior y no la utilizan los scripts del paquete. La aplicación activa es la de `src/`, con PostgreSQL (`pg`); todavía no hay un ORM instalado o configurado. Si se incorpora uno, debe integrarse en esta aplicación TypeScript y sus scripts de arranque.
 
@@ -320,11 +331,12 @@ Los nombres de los campos llevan `(demo)`. Cada lote se crea con su ficha médic
 | `/panel-veterinario`                | Redirección                               | Requiere sesión con rol `VETERINARIO` o `SUPERADMIN`; redirige a `/dashboard`.                 |
 | `/panel-veterinario/tutores`        | `TutoresView.vue`                          | Consulta de tutores; el veterinario tiene acceso de lectura.                                   |
 | `/panel-veterinario/tutores/:id`    | `TutorDetailView.vue`                      | Consulta del tutor y alta de animales o lotes; el veterinario no puede editar los datos del tutor. |
-| `/panel-veterinario/agenda`         | `AgendaView.vue`                          | Agenda de demostración y administración de franjas rurales reales.                             |
+| `/panel-veterinario/agenda`         | `AgendaView.vue`                          | Calendario (FullCalendar) con los turnos asignados y las hojas de ruta propias vía `GET /api/veterinarios/me/agenda`, y administración de franjas rurales reales. |
 | `/panel-veterinario/turnos`         | `TurnosGestionView.vue`                   | Turnos asignados reales; el veterinario confirma los pendientes propios.                       |
 | `/panel-veterinario/offline`        | `OfflineView.vue`                         | Consulta fichas cacheadas de la cuenta activa y borradores locales; no sincroniza automáticamente. |
 | `/panel-veterinario/usuarios`       | `UsersView.vue`                           | Solo `SUPERADMIN`; alta real de veterinarios y administrativos vía `POST /api/users`.          |
 | `/panel-administrativo`             | `admin/TurnosView.vue`                    | `ADMINISTRATIVO` y `SUPERADMIN`. Agenda real: crear, confirmar, reprogramar y cancelar turnos. |
+| `/panel-administrativo/agenda`      | `admin/AgendaView.vue`                    | `ADMINISTRATIVO` y `SUPERADMIN`. Calendario de turnos asignados y hojas de ruta de todos los veterinarios, con filtro por profesional (`GET /api/veterinarios/agenda`). |
 | `/panel-administrativo/tutores`     | `admin/TutoresView.vue`                   | Alta, búsqueda y edición de tutores.                                                           |
 | `/panel-administrativo/tutores/:id` | `admin/TutorDetailView.vue`               | Datos del tutor, sus animales y alta de animales o lotes.                                      |
 | `/panel-administrativo/fichas`      | `admin/FichasView.vue`                    | Búsqueda de pacientes.                                                                         |
@@ -363,6 +375,8 @@ Los paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú 
 | `GET`    | `/api/turnos/veterinarios`                                       | `CLIENTE`: veterinarios con matrícula. Personal: profesionales asignables (veterinarios y superadmin con matrícula).                               |
 | `POST`   | `/api/turnos`                                                    | `ADMINISTRATIVO` y `SUPERADMIN`. Crea un turno futuro (`PENDIENTE` o `CONFIRMADO`) con modalidad `URBANO` o `RURAL` y motivo estructurado; devuelve 409 ante cruce con turno o bloque de hoja de ruta. |
 | `POST`   | `/api/turnos/hoja-de-ruta`                                       | Personal. Registra un bloque externo para un veterinario; los veterinarios solo pueden registrar bloques en su propia agenda. Rechaza cruces con turnos o bloques existentes. |
+| `GET`    | `/api/veterinarios/me/agenda?desde&hasta`                        | `VETERINARIO` y `SUPERADMIN`. Agenda del profesional de la sesión: `{ agenda: { desde, hasta, veterinario, turnos, hojasDeRuta } }`. Incluye los turnos asignados `URBANO` y `RURAL` que se superponen con el rango (sin `CANCELADA`) y los bloques de hoja de ruta. Rango máx. 92 días; por defecto, 7 días desde hoy. No acepta `veterinario` (400). |
+| `GET`    | `/api/veterinarios/agenda?desde&hasta&veterinario`               | `ADMINISTRATIVO` y `SUPERADMIN`. Mismo payload para todos los veterinarios o para uno (`veterinario`, 404 si no es un profesional asignable). Los turnos sin profesional asignado no se incluyen. |
 | `PUT`    | `/api/turnos/:id/asignar`                                        | `ADMINISTRATIVO` y `SUPERADMIN`. Asigna o reasigna el profesional, validando conflictos de horario.                                                 |
 | `POST`   | `/api/turnos/:id/confirmar`                                      | Personal. `PENDIENTE` o `REPROGRAMADO` → `CONFIRMADO`.                                                                                              |
 | `POST`   | `/api/turnos/:id/reprogramar`                                    | Personal. Nueva fecha (y profesional, solo gestión) → `REPROGRAMADO`.                                                                               |
@@ -374,7 +388,7 @@ Los paneles comparten `PanelLayout.vue` y `PanelSidebar.vue`, que arma el menú 
 | `POST`   | `/api/turnos/feriados`                                           | `ADMINISTRATIVO` y `SUPERADMIN`. Crea o actualiza un día no laborable.                                                                              |
 | `DELETE` | `/api/turnos/feriados/:fecha`                                    | `ADMINISTRATIVO` y `SUPERADMIN`. Quita un feriado configurado.                                                                                      |
 
-"Personal" son `SUPERADMIN`, `ADMINISTRATIVO` y `VETERINARIO`. En confirmar, reprogramar y cancelar, el veterinario solo puede actuar sobre los turnos asignados a él (403 en los demás); administrativo y superadmin, sobre cualquiera. Las transiciones solo se aplican si el turno sigue en el estado esperado, así un cambio simultáneo de otra persona no se pisa (409).
+"Personal" son `SUPERADMIN`, `ADMINISTRATIVO` y `VETERINARIO`. En confirmar, reprogramar y cancelar, el veterinario solo puede actuar sobre los turnos asignados a él (403 en los demás); administrativo y superadmin, sobre cualquiera. En la agenda, el veterinario solo consulta la propia: el id sale de la sesión y no del pedido. Las transiciones solo se aplican si el turno sigue en el estado esperado, así un cambio simultáneo de otra persona no se pisa (409).
 
 La agenda pública ofrece turnos urbanos (consultorio) de lunes a viernes de 08:30 a 12:30 y de 16:00 a 20:00, y los sábados de 09:00 a 13:00, en franjas de 30 minutos. Domingos y feriados configurados no ofrecen horarios. La modalidad rural solo muestra franjas que un veterinario haya publicado previamente de lunes a viernes; cada bloque dura entre 60 y 120 minutos. Las modalidades persistidas son `URBANO` y `RURAL`; la API normaliza `CONSULTORIO` únicamente para compatibilidad con clientes antiguos. Los motivos nuevos guardan categoría y detalle por separado, conservando `motivo` para lectura de turnos existentes y compatibilidad. Los bloques externos de `hoja_de_ruta` se excluyen de la disponibilidad y se vuelven a verificar transaccionalmente al crear un turno. Las fechas y horarios se interpretan en `America/Argentina/Buenos_Aires`. La disponibilidad se vuelve a validar transaccionalmente al reservar; los turnos de un cliente quedan `PENDIENTE` hasta que personal o el veterinario asignado los confirme. Administración puede asignar o reasignar profesionales. Aplicar las migraciones pendientes con `npm run db:migrate` desde `Backend/`; la 004 convierte los registros urbanos existentes, la 005 agrega motivos y hoja de ruta, y la 006 agrega tipo, detalles y hora de atención a los registros clínicos.
 
@@ -434,10 +448,8 @@ La API escribe en `usuario`, `duenio`, `animal`, `ficha_medica` y `turno`, y lee
 - **Registro desde frontend:** `/registro` envía nombre completo, email, teléfono, localidad y contraseña a `POST /api/auth/register`; presenta errores de la API y confirma el alta solo tras recibir una respuesta exitosa. El alta no inicia sesión automáticamente. La conexión real con Neon sigue pendiente de prueba en un entorno configurado.
 - **Arranque del Backend:** `npm run dev` ejecuta `src/index.ts`; `npm run build` compila a `dist/` y `npm start` inicia `dist/index.js`. `server.js` es una implementación anterior con MySQL y no forma parte de estos scripts.
 - **Pendiente de validar con Neon:** conexión de registro/login contra la instancia real y configuración de `JWT_SECRET`, cookie y CORS del entorno de despliegue.
-- **Fichas especializadas conectadas a la API:** vista individual para mascotas con peso, vacunas y desparasitación; vista poblacional para lotes rurales con tratamientos grupales y eventos. El tutor consulta solo sus propias fichas. El personal puede editar datos generales y agregar registros inmutables; las correcciones se agregan como fe de erratas. Requiere aplicar la migración 006.
-- **Modo offline de fichas:** cada usuario puede guardar explícitamente una copia de la ficha vinculada a la cuenta activa. El personal puede guardar borradores locales con autor y hora; estos no son parte del historial oficial, no se sincronizan automáticamente y requieren revisión/carga manual al restablecer conexión. Una copia offline puede estar desactualizada.
-- **Panel administrativo conectado a la API:** turnos, asignación/reasignación, feriados, hoja de ruta rural, tutores, alta de animales y gestión de fichas, con autorización por rol en el backend.
-- **Pendiente de implementación:** endpoints de visitas, notas administrativas, señas y pagos, sesión revocable y sincronización clínica offline con resolución de conflictos. El dashboard y varias secciones del panel veterinario siguen siendo demostrativos; la gestión de sus turnos asignados y la hoja de ruta rural usan la API.
+- **Panel administrativo conectado a la API:** turnos, asignación/reasignación, feriados, hoja de ruta rural, tutores, alta de animales y lectura de fichas, con autorización por rol en el backend.
+- **Pendiente de implementación:** endpoints de visitas y evoluciones clínicas, notas administrativas, señas y pagos, sesión revocable y sincronización clínica offline. El dashboard y varias secciones del panel veterinario siguen siendo demostrativos; la agenda, la gestión de sus turnos asignados y la hoja de ruta rural usan la API. El prototipo local veterinario no hace solicitudes a endpoints de dominio inexistentes; la sincronización se presenta deshabilitada y los borradores locales no deben contener datos clínicos reales.
 - **Establecimientos del cliente:** `/panel/establecimientos` lista los campos y lotes del tutor de la sesión desde `GET /api/establecimientos/mios`, en solo lectura. El alta de establecimientos por parte del propio tutor sigue pendiente.
 - **Datos de muestra:** `Frontend/src/data/panelMock.ts` es exclusivamente para la interfaz del panel; no es persistencia ni información leída de Neon.
 

@@ -9,7 +9,9 @@
     "start": "node dist/index.js",
     "seed:test-users": "tsx src/scripts/create-test-users.ts",
     "seed:rural-demo": "tsx src/scripts/create-rural-demo.ts",
-    "db:migrate": "tsx src/scripts/migrate.ts"
+    "seed:agenda-demo": "tsx src/scripts/create-agenda-demo.ts",
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "test": "vitest run"
   },
   "keywords": [],
   "license": "ISC",
@@ -43,7 +45,10 @@
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.2",
     "tsx": "^4.23.13",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
   }
 }

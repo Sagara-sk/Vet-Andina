@@ -358,6 +358,16 @@ const router = createRouter({
         },
 
         // ----------------------------------------------
+        // AGENDA GENERAL DE VETERINARIOS
+        // ----------------------------------------------
+
+        {
+          path: 'agenda',
+          name: 'admin-agenda',
+          component: () => import('@/views/admin/AgendaView.vue'),
+        },
+
+        // ----------------------------------------------
         // GESTIÓN DE TUTORES
         // ----------------------------------------------
 

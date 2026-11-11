@@ -46,6 +46,7 @@ const vetLinks: NavLink[] = [
 
 const adminLinks: NavLink[] = [
   { label: 'Turnos', to: { name: 'admin-turnos' }, exact: true },
+  { label: 'Agenda general', to: { name: 'admin-agenda' } },
   { label: 'Clientes', to: { name: 'admin-tutores' } },
   { label: 'Fichas', to: { name: 'admin-fichas' } },
 ]
