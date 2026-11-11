@@ -9,7 +9,15 @@ import {
   eliminarAnimal,
   obtenerFichasOffline,
   obtenerBorradoresFicha,
+    guardarFichaOffline,
+     eliminarBorradorFicha,
 } from '../../services/indexedDB'
+import {
+  searchAnimals,
+  getMedicalRecord,
+  addClinicalEntry,
+  type AnimalSearchResult,
+} from '@/services/fichas'
 import type { AnimalLocal, BorradorFichaLocal, FichaCacheLocal } from '../../services/indexedDB'
 
 const conectado = ref(navigator.onLine)
@@ -21,8 +29,13 @@ const animalesDescargados = ref<AnimalLocal[]>([])
 const fichasCacheadas = ref<FichaCacheLocal[]>([])
 const borradoresFicha = ref<BorradorFichaLocal[]>([])
 const animalSeleccionado = ref<AnimalLocal | null>(null)
+  const animalesDisponibles = ref<AnimalSearchResult[]>([])
+const animalesSeleccionados = ref<string[]>([])
+const descargando = ref(false)
+const busqueda = ref('')
 
 const comentario = ref('')
+const enviandoBorradorId = ref<string | null>(null)
 const cambiosPendientes = ref(0)
 
 async function cargarAnimalesOffline() {
@@ -49,6 +62,119 @@ async function cargarFichasEspecializadas() {
         : 'No se pudieron leer las fichas especializadas locales.'
   }
 }
+
+async function enviarBorrador(draft: BorradorFichaLocal) {
+  if (!navigator.onLine) {
+    errorOffline.value = 'Necesitás conexión para enviar el borrador.'
+    return
+  }
+
+  if (!session.user?.id || session.user.id !== draft.userId) {
+    errorOffline.value = 'El usuario actual no coincide con el autor del borrador.'
+    return
+  }
+
+  enviandoBorradorId.value = draft.id
+  errorOffline.value = ''
+  mensaje.value = ''
+
+  try {
+    await addClinicalEntry(draft.animalId, draft.payload)
+    await eliminarBorradorFicha(draft.id)
+    await cargarFichasEspecializadas()
+
+    mensaje.value = 'La evolución clínica se registró correctamente en el servidor.'
+  } catch (error) {
+    errorOffline.value =
+      error instanceof Error
+        ? error.message
+        : 'No se pudo enviar el borrador. Se conservó localmente.'
+  } finally {
+    enviandoBorradorId.value = null
+  }
+}
+
+
+
+
+async function buscarAnimalesDisponibles() {
+  if (!conectado.value) {
+    errorOffline.value = 'Necesitás conexión a internet para buscar animales.'
+    return
+  }
+
+  try {
+    errorOffline.value = ''
+    animalesDisponibles.value = await searchAnimals(busqueda.value.trim())
+  } catch (error) {
+    console.error('Error al buscar animales disponibles:', error)
+    errorOffline.value =
+      error instanceof Error ? error.message : 'No se pudieron consultar los animales.'
+  }
+}
+
+async function descargarFichasSeleccionadas() {
+  const userId = session.user?.id
+
+  if (!userId) {
+    errorOffline.value = 'No se pudo identificar al usuario de la sesión.'
+    return
+  }
+
+  if (!conectado.value) {
+    errorOffline.value = 'Necesitás conexión a internet para descargar fichas.'
+    return
+  }
+
+  if (animalesSeleccionados.value.length === 0) {
+    errorOffline.value = 'Seleccioná al menos un animal.'
+    return
+  }
+
+  descargando.value = true
+  errorOffline.value = ''
+  mensaje.value = ''
+
+  let descargadas = 0
+  const errores: string[] = []
+
+  try {
+    if (navigator.onLine && navigator.serviceWorker?.controller) {
+      try {
+        await import('@/views/admin/FichaView.vue')
+      } catch (error) {
+        console.error('No se pudo precargar la vista de ficha médica:', error)
+      }
+    }
+
+    for (const animalId of animalesSeleccionados.value) {
+      try {
+        const ficha = await getMedicalRecord(animalId)
+        await guardarFichaOffline(userId, ficha)
+        descargadas++
+      } catch (error) {
+        console.error(`Error al descargar la ficha ${animalId}:`, error)
+        errores.push(animalId)
+      }
+    }
+
+    await cargarFichasEspecializadas()
+
+    if (errores.length > 0) {
+      errorOffline.value =
+        `Se descargaron ${descargadas} fichas. No se pudieron descargar ${errores.length}: ${errores.join(', ')}.`
+    } else {
+      mensaje.value = `Se descargaron correctamente ${descargadas} fichas médicas.`
+    }
+
+    animalesSeleccionados.value = []
+  } finally {
+    descargando.value = false
+  }
+}
+
+
+
 
 async function cargarCambiosPendientes() {
   try {
@@ -204,7 +330,76 @@ onUnmounted(() => {
     >
       {{ errorOffline }}
     </p>
+<!-- DESCARGAR FICHAS DEL SERVIDOR -->
+<section class="mt-8 rounded border border-brand-line bg-brand-surface p-5">
+  <div>
+    <h3 class="text-base font-medium">Descargar fichas médicas</h3>
+    <p class="mt-1 text-xs text-brand-inkSoft">
+      Buscá animales y descargá sus fichas para consultarlas sin conexión.
+    </p>
+  </div>
 
+  <div class="mt-4 flex flex-wrap gap-2">
+    <input
+      v-model="busqueda"
+      type="search"
+      placeholder="Buscar por nombre o especie"
+      class="min-w-0 flex-1 rounded border border-brand-line bg-brand-bg px-3 py-2 text-sm"
+      @keyup.enter="buscarAnimalesDisponibles"
+    />
+
+    <button
+      class="rounded bg-brand-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+      :disabled="!conectado"
+      @click="buscarAnimalesDisponibles"
+    >
+      Buscar
+    </button>
+  </div>
+
+  <div v-if="animalesDisponibles.length" class="mt-4 space-y-2">
+    <label
+      v-for="animal in animalesDisponibles"
+      :key="animal.id"
+      class="flex items-center gap-3 rounded border border-brand-line px-3 py-3 text-sm"
+    >
+      <input
+        v-model="animalesSeleccionados"
+        type="checkbox"
+        :value="animal.id"
+      />
+
+      <span class="flex-1">
+        <span class="block font-medium">{{ animal.name }}</span>
+        <span class="text-xs text-brand-inkSoft">
+          {{ animal.species }} · Responsable: {{ animal.tutorName }}
+        </span>
+      </span>
+
+      <span
+        v-if="fichasCacheadas.some((ficha) => ficha.animalId === animal.id)"
+        class="text-xs text-brand-accentInk"
+      >
+        Descargada
+      </span>
+    </label>
+
+    <button
+      class="mt-3 rounded bg-brand-accent px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+      :disabled="!conectado || descargando || animalesSeleccionados.length === 0"
+      @click="descargarFichasSeleccionadas"
+    >
+      {{ descargando ? 'Descargando...' : `Descargar seleccionadas (${animalesSeleccionados.length})` }}
+    </button>
+  </div>
+
+  <p
+    v-else
+    class="mt-4 text-sm text-brand-inkSoft"
+  >
+    Buscá animales para seleccionar las fichas que necesitás.
+  </p>
+</section>
     <!-- RESUMEN -->
     <div class="mt-8 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
       <div class="rounded border border-brand-line bg-brand-surface p-5">
@@ -298,18 +493,28 @@ onUnmounted(() => {
         No hay borradores clínicos pendientes.
       </p>
       <ul v-else class="mt-3 space-y-3">
-        <li
-          v-for="draft in borradoresFicha"
-          :key="draft.id"
-          class="border border-brand-warnLine bg-brand-warnSoft px-5 py-4"
-        >
-          <p class="text-sm font-medium text-brand-ink">
-            {{ draft.payload.tipoRegistro }} · {{ draft.payload.motivoConsulta }}
-          </p>
-          <p class="mt-1 text-xs text-brand-warnInk">
-            {{ draft.authorName }} · {{ new Date(draft.queuedAt).toLocaleString('es-AR') }}
-          </p>
-        </li>
+     <li
+  v-for="draft in borradoresFicha"
+  :key="draft.id"
+  class="border border-brand-warnLine bg-brand-warnSoft px-5 py-4"
+>
+  <p class="text-sm font-medium text-brand-ink">
+    {{ draft.payload.tipoRegistro }} · {{ draft.payload.motivoConsulta }}
+  </p>
+
+  <p class="mt-1 text-xs text-brand-warnInk">
+    {{ draft.authorName }} · {{ new Date(draft.queuedAt).toLocaleString('es-AR') }}
+  </p>
+
+  <button
+    type="button"
+    :disabled="!conectado || enviandoBorradorId === draft.id"
+    class="mt-3 rounded-md bg-brand-ink hover:opacity-90 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+    @click="enviarBorrador(draft)"
+  >
+    {{ enviandoBorradorId === draft.id ? 'Enviando...' : 'Enviar al servidor' }}
+  </button>
+</li>
       </ul>
     </section>
 
