@@ -2,9 +2,7 @@ import { BadRequestError } from "./errors";
 import {
   listAgendaHolidays,
   listBusySlots,
-  listRuralAvailability,
   createClientBooking,
-  type RuralAvailability,
 } from "../models/booking.model";
 import {
   listAssignableVets,
@@ -105,24 +103,26 @@ export async function getAvailability(input: {
 }): Promise<AvailableDay[]> {
   assertRange(input.from, input.to);
 
-  const [vets, holidays, busySlots, ruralSlots, routeBlocks] = await Promise.all([
-    listAssignableVets(),
+  const isUrban = input.modality === "URBANO";
+  const [vets, holidays, busySlots, routeBlocks] = await Promise.all([
+    isUrban ? listAssignableVets() : Promise.resolve([]),
     listAgendaHolidays(input.from, input.to),
-    listBusySlots(
-      new Date(input.from.getTime() + 3 * 60 * 60 * 1000),
-      new Date(input.to.getTime() + 3 * 60 * 60 * 1000),
-      input.vetId,
-    ),
-    input.modality === "RURAL"
-      ? listRuralAvailability(input.from, input.to, input.vetId)
-      : Promise.resolve([] as RuralAvailability[]),
-    listHojaDeRutaBlocks(
-      new Date(input.from.getTime() - 2 * 60 * 60 * 1000),
-      input.to,
-      input.vetId,
-    ),
+    isUrban
+      ? listBusySlots(
+          new Date(input.from.getTime() + 3 * 60 * 60 * 1000),
+          new Date(input.to.getTime() + 3 * 60 * 60 * 1000),
+          input.vetId,
+        )
+      : Promise.resolve([]),
+    isUrban
+      ? listHojaDeRutaBlocks(
+          new Date(input.from.getTime() - 2 * 60 * 60 * 1000),
+          input.to,
+          input.vetId,
+        )
+      : Promise.resolve([]),
   ]);
-  if (input.vetId && !vets.some((vet) => vet.id === input.vetId)) {
+  if (isUrban && input.vetId && !vets.some((vet) => vet.id === input.vetId)) {
     throw new BadRequestError(
       "El veterinario seleccionado no está disponible para reservas.",
     );
@@ -184,50 +184,18 @@ export async function getAvailability(input: {
       weekday(date) !== 0 &&
       weekday(date) !== 6
     ) {
-      for (const slot of ruralSlots) {
-        if (
-          localDate(slot.dateTime) !== date ||
-          slot.dateTime.getTime() <= Date.now()
-        )
-          continue;
-        if (
-          routeBlocks.some(
-            (block) =>
-              block.vetId === slot.vetId &&
-              block.startsAt <
-                new Date(
-                  slot.dateTime.getTime() + slot.durationMinutes * 60_000,
-                ) &&
-              block.endsAt > slot.dateTime,
-          ) ||
-          busySlots.some(
-            (busy) =>
-              busy.vetId === slot.vetId &&
-              overlaps(
-                slot.dateTime,
-                slot.durationMinutes,
-                busy.dateTime,
-                busy.durationMinutes,
-              ),
-          )
-        ) {
-          continue;
-        }
-        const duplicate = hours.some(
-          (existing) =>
-            existing.fechaHora === slot.dateTime.toISOString() &&
-            existing.duracionMinutos === slot.durationMinutes,
-        );
-        if (!duplicate) {
-          hours.push({
-            fechaHora: slot.dateTime.toISOString(),
-            idVeterinario: input.vetId ? slot.vetId : null,
-            nombreVeterinario: input.vetId ? slot.vetName : null,
-            duracionMinutos: slot.durationMinutes,
-          });
-        }
+      for (let minutes = 6 * 60; minutes < 18 * 60; minutes += 30) {
+        const hour = String(Math.floor(minutes / 60)).padStart(2, "0");
+        const minute = String(minutes % 60).padStart(2, "0");
+        const start = dateAtArgentinaTime(date, `${hour}:${minute}`);
+        if (start.getTime() <= Date.now()) continue;
+        hours.push({
+          fechaHora: start.toISOString(),
+          idVeterinario: null,
+          nombreVeterinario: null,
+          duracionMinutos: 120,
+        });
       }
-      hours.sort((a, b) => a.fechaHora.localeCompare(b.fechaHora));
     }
 
     days.push({ fecha: date, lleno: hours.length === 0, horarios: hours });
@@ -275,14 +243,33 @@ export async function requestClientBooking(input: {
     weekday(date) === 6 ||
     input.durationMinutes < 60 ||
     input.durationMinutes > 120 ||
-    input.durationMinutes % 30 !== 0
+    input.durationMinutes % 30 !== 0 ||
+    !isRuralRequestTime(input.dateTime)
   ) {
     throw new BadRequestError(
-      "La agenda rural solo admite bloques de 1 a 2 horas de lunes a viernes.",
+      "La solicitud rural debe ser de lunes a viernes, entre las 06:00 y las 17:30, en intervalos de 30 minutos.",
     );
   }
 
   return createClientBooking(input);
+}
+
+function isRuralRequestTime(dateTime: Date): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: ARGENTINA_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(dateTime);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value);
+  return (
+    hour >= 6 &&
+    hour < 18 &&
+    (minute === 0 || minute === 30) &&
+    dateTime.getUTCSeconds() === 0 &&
+    dateTime.getUTCMilliseconds() === 0
+  );
 }
 
 export function validateAgendaRange(from: Date, to: Date): void {

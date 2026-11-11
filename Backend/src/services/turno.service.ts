@@ -161,7 +161,10 @@ export async function rescheduleClientTurno(
   if (!RESCHEDULABLE.includes(turno.status)) {
     throw new ConflictError("Este turno ya no se puede reprogramar.");
   }
-  if (!turno.vet) {
+  // Las solicitudes rurales son tentativas y pueden no tener veterinario: el
+  // personal lo asigna al armar la hoja de ruta. Las urbanas siempre lo tienen.
+  const vetId = turno.vet?.id ?? null;
+  if (turno.modality === "URBANO" && !vetId) {
     throw new ConflictError("No se puede reprogramar un turno sin veterinario asignado.");
   }
 
@@ -183,7 +186,7 @@ export async function rescheduleClientTurno(
     from,
     to,
     modality: turno.modality,
-    vetId: turno.vet.id,
+    vetId,
   });
   const availableSlot = availableDays
     .flatMap((day) => day.horarios)
@@ -198,7 +201,7 @@ export async function rescheduleClientTurno(
     );
   }
 
-  if (!(await rescheduleTurno(id, RESCHEDULABLE, dateTime, turno.vet.id))) {
+  if (!(await rescheduleTurno(id, RESCHEDULABLE, dateTime, vetId))) {
     throw new ConflictError(CHANGED_MEANWHILE);
   }
 

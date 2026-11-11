@@ -182,7 +182,7 @@ async function loadAvailability(sectionTop?: number) {
       desde: monthStart.value,
       hasta: nextMonthStart.value,
       modalidad: modality.value,
-      idVeterinario: preferredVetId.value,
+      idVeterinario: modality.value === 'URBANO' ? preferredVetId.value : '',
     })
     if (requestId === availabilityRequest) {
       availability.value = days
@@ -261,7 +261,7 @@ async function submitBooking() {
 
     confirmedTurn.value = await solicitarTurno({
       id_animal: animalId.value,
-      id_veterinario: preferredVetId.value || null,
+      id_veterinario: modality.value === 'URBANO' ? preferredVetId.value || null : null,
       fecha_hora: selectedSlot.value.fechaHora,
       modalidad: modality.value,
       motivo_consulta: `${selectedReasonOption.value.id} - ${selectedReasonOption.value.label}`,
@@ -300,6 +300,9 @@ async function submitBooking() {
 }
 
 function resetForm() {
+  // Se agrega el turno recién solicitado para que el próximo intento con el
+  // mismo paciente avise del duplicado sin esperar a que lo rechace la API.
+  if (confirmedTurn.value) ownerTurnos.value = [...ownerTurnos.value, confirmedTurn.value]
   confirmedTurn.value = null
   modality.value = isUrbanClient.value || !hasRuralLots.value ? 'URBANO' : ''
   animalId.value = ''
@@ -336,7 +339,8 @@ onMounted(async () => {
       const target = ownTurnos.find(
         (turno) => turno.id === rescheduleId && hasUpcomingAppointment(turno),
       )
-      if (!target || !target.vet) {
+      // Las solicitudes rurales pueden no tener veterinario: se coordina en la hoja de ruta.
+      if (!target || (target.modality === 'URBANO' && !target.vet)) {
         error.value = 'No encontramos un turno futuro que puedas reprogramar.'
         return
       }
@@ -345,7 +349,7 @@ onMounted(async () => {
       modality.value = target.modality
       await nextTick()
       animalId.value = target.animal.id
-      preferredVetId.value = target.vet.id
+      preferredVetId.value = target.vet?.id ?? ''
       selectedReason.value = target.reasonCategory ?? ''
       return
     }
@@ -409,7 +413,9 @@ watch([modality, preferredVetId], () => {
       <p class="mt-2 text-sm text-brand-inkSoft">
         {{
           reschedulingTurn
-            ? `Elegí un nuevo horario para ${reschedulingTurn.animal.name}.`
+            ? reschedulingTurn.modality === 'RURAL'
+              ? `Proponé una nueva fecha para ${reschedulingTurn.animal.name}. Es tentativa: el personal la coordinará al organizar la hoja de ruta.`
+              : `Elegí un nuevo horario para ${reschedulingTurn.animal.name}.`
             : 'Elegí primero la modalidad de atención; luego vas a poder seleccionar el paciente y un horario disponible.'
         }}
       </p>
@@ -468,6 +474,10 @@ watch([modality, preferredVetId], () => {
       <p class="mt-3 text-sm">
         La solicitud quedó pendiente de aceptación. El equipo veterinario o administrativo
         confirmará el turno.
+        <template v-if="confirmedTurn.modality === 'RURAL'">
+          La fecha y hora son tentativas: el personal organizará la hoja de ruta y podrá asignar
+          otro profesional o coordinar otro horario.
+        </template>
         <span v-if="confirmedTurn.vet"> Profesional: {{ confirmedTurn.vet.fullName }}.</span>
       </p>
       <button type="button" class="btn-primary mt-5" @click="resetForm">Reservar otro turno</button>
@@ -518,7 +528,7 @@ watch([modality, preferredVetId], () => {
           </label>
 
           <label
-            v-if="!reschedulingTurn"
+            v-if="modality === 'URBANO' && !reschedulingTurn"
             class="text-xs font-medium text-brand-inkSoft sm:col-span-2"
           >
             Veterinario de preferencia
@@ -573,7 +583,11 @@ watch([modality, preferredVetId], () => {
           <div>
             <h2 class="text-base font-semibold text-brand-accentInk">2. Elegí un día disponible</h2>
             <p class="mt-1 text-xs text-brand-inkSoft">
-              Los días sin horarios libres no se pueden seleccionar.
+              {{
+                modality === 'RURAL'
+                  ? 'Elegí una fecha y hora tentativa; el personal coordinará la visita al armar la hoja de ruta.'
+                  : 'Los días sin horarios libres no se pueden seleccionar.'
+              }}
             </p>
           </div>
           <div class="flex items-center gap-2">

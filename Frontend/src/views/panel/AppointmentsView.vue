@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import BaseModal from '@/components/admin/BaseModal.vue'
 import { listMisTurnos } from '@/services/reservas'
-import { cancelTurno, type EstadoTurno, type Turno } from '@/services/turnos'
+import { MODIFICABLE, cancelTurno, type EstadoTurno, type Turno } from '@/services/turnos'
 
 const turnos = ref<Turno[]>([])
 const route = useRoute()
@@ -19,28 +19,22 @@ const sortedTurnos = computed(() =>
   ),
 )
 
-const editableStatuses: EstadoTurno[] = [
-  'PENDIENTE',
-  'PENDIENTE_PAGO',
-  'CONFIRMADO',
-  'REPROGRAMADO',
-]
-
 function canManage(turno: Turno): boolean {
-  return editableStatuses.includes(turno.status) && new Date(turno.dateTime).getTime() > Date.now()
+  return MODIFICABLE.includes(turno.status) && new Date(turno.dateTime).getTime() > Date.now()
+}
+
+const statusLabels: Record<EstadoTurno, string> = {
+  PENDIENTE: 'Pendiente de aceptación',
+  PENDIENTE_PAGO: 'Esperando seña',
+  CONFIRMADO: 'Confirmado',
+  REPROGRAMADO: 'Reprogramado',
+  CANCELADA: 'Cancelado',
+  COMPLETADO: 'Atendido',
+  AUSENTE: 'Ausente',
 }
 
 function statusLabel(status: EstadoTurno): string {
-  const labels: Record<EstadoTurno, string> = {
-    PENDIENTE: 'Pendiente',
-    PENDIENTE_PAGO: 'Pendiente de pago',
-    CONFIRMADO: 'Confirmado',
-    REPROGRAMADO: 'Reprogramado',
-    CANCELADA: 'Cancelado',
-    COMPLETADO: 'Completado',
-    AUSENTE: 'Ausente',
-  }
-  return labels[status]
+  return statusLabels[status]
 }
 
 function formatDate(value: string): string {
@@ -143,12 +137,18 @@ onMounted(load)
 
         <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <dt class="text-xs text-brand-inkSoft">Fecha y horario</dt>
+            <dt class="text-xs text-brand-inkSoft">
+              {{ turno.modality === 'RURAL' ? 'Fecha y horario propuestos' : 'Fecha y horario' }}
+            </dt>
             <dd class="mt-1">{{ formatDate(turno.dateTime) }}</dd>
           </div>
           <div>
             <dt class="text-xs text-brand-inkSoft">Profesional</dt>
-            <dd class="mt-1">{{ turno.vet?.fullName ?? 'A confirmar' }}</dd>
+            <dd class="mt-1">
+              {{
+                turno.vet?.fullName ?? (turno.modality === 'RURAL' ? 'A coordinar' : 'A confirmar')
+              }}
+            </dd>
           </div>
           <div>
             <dt class="text-xs text-brand-inkSoft">Motivo</dt>
@@ -159,6 +159,14 @@ onMounted(load)
             <dd class="mt-1">{{ turno.cancellationReason }}</dd>
           </div>
         </dl>
+
+        <p
+          v-if="turno.modality === 'RURAL' && canManage(turno)"
+          class="mt-4 text-xs text-brand-inkSoft"
+        >
+          La fecha y hora son tentativas: el personal coordinará la visita y el veterinario al
+          organizar la hoja de ruta.
+        </p>
 
         <div v-if="canManage(turno)" class="mt-5 flex flex-wrap gap-3">
           <RouterLink
