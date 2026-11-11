@@ -66,6 +66,10 @@ function toSessionUser(user: AuthenticatedUser) {
     email: user.email,
     rol: user.role,
     tipoPersona: user.personType,
+    // URBANO o RURAL según el tipo de persona del tutor; null para el personal
+    // y perfiles incompletos. Decide qué secciones ve el cliente; la API lo
+    // vuelve a validar en cada endpoint.
+    tipoAtencion: user.careType,
     profileComplete: user.profileComplete,
   };
 }
@@ -183,6 +187,8 @@ export const postRegister: RequestHandler = async (request, response) => {
         role: account.role,
         profileComplete: false,
         personType: null,
+        // Sin tipo de persona todavía: se define al completar el perfil.
+        careType: null,
       }),
     });
   } catch (error) {

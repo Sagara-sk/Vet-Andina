@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { registerOwner } from '@/services/auth'
+
+const router = useRouter()
 
 const formData = reactive({
   nombre: '',
@@ -13,12 +15,10 @@ const formData = reactive({
 })
 
 const mensajeError = ref('')
-const mensajeExito = ref('')
 const enviando = ref(false)
 
 async function envioFormulario() {
   mensajeError.value = ''
-  mensajeExito.value = ''
 
   if (formData.contrasena !== formData.confirmarContrasena) {
     mensajeError.value = 'Las contraseñas no coinciden.'
@@ -36,16 +36,9 @@ async function envioFormulario() {
       contrasena: formData.contrasena,
     })
 
-    mensajeExito.value = 'Cuenta creada con éxito. Ya podés iniciar sesión.'
-    formData.nombre = ''
-    formData.email = ''
-    formData.telefono = ''
-    formData.localidad = ''
-    formData.contrasena = ''
-    formData.confirmarContrasena = ''
+    await router.replace({ name: 'login', query: { registro: 'exitoso' } })
   } catch (error) {
-    mensajeError.value =
-      error instanceof Error ? error.message : 'No fue posible crear la cuenta.'
+    mensajeError.value = error instanceof Error ? error.message : 'No fue posible crear la cuenta.'
   } finally {
     enviando.value = false
   }
@@ -60,19 +53,11 @@ async function envioFormulario() {
 
       <div
         v-if="mensajeError"
-        class="mt-6 border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        class="mt-6 border border-brand-dangerLine bg-brand-dangerSoft p-3 text-sm text-brand-dangerInk"
         role="alert"
       >
         {{ mensajeError }}
       </div>
-      <div
-        v-if="mensajeExito"
-        class="mt-6 border border-green-200 bg-green-50 p-3 text-sm text-green-800"
-        role="status"
-      >
-        {{ mensajeExito }}
-      </div>
-
       <form class="mt-8 space-y-5" @submit.prevent="envioFormulario">
         <div>
           <label for="nombre" class="mb-1.5 block text-xs text-brand-inkSoft">

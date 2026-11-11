@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { canAccess } from '@/router/access'
+import { useRouter } from 'vue-router'
 import { saveClientProfile, type TipoPersona } from '@/services/auth'
 import { useSessionStore } from '@/stores/session'
 
@@ -26,7 +25,6 @@ const form = reactive<ClientProfileForm>({
 const errors = reactive<ClientProfileErrors>({})
 const submitting = ref(false)
 const feedback = ref('')
-const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 
@@ -96,20 +94,16 @@ async function handleSubmit() {
     await saveClientProfile(payload)
     // El servidor confirmó el guardado: se refleja en la sesión sin volver a pedirla.
     const user = session.user
-    if (user) session.setUser({ ...user, profileComplete: true, tipoPersona: payload.tipo_persona })
-
-    const redirect = route.query.redirect
-    if (
-      typeof redirect === 'string' &&
-      redirect.startsWith('/') &&
-      !redirect.startsWith('//') &&
-      router.resolve(redirect).matched.length > 0 &&
-      canAccess(router.resolve(redirect).matched, session.user?.rol ?? '')
-    ) {
-      await router.replace(redirect)
-    } else {
-      await router.replace({ name: 'dashboard' })
+    if (user) {
+      session.setUser({
+        ...user,
+        profileComplete: true,
+        tipoPersona: payload.tipo_persona,
+        tipoAtencion: payload.tipo_persona === 'INDIVIDUAL' ? 'URBANO' : 'RURAL',
+      })
     }
+
+    await router.replace({ name: 'panel-animal-nuevo' })
   } catch (error) {
     feedback.value =
       error instanceof Error ? error.message : 'No se pudo guardar el perfil en la base de datos.'

@@ -19,13 +19,14 @@ export const useSessionStore = defineStore('session', () => {
 
   const isClient = computed(() => user.value?.rol === 'CLIENTE')
 
-  // Clasificación del cliente según el tipoPersona almacenado en la base.
+  // Clasificación del cliente tal como la calcula la API (tipoAtencion). Solo
+  // decide qué se muestra: los endpoints vuelven a validarla.
   const isUrbanClient = computed(
-    () => isClient.value && user.value?.tipoPersona === 'INDIVIDUAL',
+    () => isClient.value && user.value?.tipoAtencion === 'URBANO',
   )
 
   const isRuralClient = computed(
-    () => isClient.value && user.value?.tipoPersona === 'EMPRESA_PRODUCTOR',
+    () => isClient.value && user.value?.tipoAtencion === 'RURAL',
   )
 
   const profileComplete = computed(

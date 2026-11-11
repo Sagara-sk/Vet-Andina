@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import BaseModal from './BaseModal.vue'
+import { motivosTurno } from '@/data/motivosTurno'
 import { searchAnimals, type AnimalSearchResult } from '@/services/fichas'
 import { createTurno, listVets, type Turno, type Veterinario } from '@/services/turnos'
 import { toDateTimeInput } from '@/utils/format'
@@ -20,10 +21,24 @@ const minFecha = toDateTimeInput(new Date())
 const form = reactive({
   idVeterinario: '',
   fechaHora: '',
-  modalidad: 'CONSULTORIO' as 'CONSULTORIO' | 'RURAL',
+  modalidad: 'URBANO' as 'URBANO' | 'RURAL',
   estado: 'PENDIENTE' as 'PENDIENTE' | 'CONFIRMADO',
-  motivo: '',
+  motivoCategoria: '',
+  motivoDetalle: '',
 })
+
+const opcionesMotivo = computed(() => motivosTurno[form.modalidad])
+const motivoSeleccionado = computed(() =>
+  opcionesMotivo.value.find((option) => option.id === form.motivoCategoria),
+)
+
+watch(
+  () => form.modalidad,
+  () => {
+    form.motivoCategoria = ''
+    form.motivoDetalle = ''
+  },
+)
 
 onMounted(async () => {
   try {
@@ -65,7 +80,11 @@ async function submit() {
       fechaHora: new Date(form.fechaHora).toISOString(),
       modalidad: form.modalidad,
       estado: form.estado,
-      motivo: form.motivo,
+      motivo:
+        `${motivoSeleccionado.value?.label ?? ''}` +
+        (form.motivoDetalle.trim() ? ` - ${form.motivoDetalle.trim()}` : ''),
+      motivoCategoria: form.motivoCategoria,
+      motivoDetalle: form.motivoDetalle.trim() || null,
     })
     emit('created', turno)
   } catch (e) {
@@ -129,7 +148,7 @@ async function submit() {
         <div>
           <label for="turno-modalidad" class="field-label">Modalidad</label>
           <select id="turno-modalidad" v-model="form.modalidad" class="field-input">
-            <option value="CONSULTORIO">Consultorio</option>
+            <option value="URBANO">Consultorio (urbano)</option>
             <option value="RURAL">Visita rural</option>
           </select>
         </div>
@@ -143,15 +162,28 @@ async function submit() {
       </div>
 
       <div>
-        <label for="turno-motivo" class="field-label">Motivo</label>
-        <input
+        <label for="turno-motivo" class="field-label">Categoría del motivo</label>
+        <select
           id="turno-motivo"
-          v-model="form.motivo"
+          v-model="form.motivoCategoria"
           class="field-input"
-          placeholder="Ej: Control y vacunación"
-          minlength="2"
-          maxlength="300"
           required
+        >
+          <option value="" disabled>Seleccioná una categoría</option>
+          <option v-for="option in opcionesMotivo" :key="option.id" :value="option.id">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
+
+      <div>
+        <label for="turno-motivo-detalle" class="field-label">Detalle (opcional)</label>
+        <input
+          id="turno-motivo-detalle"
+          v-model="form.motivoDetalle"
+          class="field-input"
+          maxlength="300"
+          placeholder="Información adicional"
         />
       </div>
 

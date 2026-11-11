@@ -15,6 +15,7 @@
     --brand-accent-hover: #1f3323;
     --brand-accent-soft: #e7eee3;
     --brand-accent-ink: #1f3323;
+    --brand-warn: #c49a3a;
     --brand-warn-soft: #f3eee2;
     --brand-warn-ink: #7a5b1f;
     --brand-warn-line: #e6cf9a;
@@ -36,6 +37,7 @@
     --brand-accent-hover: #5e8c66;
     --brand-accent-soft: #263428;
     --brand-accent-ink: #cfe3c9;
+    --brand-warn: #d4ac52;
     --brand-warn-soft: #3a3220;
     --brand-warn-ink: #e8cf94;
     --brand-warn-line: #5a4a28;
@@ -54,6 +56,7 @@
   body {
     min-width: 320px;
     min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
     background-color: theme('colors.brand.bg');
     color: theme('colors.brand.ink');
@@ -80,6 +83,13 @@
 
   button {
     cursor: pointer;
+  }
+
+  /* Anillo de foco visible para navegar con teclado en todo el sitio. El mouse
+     y el toque no lo muestran (solo :focus-visible). */
+  :focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
   }
 }
 
@@ -127,6 +137,12 @@
     background-color: theme('colors.brand.accentHover');
   }
 
+  .btn-primary:disabled,
+  .btn-outline:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
   .btn-outline {
     background-color: transparent;
     color: theme('colors.brand.ink');
@@ -152,6 +168,10 @@
 
   .field-input:focus {
     border-color: theme('colors.brand.accent');
+  }
+
+  .field-input:focus-visible {
+    box-shadow: 0 0 0 1px theme('colors.brand.accent');
   }
 
   .field-input:disabled {

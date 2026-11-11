@@ -1,18 +1,25 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-
+import { RouterLink } from 'vue-router'
+import { useSessionStore } from '@/stores/session'
 import {
   obtenerAnimales,
   guardarCambioPendiente,
   obtenerCambiosPendientes,
   eliminarAnimal,
+  obtenerFichasOffline,
+  obtenerBorradoresFicha,
 } from '../../services/indexedDB'
-import type { AnimalLocal } from '../../services/indexedDB'
+import type { AnimalLocal, BorradorFichaLocal, FichaCacheLocal } from '../../services/indexedDB'
 
 const conectado = ref(navigator.onLine)
 const mensaje = ref('')
+const errorOffline = ref('')
+const session = useSessionStore()
 
 const animalesDescargados = ref<AnimalLocal[]>([])
+const fichasCacheadas = ref<FichaCacheLocal[]>([])
+const borradoresFicha = ref<BorradorFichaLocal[]>([])
 const animalSeleccionado = ref<AnimalLocal | null>(null)
 
 const comentario = ref('')
@@ -23,6 +30,23 @@ async function cargarAnimalesOffline() {
     animalesDescargados.value = await obtenerAnimales()
   } catch (error) {
     console.error('Error al cargar fichas offline:', error)
+    errorOffline.value =
+      error instanceof Error ? error.message : 'No se pudieron leer las fichas locales.'
+  }
+}
+
+async function cargarFichasEspecializadas() {
+  if (!session.user) return
+
+  try {
+    fichasCacheadas.value = await obtenerFichasOffline(session.user.id)
+    borradoresFicha.value = await obtenerBorradoresFicha(session.user.id)
+  } catch (error) {
+    console.error('Error al cargar las fichas especializadas offline:', error)
+    errorOffline.value =
+      error instanceof Error
+        ? error.message
+        : 'No se pudieron leer las fichas especializadas locales.'
   }
 }
 
@@ -36,14 +60,15 @@ async function cargarCambiosPendientes() {
 }
 
 async function actualizarTodo() {
+  errorOffline.value = ''
   await cargarAnimalesOffline()
+  await cargarFichasEspecializadas()
   await cargarCambiosPendientes()
 }
 
 function actualizarConexion() {
   conectado.value = navigator.onLine
 }
-
 
 function seleccionarAnimal(animal: AnimalLocal) {
   animalSeleccionado.value = animal
@@ -80,7 +105,6 @@ async function borrarFicha(animal: AnimalLocal) {
   }, 4000)
 }
 
-
 async function registrarOffline() {
   const texto = comentario.value.trim()
 
@@ -102,7 +126,7 @@ async function registrarOffline() {
       datos: {
         comentario: texto,
         fecha: new Date().toISOString(),
-        tipo: 'observacion'as const,
+        tipo: 'observacion' as const,
       },
       creadoEn: new Date().toISOString(),
     }
@@ -139,16 +163,13 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-brand-bg text-brand-ink">
-
     <!-- CABECERA -->
     <div class="flex items-start justify-between gap-6">
       <div>
-        <h1 class="font-serif text-[1.6rem]">
-          Modo offline
-        </h1>
+        <h1 class="font-serif text-[1.6rem]">Modo offline</h1>
 
         <p class="mt-1.5 text-base text-brand-inkSoft">
-          Prototipo local: no está conectado a la API clínica.
+          Fichas cacheadas por usuario y borradores locales del dispositivo.
         </p>
       </div>
 
@@ -159,7 +180,7 @@ onUnmounted(() => {
       >
         <span
           class="h-[7px] w-[7px] rounded-full"
-          :class="conectado ? 'bg-brand-accent' : 'bg-[#c49a3a]'"
+          :class="conectado ? 'bg-brand-accent' : 'bg-brand-warn'"
         />
 
         {{ conectado ? 'Conectado' : 'Desconectado' }}
@@ -170,39 +191,127 @@ onUnmounted(() => {
       class="mt-6 rounded border border-brand-warnLine bg-brand-warnSoft px-4 py-3 text-sm text-brand-warnInk"
       role="alert"
     >
-      Esta pantalla no descarga fichas ni sincroniza cambios con el servidor. No la uses para
-      registrar información clínica real. Las fichas y borradores que ya estaban guardados se
-      conservan en este navegador, pero su origen y vigencia no se verifican aquí.
+      Las copias especializadas se guardan desde su ficha y se vinculan a tu sesión. Los borradores
+      todavía no se sincronizan automáticamente ni integran la historia oficial: revisalos y
+      cargalos en el servidor cuando haya conexión. Las fichas antiguas de este prototipo no
+      verifican su origen ni vigencia.
     </div>
+
+    <p
+      v-if="errorOffline"
+      class="mt-4 border border-brand-dangerLine bg-brand-dangerSoft px-4 py-3 text-sm text-brand-dangerInk"
+      role="alert"
+    >
+      {{ errorOffline }}
+    </p>
 
     <!-- RESUMEN -->
     <div class="mt-8 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
       <div class="rounded border border-brand-line bg-brand-surface p-5">
         <p class="font-serif text-[1.7rem]">
-          {{ animalesDescargados.length }}
+          {{ fichasCacheadas.length }}
         </p>
 
-        <p class="mt-1 text-xs text-brand-inkSoft">
-          Fichas disponibles offline
-        </p>
+        <p class="mt-1 text-xs text-brand-inkSoft">Fichas disponibles offline</p>
       </div>
 
       <div class="rounded border border-brand-line bg-brand-surface p-5">
         <p class="font-serif text-[1.7rem]">
-          {{ cambiosPendientes }}
+          {{ borradoresFicha.length }}
         </p>
 
-        <p class="mt-1 text-xs text-brand-inkSoft">
-          Cambios pendientes
-        </p>
+        <p class="mt-1 text-xs text-brand-inkSoft">Borradores clínicos por revisar</p>
       </div>
 
       <div class="rounded border border-brand-line bg-brand-surface p-5">
         <p class="text-xs text-brand-inkSoft">
-          La sincronización queda deshabilitada hasta que la API implemente un contrato compatible.
+          Los datos locales pueden quedar desactualizados. Confirmá la versión del servidor al
+          recuperar conexión.
+        </p>
+        <p class="mt-2 text-xs text-brand-inkSoft">
+          Cambios del prototipo anterior sin sincronizar: {{ cambiosPendientes }}
         </p>
       </div>
     </div>
+
+    <section class="mt-8">
+      <div>
+        <h3 class="text-base font-medium">Fichas clínicas cacheadas</h3>
+        <p class="mt-1 text-xs text-brand-inkSoft">
+          Copias obtenidas desde la ficha oficial. Se muestran solo para la cuenta activa.
+        </p>
+      </div>
+
+      <p
+        v-if="!fichasCacheadas.length"
+        class="mt-3 border border-brand-line bg-brand-surface px-5 py-6 text-sm text-brand-inkSoft"
+      >
+        Todavía no guardaste fichas especializadas para uso offline.
+      </p>
+
+      <div v-else class="mt-3 space-y-3">
+        <article
+          v-for="cached in fichasCacheadas"
+          :key="cached.key"
+          class="flex flex-wrap items-center justify-between gap-4 border border-brand-line bg-brand-surface px-5 py-4"
+        >
+          <div>
+            <h4 class="text-sm font-medium text-brand-ink">
+              {{ cached.ficha.animal.name }}
+              <span class="text-brand-inkSoft">
+                · {{ cached.ficha.animal.careType === 'RURAL' ? 'Lote rural' : 'Mascota' }}
+              </span>
+            </h4>
+            <p class="mt-1 text-xs text-brand-inkSoft">
+              {{ cached.ficha.animal.species }}
+              <span v-if="cached.ficha.animal.careType === 'RURAL'">
+                · {{ cached.ficha.animal.herdSize }} cabezas
+              </span>
+              · Copia del {{ new Date(cached.descargadaEn).toLocaleString('es-AR') }}
+            </p>
+          </div>
+          <RouterLink
+            :to="{
+              name: session.user?.rol === 'VETERINARIO' ? 'vet-ficha' : 'admin-ficha',
+              params: { id: cached.animalId },
+            }"
+            class="text-sm text-brand-accentInk underline underline-offset-2"
+          >
+            Abrir ficha
+          </RouterLink>
+        </article>
+      </div>
+    </section>
+
+    <section class="mt-8">
+      <div>
+        <h3 class="text-base font-medium">Borradores clínicos pendientes</h3>
+        <p class="mt-1 text-xs text-brand-inkSoft">
+          Cada borrador conserva autor y horario local; requiere revisión antes de registrarse en el
+          servidor.
+        </p>
+      </div>
+      <p
+        v-if="!borradoresFicha.length"
+        class="mt-3 border border-brand-line bg-brand-surface px-5 py-6 text-sm text-brand-inkSoft"
+      >
+        No hay borradores clínicos pendientes.
+      </p>
+      <ul v-else class="mt-3 space-y-3">
+        <li
+          v-for="draft in borradoresFicha"
+          :key="draft.id"
+          class="border border-brand-warnLine bg-brand-warnSoft px-5 py-4"
+        >
+          <p class="text-sm font-medium text-brand-ink">
+            {{ draft.payload.tipoRegistro }} · {{ draft.payload.motivoConsulta }}
+          </p>
+          <p class="mt-1 text-xs text-brand-warnInk">
+            {{ draft.authorName }} · {{ new Date(draft.queuedAt).toLocaleString('es-AR') }}
+          </p>
+        </li>
+      </ul>
+    </section>
 
     <!-- MENSAJE -->
     <div
@@ -215,9 +324,7 @@ onUnmounted(() => {
     <!-- FICHAS DESCARGADAS -->
     <section class="mt-9">
       <div class="mb-3.5">
-        <h3 class="text-base font-medium">
-          Fichas disponibles offline
-        </h3>
+        <h3 class="text-base font-medium">Fichas disponibles offline</h3>
 
         <p class="mt-1 text-xs text-brand-inkSoft">
           Fichas que ya estaban guardadas en el almacenamiento local de este navegador.
@@ -231,71 +338,58 @@ onUnmounted(() => {
         Todavía no hay fichas guardadas localmente.
       </div>
 
+      <div v-else class="space-y-3">
+        <article
+          v-for="animal in animalesDescargados"
+          :key="animal.idServidor"
+          class="flex items-center justify-between gap-4 rounded border border-brand-line bg-brand-surface px-5 py-4"
+        >
+          <div>
+            <h4 class="font-serif text-[1.2rem]">
+              {{ animal.nombre }}
+            </h4>
 
-<div v-else class="space-y-3">
-  <article
-    v-for="animal in animalesDescargados"
-    :key="animal.idServidor"
-    class="flex items-center justify-between gap-4 rounded border border-brand-line bg-brand-surface px-5 py-4"
-  >
-    <div>
-      <h4 class="font-serif text-[1.2rem]">
-        {{ animal.nombre }}
-      </h4>
+            <p class="mt-0.5 text-xs text-brand-inkSoft">
+              {{ animal.especie }}
+            </p>
+          </div>
 
-      <p class="mt-0.5 text-xs text-brand-inkSoft">
-        {{ animal.especie }}
-      </p>
-    </div>
+          <div class="flex items-center gap-2">
+            <button
+              class="rounded-sm border border-brand-line px-3 py-2 text-xs text-brand-inkSoft transition-all hover:opacity-80"
+              @click="seleccionarAnimal(animal)"
+            >
+              Abrir ficha
+            </button>
 
-    <div class="flex items-center gap-2">
-      <button
-        class="rounded-sm border border-brand-line px-3 py-2 text-xs text-brand-inkSoft transition-all hover:opacity-80"
-        @click="seleccionarAnimal(animal)"
-      >
-        Abrir ficha
-      </button>
-
-      <button
-        class="rounded-sm border border-brand-line px-3 py-2 text-xs text-brand-inkSoft transition-all hover:opacity-80"
-        @click="borrarFicha(animal)"
-      >
-        Borrar ficha
-      </button>
-    </div>
-  </article>
-</div>
-
-
+            <button
+              class="rounded-sm border border-brand-line px-3 py-2 text-xs text-brand-inkSoft transition-all hover:opacity-80"
+              @click="borrarFicha(animal)"
+            >
+              Borrar ficha
+            </button>
+          </div>
+        </article>
+      </div>
     </section>
 
     <!-- FICHA DEL ANIMAL -->
-    <section
-      v-if="animalSeleccionado"
-      id="ficha-animal"
-      class="mt-9"
-    >
+    <section v-if="animalSeleccionado" id="ficha-animal" class="mt-9">
       <div class="mb-3.5 flex items-baseline justify-between">
         <div>
-          <h3 class="text-base font-medium">
-            Ficha del animal
-          </h3>
+          <h3 class="text-base font-medium">Ficha del animal</h3>
 
           <p class="mt-1 text-xs text-brand-inkSoft">
             Información disponible para trabajar sin conexión.
           </p>
         </div>
 
-        <button
-          class="text-xs text-brand-inkSoft underline"
-          @click="cerrarFicha"
-        >
+        <button class="text-xs text-brand-inkSoft underline" @click="cerrarFicha">
           Cerrar ficha
         </button>
       </div>
 
       <div class="overflow-hidden rounded border border-brand-line bg-brand-surface">
-
         <!-- DATOS -->
         <div class="border-b border-brand-line px-5 py-5">
           <h4 class="font-serif text-[1.3rem]">
@@ -309,23 +403,16 @@ onUnmounted(() => {
 
         <!-- HISTORIAL -->
         <div class="border-b border-brand-line px-5 py-5">
-          <h4 class="text-sm font-medium">
-            Historial clínico
-          </h4>
+          <h4 class="text-sm font-medium">Historial clínico</h4>
 
           <div
             v-if="animalSeleccionado.historial.length === 0"
             class="mt-3 rounded border border-dashed border-brand-line px-4 py-6 text-center"
           >
-            <p class="text-sm text-brand-inkSoft">
-              No hay registros clínicos.
-            </p>
+            <p class="text-sm text-brand-inkSoft">No hay registros clínicos.</p>
           </div>
 
-          <div
-            v-else
-            class="mt-3 space-y-3"
-          >
+          <div v-else class="mt-3 space-y-3">
             <div
               v-for="registro in animalSeleccionado.historial"
               :key="registro.id"
@@ -344,23 +431,16 @@ onUnmounted(() => {
 
         <!-- TURNOS -->
         <div class="border-b border-brand-line px-5 py-5">
-          <h4 class="text-sm font-medium">
-            Turnos anteriores
-          </h4>
+          <h4 class="text-sm font-medium">Turnos anteriores</h4>
 
           <div
             v-if="animalSeleccionado.turnos.length === 0"
             class="mt-3 rounded border border-dashed border-brand-line px-4 py-6 text-center"
           >
-            <p class="text-sm text-brand-inkSoft">
-              No hay turnos registrados.
-            </p>
+            <p class="text-sm text-brand-inkSoft">No hay turnos registrados.</p>
           </div>
 
-          <div
-            v-else
-            class="mt-3 space-y-3"
-          >
+          <div v-else class="mt-3 space-y-3">
             <div
               v-for="turno in animalSeleccionado.turnos"
               :key="turno.id"
@@ -375,67 +455,45 @@ onUnmounted(() => {
               </p>
 
               <div class="mt-2 flex gap-3 text-xs text-brand-inkSoft">
-                <span>
-                  Prioridad: {{ turno.prioridad }}
-                </span>
+                <span> Prioridad: {{ turno.prioridad }} </span>
 
-                <span>
-                  Estado: {{ turno.estado }}
-                </span>
+                <span> Estado: {{ turno.estado }} </span>
               </div>
             </div>
           </div>
         </div>
 
+        <!-- OBSERVACIONES -->
+        <div class="border-b border-brand-line px-5 py-5">
+          <h4 class="text-sm font-medium">Observaciones</h4>
 
-<!-- OBSERVACIONES -->
-<div class="border-b border-brand-line px-5 py-5">
-  <h4 class="text-sm font-medium">
-    Observaciones
-  </h4>
+          <div
+            v-if="animalSeleccionado.observaciones.length === 0"
+            class="mt-3 rounded border border-dashed border-brand-line px-4 py-6 text-center"
+          >
+            <p class="text-sm text-brand-inkSoft">No hay observaciones registradas.</p>
+          </div>
 
-  <div
-    v-if="animalSeleccionado.observaciones.length === 0"
-    class="mt-3 rounded border border-dashed border-brand-line px-4 py-6 text-center"
-  >
-    <p class="text-sm text-brand-inkSoft">
-      No hay observaciones registradas.
-    </p>
-  </div>
+          <div v-else class="mt-3 space-y-3">
+            <div
+              v-for="observacion in animalSeleccionado.observaciones"
+              :key="observacion.id"
+              class="rounded border border-brand-line px-4 py-3"
+            >
+              <p class="text-xs text-brand-inkSoft">
+                {{ new Date(observacion.fecha).toLocaleString() }}
+              </p>
 
-  <div
-    v-else
-    class="mt-3 space-y-3"
-  >
-    <div
-      v-for="observacion in animalSeleccionado.observaciones"
-      :key="observacion.id"
-      class="rounded border border-brand-line px-4 py-3"
-    >
-      <p class="text-xs text-brand-inkSoft">
-        {{ new Date(observacion.fecha).toLocaleString() }}
-      </p>
-
-      <p class="mt-2 text-sm">
-        {{ observacion.comentario }}
-      </p>
-    </div>
-  </div>
-</div>
-
-
-
-
-
-
-
-
+              <p class="mt-2 text-sm">
+                {{ observacion.comentario }}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <!-- REGISTRO OFFLINE -->
         <div class="bg-brand-bg px-5 py-5">
-          <h4 class="text-sm font-medium">
-            Registro local de demostración
-          </h4>
+          <h4 class="text-sm font-medium">Registro local de demostración</h4>
 
           <p class="mt-1 text-xs text-brand-inkSoft">
             Borrador solo local, sin atribución profesional ni sincronización. No ingreses datos
@@ -456,9 +514,7 @@ onUnmounted(() => {
             Guardar borrador de prueba
           </button>
         </div>
-
       </div>
     </section>
-
   </div>
 </template>

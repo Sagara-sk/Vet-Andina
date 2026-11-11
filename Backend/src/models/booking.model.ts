@@ -5,13 +5,19 @@ import {
   ConflictError,
   NotFoundError,
 } from "../services/errors";
-import { lockAgendaDate, lockVetDay } from "./agenda-locks";
-import type { ModalidadTurno } from "./turno.model";
+import { lockAgendaDate, lockVetDay, lockVetInterval } from "./agenda-locks";
+import {
+  vetHasHojaDeRutaOverlap,
+  type ModalidadTurno,
+} from "./turno.model";
 
 export interface BookingAnimal {
   id: string;
   name: string;
   species: string;
+  breed: string | null;
+  herdSize: number;
+  birthDate: string | null;
   modality: "URBANO" | "RURAL";
   farmId: string | null;
 }
@@ -37,6 +43,8 @@ export interface ClientBookingInput {
   dateTime: Date;
   modality: ModalidadTurno;
   reason: string;
+  reasonCategory: string | null;
+  reasonDetail: string | null;
   durationMinutes: number;
 }
 
@@ -53,27 +61,39 @@ function argentinaDate(dateTime: Date): string {
   return `${value.year}-${value.month}-${value.day}`;
 }
 
+// Animales del tutor de la sesión. El dueño sale siempre del id_usuario
+// autenticado, nunca de un parámetro del cliente. Con careType se limita además
+// al tipo de atención pedido (URBANO = mascotas, RURAL = animales y lotes de campo).
 export async function listOwnerAnimals(
   userId: string,
+  careType?: "URBANO" | "RURAL",
 ): Promise<BookingAnimal[]> {
   const result = await db.query<{
     id_animal: string;
     nombre_identificacion: string;
     especie: string;
+    raza: string | null;
+    cantidad_en_lote: number | null;
+    fecha_nacimiento: string | null;
     tipo_atencion: "URBANO" | "RURAL";
     id_finca: string | null;
   }>(
-    `SELECT a.id_animal, a.nombre_identificacion, a.especie, a.tipo_atencion, a.id_finca
+    `SELECT a.id_animal, a.nombre_identificacion, a.especie, a.raza,
+            a.cantidad_en_lote, a.fecha_nacimiento, a.tipo_atencion, a.id_finca
      FROM animal a
      JOIN duenio d ON d.id_duenio = a.id_duenio
      WHERE d.id_usuario = $1
+       AND ($2::text IS NULL OR a.tipo_atencion::text = $2::text)
      ORDER BY a.nombre_identificacion`,
-    [userId],
+    [userId, careType ?? null],
   );
   return result.rows.map((row) => ({
     id: row.id_animal,
     name: row.nombre_identificacion,
     species: row.especie,
+    breed: row.raza,
+    herdSize: row.cantidad_en_lote ?? 1,
+    birthDate: row.fecha_nacimiento,
     modality: row.tipo_atencion,
     farmId: row.id_finca,
   }));
@@ -223,7 +243,8 @@ export async function createClientBooking(
        FROM duenio d
        JOIN animal a ON a.id_duenio = d.id_duenio
        WHERE d.id_usuario = $1 AND a.id_animal = $2
-       LIMIT 1`,
+       LIMIT 1
+       FOR UPDATE OF a`,
       [input.userId, input.animalId],
     );
     const ownerRow = owner.rows[0];
@@ -231,7 +252,7 @@ export async function createClientBooking(
     if (!ownerId)
       throw new NotFoundError("No se encontró el animal en tu cuenta.");
     const expectedModality =
-      ownerRow.tipo_atencion === "RURAL" ? "RURAL" : "CONSULTORIO";
+      ownerRow.tipo_atencion === "RURAL" ? "RURAL" : "URBANO";
     if (
       expectedModality !== input.modality ||
       (input.modality === "RURAL" && !ownerRow.id_finca)
@@ -241,23 +262,25 @@ export async function createClientBooking(
       );
     }
 
-    await lockAgendaDate(client, argentinaDate(input.dateTime));
-
-    const vets = await client.query<{ id_usuario: string }>(
-      `SELECT id_usuario
-       FROM usuario
-       WHERE rol IN ('VETERINARIO', 'SUPERADMIN') AND matricula_profesional IS NOT NULL
-         AND ($1::uuid IS NULL OR id_usuario = $1)
-       ORDER BY id_usuario`,
-      [input.vetId],
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+      [`turno-animal:${input.animalId}`],
     );
-    if (vets.rowCount === 0)
-      throw new NotFoundError(
-        "No hay veterinarios disponibles para esta solicitud.",
+    const existingBooking = await client.query(
+      `SELECT 1 FROM turno
+       WHERE id_animal = $1
+         AND estado NOT IN ('CANCELADA', 'COMPLETADO', 'AUSENTE')
+         AND fecha_hora > CURRENT_TIMESTAMP
+       LIMIT 1`,
+      [input.animalId],
+    );
+    if (existingBooking.rowCount) {
+      throw new ConflictError(
+        "Este paciente ya tiene un turno reservado. Podés cambiar la fecha y el horario o cancelarlo desde Mis turnos.",
       );
+    }
 
-    for (const vet of vets.rows)
-      await lockVetDay(client, vet.id_usuario, input.dateTime);
+    await lockAgendaDate(client, argentinaDate(input.dateTime));
 
     const holiday = await client.query(
       `SELECT 1 FROM agenda_feriado
@@ -270,38 +293,69 @@ export async function createClientBooking(
       );
 
     let assignedVet: string | null = null;
-    for (const vet of vets.rows) {
-      if (input.modality === "RURAL") {
-        const routeSlot = await client.query(
-          `SELECT 1
-           FROM agenda_disponibilidad_rural
-           WHERE id_veterinario = $1 AND fecha_hora = $2 AND duracion_minutos = $3
-           FOR UPDATE`,
-          [vet.id_usuario, input.dateTime, input.durationMinutes],
+    if (input.modality === "URBANO") {
+      const vets = await client.query<{ id_usuario: string }>(
+        `SELECT id_usuario
+         FROM usuario
+         WHERE rol IN ('VETERINARIO', 'SUPERADMIN') AND matricula_profesional IS NOT NULL
+           AND ($1::uuid IS NULL OR id_usuario = $1)
+         ORDER BY id_usuario`,
+        [input.vetId],
+      );
+      if (vets.rowCount === 0)
+        throw new NotFoundError(
+          "No hay veterinarios disponibles para esta solicitud.",
         );
-        if (!routeSlot.rowCount) continue;
-      }
 
-      if (
-        !(await overlapsExistingAppointment(
+      for (const vet of vets.rows)
+        await lockVetInterval(
           client,
           vet.id_usuario,
           input.dateTime,
           input.durationMinutes,
-        ))
-      ) {
-        assignedVet = vet.id_usuario;
-        break;
-      }
-    }
+        );
 
-    if (!assignedVet)
-      throw new ConflictError("Ese horario acaba de ocuparse. Elegí otro.");
+      let routeConflicts = 0;
+      for (const vet of vets.rows) {
+        if (
+          await vetHasHojaDeRutaOverlap(
+            client,
+            vet.id_usuario,
+            input.dateTime,
+            input.durationMinutes,
+          )
+        ) {
+          routeConflicts += 1;
+          continue;
+        }
+
+        if (
+          !(await overlapsExistingAppointment(
+            client,
+            vet.id_usuario,
+            input.dateTime,
+            input.durationMinutes,
+          ))
+        ) {
+          assignedVet = vet.id_usuario;
+          break;
+        }
+      }
+
+      if (!assignedVet && routeConflicts === vets.rowCount)
+        throw new ConflictError(
+          "El veterinario seleccionado tiene un bloque de trabajo externo en ese horario. Elegí otro horario o veterinario.",
+        );
+
+      if (!assignedVet)
+        throw new ConflictError("Ese horario acaba de ocuparse. Elegí otro.");
+    }
 
     const inserted = await client.query<{ id_turno: string }>(
       `INSERT INTO turno
-         (id_duenio, id_animal, id_veterinario, fecha_hora, modalidad, estado, motivo, duracion_minutos)
-       VALUES ($1, $2, $3, $4, $5, 'PENDIENTE', $6, $7)
+         (id_duenio, id_animal, id_veterinario, fecha_hora, modalidad, estado,
+          motivo, motivo_categoria, motivo_detalle, duracion_minutos)
+       VALUES ($1, $2, $3, $4, $5, 'PENDIENTE', $6, $7, $8, $9)
        RETURNING id_turno`,
       [
         ownerId,
@@ -310,6 +364,8 @@ export async function createClientBooking(
         input.dateTime,
         input.modality,
         input.reason,
+        input.reasonCategory,
+        input.reasonDetail,
         input.durationMinutes,
       ],
     );
@@ -561,7 +617,12 @@ export async function assignAppointmentToVet(
       throw new ConflictError("Este turno ya no se puede asignar.");
     }
 
-    await lockVetDay(client, vetId, row.fecha_hora);
+    await lockVetInterval(
+      client,
+      vetId,
+      row.fecha_hora,
+      row.duracion_minutos,
+    );
     const vet = await client.query(
       `SELECT 1 FROM usuario
        WHERE id_usuario = $1 AND rol IN ('VETERINARIO', 'SUPERADMIN')
@@ -573,18 +634,17 @@ export async function assignAppointmentToVet(
         "El veterinario no está habilitado para recibir turnos.",
       );
 
-    if (row.modalidad === "RURAL") {
-      const routeSlot = await client.query(
-        `SELECT 1 FROM agenda_disponibilidad_rural
-         WHERE id_veterinario = $1 AND fecha_hora = $2 AND duracion_minutos = $3
-         FOR UPDATE`,
-        [vetId, row.fecha_hora, row.duracion_minutos],
+    if (
+      await vetHasHojaDeRutaOverlap(
+        client,
+        vetId,
+        row.fecha_hora,
+        row.duracion_minutos,
+      )
+    ) {
+      throw new ConflictError(
+        "El veterinario tiene un bloque de trabajo externo en ese horario.",
       );
-      if (!routeSlot.rowCount) {
-        throw new ConflictError(
-          "El veterinario no tiene una franja de ruta publicada para ese horario.",
-        );
-      }
     }
 
     if (

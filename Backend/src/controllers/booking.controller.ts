@@ -12,7 +12,12 @@ import {
   listRuralAvailabilityForStaff,
   upsertAgendaHoliday,
 } from "../models/booking.model";
-import { findTurnoById, listOwnerTurnos } from "../models/turno.model";
+import { addAnimal } from "../services/tutor.service";
+import {
+  findTurnoById,
+  listOwnerTurnos,
+  normalizeModalidadTurno,
+} from "../models/turno.model";
 import type { AuthenticatedUserRecord } from "../models/owner.model";
 import {
   getAvailability,
@@ -30,7 +35,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const availabilitySchema = Joi.object({
   desde: Joi.string().pattern(DATE_PATTERN).required(),
   hasta: Joi.string().pattern(DATE_PATTERN).required(),
-  modalidad: Joi.string().valid("CONSULTORIO", "RURAL").required(),
+  modalidad: Joi.string().valid("URBANO", "CONSULTORIO", "RURAL").required(),
   idVeterinario: Joi.string().guid().allow("", null).default(null),
 }).unknown(false);
 
@@ -38,10 +43,14 @@ const bookingSchema = Joi.object({
   id_animal: Joi.string().guid().required(),
   id_veterinario: Joi.string().guid().allow(null).default(null),
   fecha_hora: Joi.date().iso().required(),
-  modalidad: Joi.string().valid("CONSULTORIO", "RURAL").required(),
-  motivo_consulta: Joi.string().trim().min(2).max(300).required(),
+  modalidad: Joi.string().valid("URBANO", "CONSULTORIO", "RURAL").required(),
+  motivo_consulta: Joi.string().trim().min(2).max(300),
+  motivo_categoria: Joi.string().trim().min(2).max(80),
+  motivo_detalle: Joi.string().trim().max(300).allow("", null).default(null),
   duracion_minutos: Joi.number().integer().min(30).max(120).required(),
-}).unknown(false);
+})
+  .or("motivo_consulta", "motivo_categoria")
+  .unknown(false);
 
 const ruralAvailabilitySchema = Joi.object({
   id_veterinario: Joi.string().guid().allow(null).default(null),
@@ -93,7 +102,7 @@ export const getPublicAvailability: RequestHandler = async (
     const days = await getAvailability({
       from,
       to,
-      modality: value.modalidad,
+      modality: normalizeModalidadTurno(value.modalidad),
       vetId: value.idVeterinario || null,
     });
     response.json({ status: "ok", dias: days });
@@ -107,12 +116,53 @@ export const getPublicAvailability: RequestHandler = async (
   }
 };
 
+// ?tipo=URBANO lista solo las mascotas; ?tipo=RURAL, solo animales y lotes de
+// campo y únicamente para tutores rurales. Sin tipo (reserva de turnos) devuelve
+// todos los animales propios. El dueño siempre sale de la sesión.
+const myAnimalsQuerySchema = Joi.object({
+  tipo: Joi.string().valid("URBANO", "RURAL"),
+}).unknown(false);
+
+const createMyAnimalSchema = Joi.object({
+  nombre: Joi.string().trim().min(1).max(150).required(),
+  especie: Joi.string().trim().min(2).max(100).required(),
+  raza: Joi.string().trim().max(100).allow("", null).default(null),
+  tipoAtencion: Joi.string().valid("URBANO", "RURAL").required(),
+  cantidadEnLote: Joi.when("tipoAtencion", {
+    is: "RURAL",
+    then: Joi.number().integer().min(1).max(100000).required(),
+    otherwise: Joi.number().integer().valid(1).default(1),
+  }),
+  fechaNacimiento: Joi.when("tipoAtencion", {
+    is: "URBANO",
+    then: Joi.date().iso().max("now").allow(null).default(null),
+    otherwise: Joi.valid(null).default(null),
+  }),
+  idFinca: Joi.when("tipoAtencion", {
+    is: "RURAL",
+    then: Joi.string().guid().required(),
+    otherwise: Joi.valid(null).default(null),
+  }),
+}).unknown(false);
+
 export const getMyAnimals: RequestHandler = async (request, response) => {
   const user = request.user as AuthenticatedUserRecord;
+  const { error, value } = myAnimalsQuerySchema.validate(request.query);
+  if (error) return sendValidationError(response, error);
+
+  const careType = value.tipo as "URBANO" | "RURAL" | undefined;
+  if (careType === "RURAL" && user.careType !== "RURAL") {
+    response.status(403).json({
+      status: "error",
+      message: "Tu cuenta no tiene atención rural.",
+    });
+    return;
+  }
+
   try {
     response.json({
       status: "ok",
-      animales: await listOwnerAnimals(user.userId),
+      animales: await listOwnerAnimals(user.userId, careType),
     });
   } catch (error) {
     sendError(
@@ -124,7 +174,63 @@ export const getMyAnimals: RequestHandler = async (request, response) => {
   }
 };
 
+export const postMyAnimal: RequestHandler = async (request, response) => {
+  const { error, value } = createMyAnimalSchema.validate(request.body, {
+    abortEarly: false,
+  });
+  if (error) return sendValidationError(response, error);
+
+  const user = request.user as AuthenticatedUserRecord;
+  if (!user.profileComplete || !user.careType) {
+    response.status(403).json({
+      status: "error",
+      message: "Completá tu perfil antes de registrar animales.",
+    });
+    return;
+  }
+
+  const ruralOwnerPet =
+    user.careType === "RURAL" && value.tipoAtencion === "URBANO";
+  if (value.tipoAtencion !== user.careType && !ruralOwnerPet) {
+    response.status(403).json({
+      status: "error",
+      message: "No podés registrar animales para otra modalidad de atención.",
+    });
+    return;
+  }
+
+  try {
+    const ownerId = await findOwnerIdForUser(user.userId);
+    if (!ownerId) {
+      sendNotFound(response, "No se encontró el perfil del tutor.");
+      return;
+    }
+
+    await addAnimal(ownerId, {
+      name: value.nombre,
+      species: value.especie,
+      breed: value.raza,
+      careType: value.tipoAtencion,
+      herdSize: value.cantidadEnLote,
+      birthDate: value.fechaNacimiento
+        ? value.fechaNacimiento.toISOString().slice(0, 10)
+        : null,
+      farmId: value.idFinca,
+    });
+
+    response.status(201).json({ status: "ok", message: "Animal registrado." });
+  } catch (error) {
+    sendError(
+      response,
+      error,
+      "Error al registrar un animal del cliente",
+      "No fue posible registrar el animal.",
+    );
+  }
+};
+
 export const getMyTurnos: RequestHandler = async (request, response) => {
+  response.set("Cache-Control", "no-store");
   const user = request.user as AuthenticatedUserRecord;
   try {
     const ownerId = await findOwnerIdForUser(user.userId);
@@ -156,8 +262,12 @@ export const postClientBooking: RequestHandler = async (request, response) => {
       animalId: value.id_animal,
       vetId: value.id_veterinario,
       dateTime: value.fecha_hora,
-      modality: value.modalidad,
-      reason: value.motivo_consulta,
+      modality: normalizeModalidadTurno(value.modalidad),
+      reason:
+        value.motivo_consulta ??
+        [value.motivo_categoria, value.motivo_detalle].filter(Boolean).join(" - "),
+      reasonCategory: value.motivo_categoria ?? null,
+      reasonDetail: value.motivo_detalle || null,
       durationMinutes: value.duracion_minutos,
     });
     const turno = await findTurnoById(id);

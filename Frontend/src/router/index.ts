@@ -125,9 +125,7 @@ const router = createRouter({
     // - INDIVIDUAL: cliente urbano.
     // - EMPRESA_PRODUCTOR: cliente rural.
     //
-    // IMPORTANTE:
-    // Las restricciones específicas por tipoPersona
-    // se incorporarán posteriormente en access.ts.
+    // Las rutas rurales también requieren tipoPersona EMPRESA_PRODUCTOR.
     // ==================================================
 
     {
@@ -159,6 +157,14 @@ const router = createRouter({
           name: 'panel-mascotas',
           component: () => import('../views/panel/PetsView.vue'),
         },
+        {
+          path: 'animales/nuevo',
+          name: 'panel-animal-nuevo',
+          component: () => import('../views/panel/ClientAnimalRegistrationView.vue'),
+          meta: {
+            title: 'Registrar mascota o lote',
+          },
+        },
 
         // Gestión de establecimientos (cliente rural).
         {
@@ -166,6 +172,16 @@ const router = createRouter({
           name: 'panel-mascota-ficha',
           props: true,
           component: () => import('@/views/admin/FichaView.vue'),
+        },
+        {
+          path: 'establecimientos/lotes/:id/ficha',
+          name: 'panel-lote-ficha',
+          props: true,
+          component: () => import('@/views/admin/FichaView.vue'),
+          meta: {
+            title: 'Ficha de lote rural',
+            allowedTipoPersona: ['EMPRESA_PRODUCTOR'],
+          },
         },
         {
           path: 'establecimientos',
@@ -213,7 +229,7 @@ const router = createRouter({
     // - VETERINARIO
     // - SUPERADMIN
     //
-    // Permite gestionar clientes, agenda, turnos y
+    // Permite consultar tutores, agenda, turnos y
     // funcionalidades operativas veterinarias.
     // ==================================================
 
@@ -242,11 +258,22 @@ const router = createRouter({
         // FUNCIONALIDADES VETERINARIAS
         // ----------------------------------------------
 
-        // Consulta y gestión de clientes.
+        // Consulta del padrón de tutores.
         {
-          path: 'clientes',
-          name: 'vet-clientes',
-          component: () => import('@/views/veterinario/ClientesView.vue'),
+          path: 'tutores',
+          children: [
+            {
+              path: '',
+              name: 'vet-tutores',
+              component: () => import('@/views/admin/TutoresView.vue'),
+            },
+            {
+              path: ':id',
+              name: 'vet-tutor',
+              props: true,
+              component: () => import('@/views/admin/TutorDetailView.vue'),
+            },
+          ],
         },
 
         // Administración de la agenda veterinaria.
@@ -336,6 +363,16 @@ const router = createRouter({
           path: '',
           name: 'admin-turnos',
           component: () => import('@/views/admin/TurnosView.vue'),
+        },
+
+        // ----------------------------------------------
+        // AGENDA GENERAL DE VETERINARIOS
+        // ----------------------------------------------
+
+        {
+          path: 'agenda',
+          name: 'admin-agenda',
+          component: () => import('@/views/admin/AgendaView.vue'),
         },
 
         // ----------------------------------------------

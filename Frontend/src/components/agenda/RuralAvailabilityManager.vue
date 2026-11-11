@@ -160,8 +160,8 @@ onMounted(async () => {
     <header>
       <h2 class="text-base font-semibold">Hoja de ruta rural</h2>
       <p class="mt-1 text-sm text-brand-inkSoft">
-        Publicá bloques de 1 a 2 horas. Solo aparecerán para reservar los bloques previamente
-        cargados y libres de superposición.
+        Publicá bloques de 1 a 2 horas para organizar la agenda rural. Las solicitudes de los
+        clientes son tentativas y no dependen de estas franjas.
       </p>
     </header>
 

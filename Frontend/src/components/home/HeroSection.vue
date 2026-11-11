@@ -1,5 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { primaryActionForRole } from '@/router/access'
+import { useSessionStore } from '@/stores/session'
+
+const session = useSessionStore()
+const primaryAction = computed(
+  () =>
+    (session.user && primaryActionForRole(session.user.rol)) ?? {
+      label: 'Reservar turno' as const,
+      to: { name: 'login' },
+    },
+)
 </script>
 
 <template>
@@ -30,7 +42,9 @@ import { RouterLink } from 'vue-router'
           necesites.
         </p>
         <div class="mt-10 flex flex-wrap gap-3">
-          <RouterLink to="/turnos" class="btn-primary">Reservar turno</RouterLink>
+          <RouterLink :to="primaryAction.to" class="btn-primary">
+            {{ primaryAction.label }}
+          </RouterLink>
           <a href="#servicios" class="btn-outline">Ver servicios</a>
         </div>
       </div>

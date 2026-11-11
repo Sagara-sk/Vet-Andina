@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getMyAnimals } from "../controllers/booking.controller";
+import { getMyAnimals, postMyAnimal } from "../controllers/booking.controller";
 import {
   getAnimals,
   getMedicalRecord,
@@ -29,6 +29,7 @@ animalRouter.use(authMiddleware);
 
 // El cliente solamente consulta sus propios animales.
 animalRouter.get("/mios", requireRole("CLIENTE"), getMyAnimals);
+animalRouter.post("/mios", requireRole("CLIENTE"), postMyAnimal);
 
 // Búsqueda general para el personal.
 animalRouter.get("/", staff, getAnimals);

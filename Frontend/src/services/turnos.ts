@@ -9,7 +9,7 @@ export type EstadoTurno =
   | 'COMPLETADO'
   | 'AUSENTE'
 
-export type ModalidadTurno = 'CONSULTORIO' | 'RURAL'
+export type ModalidadTurno = 'URBANO' | 'RURAL'
 
 export interface Turno {
   id: string
@@ -18,6 +18,8 @@ export interface Turno {
   modality: ModalidadTurno
   status: EstadoTurno
   reason: string | null
+  reasonCategory: string | null
+  reasonDetail: string | null
   cancellationReason: string | null
   animal: { id: string; name: string; species: string }
   tutor: { id: string; fullName: string; phone: string }
@@ -36,6 +38,8 @@ export interface NuevoTurno {
   modalidad: ModalidadTurno
   estado: 'PENDIENTE' | 'CONFIRMADO'
   motivo: string
+  motivoCategoria: string
+  motivoDetalle: string | null
 }
 
 // Estados desde los que la API acepta cada acción (ver turno.service.ts).
@@ -69,7 +73,21 @@ export async function listVets(): Promise<Veterinario[]> {
 }
 
 export async function createTurno(input: NuevoTurno): Promise<Turno> {
-  return (await apiRequest<{ turno: Turno }>('/api/turnos', { method: 'POST', body: input })).turno
+  return (
+    await apiRequest<{ turno: Turno }>('/api/turnos', {
+      method: 'POST',
+      body: {
+        idAnimal: input.idAnimal,
+        idVeterinario: input.idVeterinario,
+        fechaHora: input.fechaHora,
+        modalidad: input.modalidad,
+        estado: input.estado,
+        motivo: input.motivo,
+        motivo_categoria: input.motivoCategoria,
+        motivo_detalle: input.motivoDetalle,
+      },
+    })
+  ).turno
 }
 
 export async function confirmTurno(id: string): Promise<Turno> {
@@ -86,6 +104,15 @@ export async function rescheduleTurno(
     await apiRequest<{ turno: Turno }>(`/api/turnos/${id}/reprogramar`, {
       method: 'POST',
       body: { fechaHora, idVeterinario },
+    })
+  ).turno
+}
+
+export async function rescheduleMyTurno(id: string, fechaHora: string): Promise<Turno> {
+  return (
+    await apiRequest<{ turno: Turno }>(`/api/turnos/${id}/reprogramar`, {
+      method: 'POST',
+      body: { fechaHora },
     })
   ).turno
 }

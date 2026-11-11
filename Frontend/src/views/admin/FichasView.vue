@@ -43,7 +43,7 @@ watch(busqueda, (texto) => {
     <input
       v-model="busqueda"
       type="search"
-      class="field-input mt-7 w-[320px]! max-w-full"
+      class="field-input mt-7 sm:w-80"
       placeholder="Nombre del animal o del tutor"
       aria-label="Buscar paciente"
     />

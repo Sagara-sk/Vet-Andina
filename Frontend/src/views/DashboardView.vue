@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import AccesosAdministrativos from '@/components/dashboard/AccesosAdministrativos.vue'
+import ResumenAgendaStaff from '@/components/dashboard/ResumenAgendaStaff.vue'
 import ResumenCliente from '@/components/dashboard/ResumenCliente.vue'
-import ResumenVeterinario from '@/components/dashboard/ResumenVeterinario.vue'
 import type { Rol } from '@/router/access'
 import { useSessionStore } from '@/stores/session'
 
@@ -16,7 +16,6 @@ const rol = computed(() => session.user?.rol as Rol | undefined)
 
 const modulos = computed(() => ({
   cliente: rol.value === 'CLIENTE',
-  veterinario: rol.value === 'VETERINARIO' || rol.value === 'SUPERADMIN',
   administrativo: rol.value === 'ADMINISTRATIVO' || rol.value === 'SUPERADMIN',
   usuarios: rol.value === 'SUPERADMIN',
 }))
@@ -54,8 +53,8 @@ const fechaHoy = (() => {
       </RouterLink>
     </header>
 
-    <ResumenCliente v-if="modulos.cliente" :tipo-persona="session.user?.tipoPersona ?? null" />
-    <ResumenVeterinario v-if="modulos.veterinario" />
+    <ResumenCliente v-if="modulos.cliente" :tipo-atencion="session.user?.tipoAtencion ?? null" />
+    <ResumenAgendaStaff v-if="rol && rol !== 'CLIENTE'" :rol="rol" />
     <AccesosAdministrativos v-if="modulos.administrativo" :incluir-usuarios="modulos.usuarios" />
   </div>
 </template>

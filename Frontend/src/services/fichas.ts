@@ -11,15 +11,32 @@ export interface AnimalSearchResult {
 export interface ClinicalEntry {
   id: string
   recordedAt: string
+  attendedAt: string | null
   authorName: string
-  modality: 'CONSULTORIO' | 'RURAL'
+  modality: 'URBANO' | 'RURAL'
+  kind: ClinicalEntryKind
   reason: string
   diagnosis: string | null
   treatment: string | null
   vaccines: unknown
+  details: ClinicalEntryDetails
   isErratum: boolean
   referencedEntryId: string | null
   erratumDetail: string | null
+}
+
+export type ClinicalEntryKind =
+  'CONSULTA' | 'PESO' | 'VACUNA' | 'DESPARASITACION' | 'TRATAMIENTO_GRUPAL' | 'EVENTO_POBLACIONAL'
+
+export interface ClinicalEntryDetails {
+  pesoKg?: number
+  vacuna?: string
+  producto?: string
+  dosis?: string
+  proximaFecha?: string | null
+  cantidadTratada?: number
+  evento?: string
+  cantidadAfectada?: number
 }
 
 export type MedicalRecordStatus = 'ACTIVO' | 'INACTIVO' | 'FALLECIDO'
@@ -33,6 +50,8 @@ export interface MedicalRecord {
     careType: 'URBANO' | 'RURAL'
     herdSize: number
     birthDate: string | null
+    farmName: string | null
+    farmLocality: string | null
   }
   tutor: {
     id: string
@@ -54,11 +73,14 @@ export interface UpdateMedicalRecordPayload {
 }
 
 export interface NewClinicalEntryPayload {
-  modalidad: 'CONSULTORIO' | 'RURAL'
+  modalidad: 'URBANO' | 'RURAL'
+  tipoRegistro: ClinicalEntryKind
+  fechaAtencion: string | null
   motivoConsulta: string
   diagnostico: string | null
   tratamiento: string | null
   vacunasAplicadas: string[]
+  detalles: ClinicalEntryDetails
 }
 
 export interface NewErratumPayload {
@@ -74,9 +96,7 @@ export async function searchAnimals(search: string): Promise<AnimalSearchResult[
 }
 
 export async function getMedicalRecord(animalId: string): Promise<MedicalRecord> {
-  const response = await apiRequest<{ ficha: MedicalRecord }>(
-    `/api/animales/${animalId}/ficha`,
-  )
+  const response = await apiRequest<{ ficha: MedicalRecord }>(`/api/animales/${animalId}/ficha`)
 
   return response.ficha
 }
@@ -85,13 +105,10 @@ export async function updateMedicalRecord(
   animalId: string,
   payload: UpdateMedicalRecordPayload,
 ): Promise<MedicalRecord> {
-  const response = await apiRequest<{ ficha: MedicalRecord }>(
-    `/api/animales/${animalId}/ficha`,
-    {
-      method: 'PATCH',
-      body: payload,
-    },
-  )
+  const response = await apiRequest<{ ficha: MedicalRecord }>(`/api/animales/${animalId}/ficha`, {
+    method: 'PATCH',
+    body: payload,
+  })
 
   return response.ficha
 }

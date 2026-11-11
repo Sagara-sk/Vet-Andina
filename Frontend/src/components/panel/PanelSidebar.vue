@@ -1,7 +1,6 @@
-
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { RouterLink, useRoute, type RouteLocationRaw } from 'vue-router'
 import LogoutButton from '@/components/Redireccion/LogoutButton.vue'
 import { useTheme } from '@/composables/useTheme'
 import type { Rol } from '@/router/access'
@@ -12,6 +11,8 @@ interface NavLink {
   label: string
   to: RouteLocationRaw
   exact?: boolean
+  // Solo para clientes con atención RURAL (establecimientos y lotes).
+  soloRural?: boolean
 }
 
 interface PanelConfig {
@@ -23,32 +24,19 @@ const ACTIVE_CLASS = '!bg-brand-accentSoft !text-brand-ink'
 
 const DASHBOARD_ROUTE: RouteLocationRaw = { name: 'dashboard' }
 
-// Secciones compartidas por clientes urbanos y rurales.
-const clientCommonLinks: NavLink[] = [
+// Menú del cliente. "Mis establecimientos" se oculta con v-if a los clientes
+// URBANO; los RURAL ven mascotas y establecimientos.
+const clientLinks: NavLink[] = [
   { label: 'Inicio', to: DASHBOARD_ROUTE },
+  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
+  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' }, soloRural: true },
   { label: 'Reservar turno', to: { name: 'panel-reservar' } },
   { label: 'Mis turnos', to: { name: 'panel-turnos' } },
-
-]
-
-// Secciones exclusivas de clientes urbanos.
-const urbanClientLinks: NavLink[] = [
-  { label: 'Inicio', to: DASHBOARD_ROUTE },
-  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
-  ...clientCommonLinks.slice(1),
-]
-
-// Secciones exclusivas de clientes rurales.
-const ruralClientLinks: NavLink[] = [
-  { label: 'Inicio', to: DASHBOARD_ROUTE },
-  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
-  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' } },
-  ...clientCommonLinks.slice(1),
 ]
 
 const vetLinks: NavLink[] = [
   { label: 'Dashboard', to: DASHBOARD_ROUTE },
-  { label: 'Clientes', to: { name: 'vet-clientes' } },
+  { label: 'Clientes', to: { name: 'vet-tutores' } },
   { label: 'Agenda', to: { name: 'vet-agenda' } },
   { label: 'Gestión de turnos', to: { name: 'vet-turnos' } },
   { label: 'Fichas médicas', to: { name: 'vet-fichas' } },
@@ -57,7 +45,8 @@ const vetLinks: NavLink[] = [
 
 const adminLinks: NavLink[] = [
   { label: 'Turnos', to: { name: 'admin-turnos' }, exact: true },
-  { label: 'Tutores', to: { name: 'admin-tutores' } },
+  { label: 'Agenda general', to: { name: 'admin-agenda' } },
+  { label: 'Clientes', to: { name: 'admin-tutores' } },
   { label: 'Fichas', to: { name: 'admin-fichas' } },
 ]
 
@@ -84,7 +73,19 @@ const panels: Partial<Record<Rol, PanelConfig>> = {
 }
 
 const session = useSessionStore()
+const route = useRoute()
 const { isDark, toggleTheme } = useTheme()
+
+// Menú desplegable en celular; en escritorio siempre está visible.
+const menuAbierto = ref(false)
+
+// Al navegar a otra sección se cierra el menú para mostrar el contenido.
+watch(
+  () => route.fullPath,
+  () => {
+    menuAbierto.value = false
+  },
+)
 
 const panel = computed<PanelConfig | undefined>(() => {
   const user = session.user
@@ -93,17 +94,11 @@ const panel = computed<PanelConfig | undefined>(() => {
 
   if (user.rol === 'CLIENTE') {
     if (session.isUrbanClient) {
-      return {
-        subtitle: 'Panel del cliente urbano',
-        links: urbanClientLinks,
-      }
+      return { subtitle: 'Panel del cliente urbano', links: clientLinks }
     }
 
     if (session.isRuralClient) {
-      return {
-        subtitle: 'Panel del cliente rural',
-        links: ruralClientLinks,
-      }
+      return { subtitle: 'Panel del cliente rural', links: clientLinks }
     }
 
     // Perfil todavía incompleto: no mostrar secciones específicas.
@@ -122,55 +117,73 @@ const fullName = computed(() => session.user?.nombreCompleto ?? '')
 <template>
   <aside
     v-if="panel"
-    class="flex flex-col border-b border-brand-line bg-brand-sidebar px-6 py-6 md:sticky md:top-0 md:h-screen md:w-58.5 md:shrink-0 md:border-b-0 md:border-r md:py-8"
+    class="sticky top-0 z-40 flex max-h-dvh flex-col overflow-y-auto border-b border-brand-line bg-brand-sidebar px-4 py-3 sm:px-6 md:h-screen md:max-h-none md:w-58.5 md:shrink-0 md:overflow-visible md:border-b-0 md:border-r md:py-8"
   >
-    <RouterLink :to="DASHBOARD_ROUTE" class="block">
-      <span class="block font-serif text-xl text-brand-ink">Vet Andina</span>
-      <span class="mt-1 block text-xs text-brand-inkSoft">
-        {{ panel.subtitle }}
-      </span>
-    </RouterLink>
-
-    <nav
-      class="mt-6 flex gap-1 overflow-x-auto md:mt-9 md:flex-col md:gap-2 md:overflow-visible"
-    >
-      <RouterLink
-        v-for="link in panel.links"
-        :key="link.label"
-        :to="link.to"
-        :active-class="link.exact ? '' : ACTIVE_CLASS"
-        :exact-active-class="ACTIVE_CLASS"
-        class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
-      >
-        <span
-          class="h-1 w-1 rounded-full bg-current"
-          aria-hidden="true"
-        />
-        {{ link.label }}
+    <!-- En celular el menú es una barra compacta: solo marca y botón. -->
+    <div class="flex items-center justify-between gap-4">
+      <RouterLink :to="DASHBOARD_ROUTE" class="block">
+        <span class="block font-serif text-xl text-brand-ink">Vet Andina</span>
+        <span class="mt-1 block text-xs text-brand-inkSoft">
+          {{ panel.subtitle }}
+        </span>
       </RouterLink>
-    </nav>
 
-    <button
-      type="button"
-      class="mt-6 flex items-center gap-2 self-start rounded-sm border border-brand-line px-3 py-2 text-xs text-brand-inkSoft transition-colors hover:text-brand-ink md:mt-auto"
-      :aria-pressed="isDark"
-      @click="toggleTheme"
-    >
-      <span aria-hidden="true">{{ isDark ? '☀' : '☾' }}</span>
-      {{ isDark ? 'Modo claro' : 'Modo oscuro' }}
-    </button>
-
-    <div class="mt-6 flex items-center gap-3 border-t border-brand-line pt-6">
-      <span
-        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-accent text-xs text-white"
-        aria-hidden="true"
+      <button
+        type="button"
+        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-brand-line text-lg text-brand-ink md:hidden"
+        aria-controls="panel-menu"
+        :aria-expanded="menuAbierto"
+        :aria-label="menuAbierto ? 'Cerrar menú' : 'Abrir menú'"
+        @click="menuAbierto = !menuAbierto"
       >
-        {{ initials(fullName) }}
-      </span>
+        <span aria-hidden="true">{{ menuAbierto ? '✕' : '☰' }}</span>
+      </button>
+    </div>
 
-      <div>
-        <p class="text-sm text-brand-ink">{{ session.firstName }}</p>
-        <LogoutButton />
+    <div
+      id="panel-menu"
+      class="flex-col pb-3 md:flex md:flex-1 md:pb-0"
+      :class="menuAbierto ? 'flex' : 'hidden'"
+    >
+      <nav class="mt-4 flex flex-col gap-1 md:mt-9 md:gap-2">
+        <template v-for="link in panel.links" :key="link.label">
+          <!-- Los clientes URBANO no ven las secciones rurales. La API rechaza
+             igual /establecimientos si el tutor no es rural. -->
+          <RouterLink
+            v-if="!link.soloRural || session.isRuralClient"
+            :to="link.to"
+            :active-class="link.exact ? '' : ACTIVE_CLASS"
+            :exact-active-class="ACTIVE_CLASS"
+            class="flex shrink-0 items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-brand-inkSoft transition-colors hover:text-brand-ink"
+          >
+            <span class="h-1 w-1 rounded-full bg-current" aria-hidden="true" />
+            {{ link.label }}
+          </RouterLink>
+        </template>
+      </nav>
+
+      <button
+        type="button"
+        class="mt-6 flex items-center gap-2 self-start rounded-sm border border-brand-line px-3 py-2 text-xs text-brand-inkSoft transition-colors hover:text-brand-ink md:mt-auto"
+        :aria-pressed="isDark"
+        @click="toggleTheme"
+      >
+        <span aria-hidden="true">{{ isDark ? '☀' : '☾' }}</span>
+        {{ isDark ? 'Modo claro' : 'Modo oscuro' }}
+      </button>
+
+      <div class="mt-6 flex items-center gap-3 border-t border-brand-line pt-6">
+        <span
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-accent text-xs text-white"
+          aria-hidden="true"
+        >
+          {{ initials(fullName) }}
+        </span>
+
+        <div>
+          <p class="text-sm text-brand-ink">{{ session.firstName }}</p>
+          <LogoutButton />
+        </div>
       </div>
     </div>
   </aside>

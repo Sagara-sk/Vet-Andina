@@ -61,7 +61,7 @@ async function submit() {
         :href="whatsapp"
         target="_blank"
         rel="noreferrer"
-        class="flex items-center gap-3 rounded-lg bg-[#25d366] px-4 py-3 text-sm font-semibold text-white hover:opacity-90"
+        class="flex min-h-11 items-center gap-3 rounded-sm bg-[#25d366] px-4 py-3 text-sm font-semibold text-white hover:opacity-90"
       >
         <span aria-hidden="true">💬</span>
         Coordinar con el tutor por WhatsApp
@@ -95,8 +95,8 @@ async function submit() {
 
       <button
         type="submit"
-        class="w-full rounded-[3px] py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
-        :class="accion === 'cancelar' ? 'bg-brand-danger' : 'bg-brand-accent'"
+        class="btn-primary w-full"
+        :class="{ 'border-brand-danger! bg-brand-danger!': accion === 'cancelar' }"
         :disabled="saving"
       >
         {{ saving ? 'Guardando...' : accion === 'reprogramar' ? 'Confirmar reprogramación' : 'Confirmar cancelación' }}
