@@ -3,74 +3,13 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, type RouteLocationRaw } from 'vue-router'
 import LogoutButton from '@/components/Redireccion/LogoutButton.vue'
 import { useTheme } from '@/composables/useTheme'
-import type { Rol } from '@/router/access'
+import { resolvePanelNavigation } from '@/router/navigation'
 import { useSessionStore } from '@/stores/session'
 import { initials } from '@/utils/format'
-
-interface NavLink {
-  label: string
-  to: RouteLocationRaw
-  exact?: boolean
-  // Solo para clientes con atención RURAL (establecimientos y lotes).
-  soloRural?: boolean
-}
-
-interface PanelConfig {
-  subtitle: string
-  links: NavLink[]
-}
 
 const ACTIVE_CLASS = '!bg-brand-accentSoft !text-brand-ink'
 
 const DASHBOARD_ROUTE: RouteLocationRaw = { name: 'dashboard' }
-
-// Menú del cliente. "Mis establecimientos" se oculta con v-if a los clientes
-// URBANO; los RURAL ven mascotas y establecimientos.
-const clientLinks: NavLink[] = [
-  { label: 'Inicio', to: DASHBOARD_ROUTE },
-  { label: 'Mis mascotas', to: { name: 'panel-mascotas' } },
-  { label: 'Mis establecimientos', to: { name: 'panel-establecimientos' }, soloRural: true },
-  { label: 'Reservar turno', to: { name: 'panel-reservar' } },
-  { label: 'Mis turnos', to: { name: 'panel-turnos' } },
-]
-
-const vetLinks: NavLink[] = [
-  { label: 'Dashboard', to: DASHBOARD_ROUTE },
-  { label: 'Clientes', to: { name: 'vet-tutores' } },
-  { label: 'Agenda', to: { name: 'vet-agenda' } },
-  { label: 'Gestión de turnos', to: { name: 'vet-turnos' } },
-  { label: 'Fichas médicas', to: { name: 'vet-fichas' } },
-  { label: 'Modo offline', to: { name: 'vet-offline' } },
-]
-
-const adminLinks: NavLink[] = [
-  { label: 'Turnos', to: { name: 'admin-turnos' }, exact: true },
-  { label: 'Agenda general', to: { name: 'admin-agenda' } },
-  { label: 'Clientes', to: { name: 'admin-tutores' } },
-  { label: 'Fichas', to: { name: 'admin-fichas' } },
-]
-
-// Menús del personal: se mantienen las secciones existentes.
-const panels: Partial<Record<Rol, PanelConfig>> = {
-  VETERINARIO: {
-    subtitle: 'Panel veterinario',
-    links: vetLinks,
-  },
-  ADMINISTRATIVO: {
-    subtitle: 'Panel administrativo',
-    links: [{ label: 'Inicio', to: DASHBOARD_ROUTE }, ...adminLinks],
-  },
-  SUPERADMIN: {
-    subtitle: 'Panel de administración',
-    links: [
-      { label: 'Dashboard', to: DASHBOARD_ROUTE },
-      ...adminLinks,
-      { label: 'Agenda', to: { name: 'vet-agenda' } },
-      { label: 'Modo offline', to: { name: 'vet-offline' } },
-      { label: 'Usuarios', to: { name: 'vet-usuarios' } },
-    ],
-  },
-}
 
 const session = useSessionStore()
 const route = useRoute()
