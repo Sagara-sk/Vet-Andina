@@ -116,7 +116,7 @@ onMounted(loadAppointments)
           </div>
           <button
             type="button"
-            class="btn-primary shrink-0"
+            class="btn-primary w-full shrink-0 sm:w-auto"
             :disabled="confirmandoId === turno.id"
             @click="confirmAppointment(turno)"
           >

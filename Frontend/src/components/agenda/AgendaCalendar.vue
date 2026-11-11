@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import FullCalendar from '@fullcalendar/vue3'
 import type {
   CalendarOptions,
@@ -96,7 +96,21 @@ function hojaAEvento(hoja: HojaDeRuta): EventInput {
   }
 }
 
-const esMovil = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches
+// Celular: lista semanal; desde md (768px): grilla semanal. Se vuelve a evaluar
+// al girar la pantalla o cambiar el tamaño de la ventana.
+const VISTA_MOVIL = 'listWeek'
+const VISTA_ESCRITORIO = 'timeGridWeek'
+const consultaMovil =
+  typeof window !== 'undefined' ? window.matchMedia?.('(max-width: 767px)') : undefined
+const esMovil = consultaMovil?.matches ?? false
+const calendario = ref<InstanceType<typeof FullCalendar> | null>(null)
+
+function ajustarVista(evento: MediaQueryListEvent) {
+  calendario.value?.getApi().changeView(evento.matches ? VISTA_MOVIL : VISTA_ESCRITORIO)
+}
+
+onMounted(() => consultaMovil?.addEventListener('change', ajustarVista))
+onUnmounted(() => consultaMovil?.removeEventListener('change', ajustarVista))
 
 const opciones = computed<CalendarOptions>(() => {
   // Referencia local para que el cambio de la función regenere las opciones.
@@ -105,7 +119,7 @@ const opciones = computed<CalendarOptions>(() => {
   return {
     plugins: [classicThemePlugin, dayGridPlugin, timeGridPlugin, listPlugin],
     locale: esLocale,
-    initialView: esMovil ? 'listWeek' : 'timeGridWeek',
+    initialView: esMovil ? VISTA_MOVIL : VISTA_ESCRITORIO,
     headerToolbar: {
       start: 'prev,next today',
       center: 'title',
@@ -176,8 +190,8 @@ const opciones = computed<CalendarOptions>(() => {
       {{ error }}
     </p>
 
-    <div class="rounded border border-brand-line bg-brand-surface p-3 md:p-4">
-      <FullCalendar :options="opciones" />
+    <div class="rounded border border-brand-line bg-brand-surface p-2 sm:p-3 md:p-4">
+      <FullCalendar ref="calendario" :options="opciones" />
     </div>
 
     <section

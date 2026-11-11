@@ -193,7 +193,7 @@ watch(() => props.id, cargar, { immediate: true })
 </script>
 
 <template>
-  <div class="mx-auto max-w -[900px]">
+  <div class="mx-auto max-w-225">
     <RouterLink :to="backRoute" class="text-xs text-brand-inkSoft hover:text-brand-ink">
       ← Fichas
     </RouterLink>
@@ -237,7 +237,7 @@ watch(() => props.id, cargar, { immediate: true })
         </p>
       </header>
 
-      <section class="mt-6 border border-brand-line bg-brand-surface p-6">
+      <section class="mt-6 border border-brand-line bg-brand-surface p-4 sm:p-6">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-base text-brand-ink">Ficha médica</h2>
           <span class="text-xs text-brand-inkSoft">
@@ -280,7 +280,7 @@ watch(() => props.id, cargar, { immediate: true })
             </div>
 
             <button v-if="canManageRecord" type="button" :disabled="savingRecord"
-              class="w-fit bg-brand-ink px-5 py-2.5 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              class="btn-primary w-full sm:w-fit"
               @click="guardarFicha">
               {{ savingRecord ? 'Guardando...' : 'Guardar datos generales' }}
             </button>
@@ -300,7 +300,7 @@ watch(() => props.id, cargar, { immediate: true })
         </p>
 
         <ol v-else class="mt-4 space-y-3">
-          <li v-for="e in ficha.entries" :key="e.id" class="border bg-brand-surface p-5" :class="e.isErratum
+          <li v-for="e in ficha.entries" :key="e.id" class="border bg-brand-surface p-4 sm:p-5" :class="e.isErratum
             ? 'border-brand-warnLine'
             : 'border-brand-line'
             ">
@@ -349,7 +349,7 @@ watch(() => props.id, cargar, { immediate: true })
               !e.referencedEntryId
             " class="mt-4 border-t border-brand-line pt-3">
               <button v-if="selectedErratum !== e.id" type="button"
-                class="text-xs text-brand-inkSoft underline hover:text-brand-ink" @click="selectedErratum = e.id">
+                class="min-h-11 text-xs text-brand-inkSoft underline hover:text-brand-ink" @click="selectedErratum = e.id">
                 Registrar fe de erratas
               </button>
 
@@ -364,12 +364,12 @@ watch(() => props.id, cargar, { immediate: true })
 
                 <div class="flex flex-wrap gap-3">
                   <button type="button" :disabled="savingErratum"
-                    class="bg-brand-ink px-4 py-2 text-xs text-white disabled:opacity-50"
+                    class="btn-primary"
                     @click="guardarFeErratas(e.id)">
                     {{ savingErratum ? 'Guardando...' : 'Guardar corrección' }}
                   </button>
 
-                  <button type="button" class="px-4 py-2 text-xs text-brand-inkSoft underline" @click="
+                  <button type="button" class="btn-outline" @click="
                     selectedErratum = null;
                   erratumDetail = ''
                     ">
@@ -382,7 +382,7 @@ watch(() => props.id, cargar, { immediate: true })
         </ol>
       </section>
 
-      <section v-if="canManageRecord" class="mt-7 border border-brand-line bg-brand-surface p-6">
+      <section v-if="canManageRecord" class="mt-7 border border-brand-line bg-brand-surface p-4 sm:p-6">
         <h2 class="text-base text-brand-ink">
           Registrar evolución clínica
         </h2>
@@ -444,7 +444,7 @@ watch(() => props.id, cargar, { immediate: true })
           </div>
 
           <button type="submit" :disabled="savingEntry"
-            class="bg-brand-ink px-5 py-2.5 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+            class="btn-primary w-full sm:w-fit">
             {{ savingEntry ? 'Registrando...' : 'Registrar evolución' }}
           </button>
         </form>
