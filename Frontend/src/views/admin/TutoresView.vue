@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import BaseModal from '@/components/admin/BaseModal.vue'
 import TutorForm from '@/components/admin/TutorForm.vue'
@@ -8,6 +8,9 @@ import { useSessionStore } from '@/stores/session'
 
 const router = useRouter()
 const session = useSessionStore()
+const tutorRouteName = computed(() =>
+  session.user?.rol === 'VETERINARIO' ? 'vet-tutor' : 'admin-tutor',
+)
 
 const busqueda = ref('')
 const tutores = ref<TutorSummary[]>([])
@@ -90,12 +93,13 @@ onMounted(cargar)
             <th class="px-4 py-3 font-normal">Localidad</th>
             <th class="px-4 py-3 font-normal">Animales</th>
             <th class="px-4 py-3 font-normal">Cuenta</th>
+            <th class="px-4 py-3 text-right font-normal">Acceso clínico</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="t in tutores" :key="t.id" class="border-t border-brand-line text-brand-ink">
             <td class="px-4 py-3.5">
-              <RouterLink :to="{ name: 'admin-tutor', params: { id: t.id } }" class="hover:underline">
+              <RouterLink :to="{ name: tutorRouteName, params: { id: t.id } }" class="hover:underline">
                 {{ t.fullName }}
               </RouterLink>
             </td>
@@ -106,6 +110,15 @@ onMounted(cargar)
             <td class="px-4 py-3.5">{{ t.locality }}</td>
             <td class="px-4 py-3.5">{{ t.animalCount }}</td>
             <td class="px-4 py-3.5 text-xs text-brand-inkSoft">{{ t.hasAccount ? 'Registrado' : 'Sin cuenta' }}</td>
+            <td class="px-4 py-3.5 text-right">
+              <RouterLink
+                :to="{ name: tutorRouteName, params: { id: t.id } }"
+                class="btn-outline inline-block !px-3 !py-2 text-xs"
+                :aria-label="`Acceder a las fichas clínicas de ${t.fullName} y sus pacientes`"
+              >
+                Ver fichas
+              </RouterLink>
+            </td>
           </tr>
         </tbody>
       </table>
