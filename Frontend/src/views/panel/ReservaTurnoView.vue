@@ -1,20 +1,32 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import BaseModal from '@/components/admin/BaseModal.vue'
 import { motivosTurno } from '@/data/motivosTurno'
 import {
   getDisponibilidad,
+  listMisTurnos,
   listVeterinariosParaReserva,
   solicitarTurno,
   type DiaDisponible,
   type HorarioDisponible,
 } from '@/services/reservas'
 import { listMisAnimales, type AnimalPropio } from '@/services/animales'
-import type { ModalidadTurno, Turno, Veterinario } from '@/services/turnos'
+import {
+  rescheduleMyTurno,
+  type EstadoTurno,
+  type ModalidadTurno,
+  type Turno,
+  type Veterinario,
+} from '@/services/turnos'
 import { useSessionStore } from '@/stores/session'
 
 const session = useSessionStore()
+const route = useRoute()
+const router = useRouter()
 const modality = ref<ModalidadTurno | ''>('')
 const animals = ref<AnimalPropio[]>([])
+const ownerTurnos = ref<Turno[]>([])
 const vets = ref<Veterinario[]>([])
 const availability = ref<DiaDisponible[]>([])
 const animalId = ref('')
@@ -29,6 +41,12 @@ const loadingAvailability = ref(false)
 const error = ref('')
 const notice = ref('')
 const confirmedTurn = ref<Turno | null>(null)
+const reschedulingTurn = ref<Turno | null>(null)
+const duplicateTurn = ref<Turno | null>(null)
+const showDuplicateDialog = ref(false)
+const showMissingPetDialog = ref(false)
+const availabilitySection = ref<HTMLElement | null>(null)
+const slotsSection = ref<HTMLElement | null>(null)
 let availabilityRequest = 0
 
 function firstOfMonth(date: Date): Date {
@@ -53,6 +71,27 @@ const monthLabel = computed(() =>
 const today = localDate(new Date())
 const isCurrentMonth = computed(() => monthStart.value === localDate(firstOfMonth(new Date())))
 const isUrbanClient = computed(() => session.user?.tipoAtencion === 'URBANO')
+const petRegistrationRoute = computed(() => ({
+  name: 'panel-animal-nuevo',
+  query: session.isRuralClient ? { tipo: 'URBANO' } : undefined,
+}))
+const activeAppointmentStatuses: EstadoTurno[] = [
+  'PENDIENTE',
+  'PENDIENTE_PAGO',
+  'CONFIRMADO',
+  'REPROGRAMADO',
+]
+const hasUpcomingAppointment = (turno: Turno) =>
+  activeAppointmentStatuses.includes(turno.status) &&
+  new Date(turno.dateTime).getTime() > Date.now()
+const reservedTurnForAnimal = computed(() => {
+  if (!animalId.value || reschedulingTurn.value) return null
+  return (
+    ownerTurnos.value.find(
+      (turno) => turno.animal.id === animalId.value && hasUpcomingAppointment(turno),
+    ) ?? null
+  )
+})
 const hasRuralLots = computed(() =>
   animals.value.some((animal) => animal.modality === 'RURAL' && animal.farmId !== null),
 )
@@ -62,9 +101,13 @@ const selectedReasonOption = computed(() =>
 )
 const eligibleAnimals = computed(() =>
   animals.value.filter((animal) =>
-    modality.value === 'RURAL'
-      ? animal.modality === 'RURAL' && animal.farmId !== null
-      : animal.modality === 'URBANO',
+    animal.id === reschedulingTurn.value?.animal.id
+      ? animal.modality === modality.value
+      : reschedulingTurn.value
+        ? false
+        : modality.value === 'RURAL'
+          ? animal.modality === 'RURAL' && animal.farmId !== null
+          : animal.modality === 'URBANO',
   ),
 )
 const daysByDate = computed(() => new Map(availability.value.map((day) => [day.fecha, day])))
@@ -96,6 +139,11 @@ const calendarDays = computed(() => {
 const selectedDay = computed(
   () => availability.value.find((day) => day.fecha === selectedDate.value) ?? null,
 )
+const consultationComplete = computed(() =>
+  Boolean(
+    modality.value && animalId.value && (reschedulingTurn.value || selectedReasonOption.value),
+  ),
+)
 const weekdays = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá']
 const displayDate = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'full',
@@ -107,12 +155,18 @@ const displayTime = new Intl.DateTimeFormat('es-AR', {
   timeZone: 'America/Argentina/Buenos_Aires',
 })
 
-async function loadAvailability() {
+function preserveAvailabilityPosition(sectionTop?: number) {
+  if (sectionTop === undefined || !availabilitySection.value) return
+  const topDifference = availabilitySection.value.getBoundingClientRect().top - sectionTop
+  if (topDifference) window.scrollBy(0, topDifference)
+}
+
+async function loadAvailability(sectionTop?: number) {
   const requestId = ++availabilityRequest
   selectedDate.value = ''
   selectedSlot.value = null
 
-  if (!modality.value) {
+  if (!modality.value || reservedTurnForAnimal.value) {
     availability.value = []
     loadingAvailability.value = false
     return
@@ -120,6 +174,8 @@ async function loadAvailability() {
 
   loadingAvailability.value = true
   error.value = ''
+  await nextTick()
+  preserveAvailabilityPosition(sectionTop)
 
   try {
     const days = await getDisponibilidad({
@@ -128,12 +184,18 @@ async function loadAvailability() {
       modalidad: modality.value,
       idVeterinario: preferredVetId.value,
     })
-    if (requestId === availabilityRequest) availability.value = days
+    if (requestId === availabilityRequest) {
+      availability.value = days
+      await nextTick()
+      preserveAvailabilityPosition(sectionTop)
+    }
   } catch (cause) {
     if (requestId === availabilityRequest) {
       error.value =
         cause instanceof Error ? cause.message : 'No fue posible consultar la disponibilidad.'
       availability.value = []
+      await nextTick()
+      preserveAvailabilityPosition(sectionTop)
     }
   } finally {
     if (requestId === availabilityRequest) loadingAvailability.value = false
@@ -141,9 +203,17 @@ async function loadAvailability() {
 }
 
 function changeMonth(offset: number) {
+  const sectionTop = availabilitySection.value?.getBoundingClientRect().top
   const next = new Date(currentMonth.value)
   next.setMonth(next.getMonth() + offset)
   currentMonth.value = firstOfMonth(next)
+  void loadAvailability(sectionTop)
+}
+
+async function scrollToSection(section: 'availability' | 'slots') {
+  await nextTick()
+  const target = section === 'availability' ? availabilitySection.value : slotsSection.value
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function selectDay(day: DiaDisponible) {
@@ -151,6 +221,7 @@ function selectDay(day: DiaDisponible) {
   selectedDate.value = day.fecha
   selectedSlot.value = null
   error.value = ''
+  void scrollToSection('slots')
 }
 
 function selectSlot(slot: HorarioDisponible) {
@@ -159,11 +230,17 @@ function selectSlot(slot: HorarioDisponible) {
 }
 
 async function submitBooking() {
+  if (reservedTurnForAnimal.value) {
+    duplicateTurn.value = reservedTurnForAnimal.value
+    showDuplicateDialog.value = true
+    return
+  }
+
   if (!modality.value || !animalId.value || !selectedDay.value || !selectedSlot.value) {
     error.value = 'Seleccioná el paciente, el día y un horario disponible.'
     return
   }
-  if (!selectedReasonOption.value) {
+  if (!reschedulingTurn.value && !selectedReasonOption.value) {
     error.value = 'Seleccioná el motivo de la consulta.'
     return
   }
@@ -171,6 +248,17 @@ async function submitBooking() {
   booking.value = true
   error.value = ''
   try {
+    if (reschedulingTurn.value) {
+      await rescheduleMyTurno(reschedulingTurn.value.id, selectedSlot.value.fechaHora)
+      await router.replace({ name: 'panel-turnos', query: { actualizado: 'reprogramado' } })
+      return
+    }
+
+    if (!selectedReasonOption.value) {
+      error.value = 'Seleccioná el motivo de la consulta.'
+      return
+    }
+
     confirmedTurn.value = await solicitarTurno({
       id_animal: animalId.value,
       id_veterinario: preferredVetId.value || null,
@@ -184,9 +272,28 @@ async function submitBooking() {
     notice.value = ''
     await loadAvailability()
   } catch (cause) {
-    error.value =
+    const bookingError =
       cause instanceof Error ? cause.message : 'No fue posible enviar la solicitud de turno.'
+    const duplicateConflict = bookingError.includes('ya tiene un turno reservado')
+    let turnosRefreshError = ''
+    if (duplicateConflict) {
+      try {
+        ownerTurnos.value = await listMisTurnos()
+      } catch (refreshError) {
+        turnosRefreshError =
+          refreshError instanceof Error
+            ? refreshError.message
+            : 'No fue posible actualizar la lista de turnos.'
+      }
+      duplicateTurn.value = reservedTurnForAnimal.value
+      showDuplicateDialog.value = true
+    }
     await loadAvailability()
+    if (duplicateConflict) {
+      error.value = turnosRefreshError ? `${bookingError} ${turnosRefreshError}` : ''
+    } else {
+      error.value = error.value ? `${bookingError} ${error.value}` : bookingError
+    }
   } finally {
     booking.value = false
   }
@@ -206,13 +313,42 @@ onMounted(async () => {
   if (isUrbanClient.value) modality.value = 'URBANO'
 
   try {
-    const [ownAnimals, availableVets] = await Promise.all([
-      listMisAnimales(),
-      listVeterinariosParaReserva(),
-    ])
+    const [ownAnimals, ownTurnos] = await Promise.all([listMisAnimales(), listMisTurnos()])
     animals.value = ownAnimals
-    vets.value = availableVets
-    if (isUrbanClient.value || !hasRuralLots.value) modality.value = 'URBANO'
+    ownerTurnos.value = ownTurnos
+    const requestedModality = route.query.modalidad
+    if (requestedModality === 'URBANO' || requestedModality === 'RURAL') {
+      modality.value = requestedModality
+    } else if (isUrbanClient.value || !hasRuralLots.value) {
+      modality.value = 'URBANO'
+    }
+    if (
+      !animals.value.some((animal) => animal.modality === 'URBANO') &&
+      (isUrbanClient.value || !hasRuralLots.value)
+    ) {
+      showMissingPetDialog.value = true
+    }
+    if (!animals.value.length) return
+
+    vets.value = await listVeterinariosParaReserva()
+    const rescheduleId = route.query.reprogramar
+    if (typeof rescheduleId === 'string') {
+      const target = ownTurnos.find(
+        (turno) => turno.id === rescheduleId && hasUpcomingAppointment(turno),
+      )
+      if (!target || !target.vet) {
+        error.value = 'No encontramos un turno futuro que puedas reprogramar.'
+        return
+      }
+
+      reschedulingTurn.value = target
+      modality.value = target.modality
+      await nextTick()
+      animalId.value = target.animal.id
+      preferredVetId.value = target.vet.id
+      selectedReason.value = target.reasonCategory ?? ''
+      return
+    }
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'No fue posible cargar tus datos para reservar.'
@@ -226,7 +362,40 @@ watch(modality, () => {
   selectedReason.value = ''
 })
 
-watch([modality, preferredVetId, currentMonth], () => {
+watch([modality, loadingSetup], ([currentModality, isLoading]) => {
+  if (
+    !isLoading &&
+    currentModality === 'URBANO' &&
+    !animals.value.some((animal) => animal.modality === 'URBANO')
+  ) {
+    showMissingPetDialog.value = true
+  }
+})
+
+watch(animalId, () => {
+  selectedDate.value = ''
+  selectedSlot.value = null
+  duplicateTurn.value = reservedTurnForAnimal.value
+  showDuplicateDialog.value = duplicateTurn.value !== null
+  if (duplicateTurn.value) {
+    availability.value = []
+    availabilityRequest += 1
+    loadingAvailability.value = false
+  }
+})
+
+watch(reservedTurnForAnimal, (turno) => {
+  if (turno) {
+    duplicateTurn.value = turno
+    showDuplicateDialog.value = true
+  }
+})
+
+watch(consultationComplete, (complete) => {
+  if (complete) void scrollToSection('availability')
+})
+
+watch([modality, preferredVetId], () => {
   void loadAvailability()
 })
 </script>
@@ -234,10 +403,15 @@ watch([modality, preferredVetId, currentMonth], () => {
 <template>
   <div class="mx-auto max-w-4xl text-brand-ink">
     <header class="mb-8">
-      <h1 class="font-serif text-3xl">Reservar turno</h1>
+      <h1 class="font-serif text-3xl">
+        {{ reschedulingTurn ? 'Cambiar fecha y horario' : 'Reservar turno' }}
+      </h1>
       <p class="mt-2 text-sm text-brand-inkSoft">
-        Elegí primero la modalidad de atención; luego vas a poder seleccionar el paciente y un
-        horario disponible.
+        {{
+          reschedulingTurn
+            ? `Elegí un nuevo horario para ${reschedulingTurn.animal.name}.`
+            : 'Elegí primero la modalidad de atención; luego vas a poder seleccionar el paciente y un horario disponible.'
+        }}
       </p>
     </header>
 
@@ -250,7 +424,38 @@ watch([modality, preferredVetId, currentMonth], () => {
     </p>
 
     <section
-      v-if="confirmedTurn"
+      v-if="!loadingSetup && !error && !animals.length"
+      class="mb-6 rounded-lg border border-brand-accent bg-brand-accentSoft p-6 text-brand-accentInk"
+      role="status"
+    >
+      <h2 class="text-lg font-semibold">
+        {{
+          session.isRuralClient ? 'Registrá tus primeros pacientes' : 'Registrá tu primera mascota'
+        }}
+      </h2>
+      <p class="mt-2 text-sm">
+        {{
+          session.isRuralClient
+            ? 'Para reservar en consultorio registrá una mascota; para solicitar una visita rural, registrá un lote.'
+            : 'Para solicitar un turno necesitamos que registres una mascota.'
+        }}
+      </p>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <RouterLink :to="petRegistrationRoute" class="btn-primary inline-flex">
+          Registrar mascota
+        </RouterLink>
+        <RouterLink
+          v-if="session.isRuralClient"
+          :to="{ name: 'panel-animal-nuevo' }"
+          class="btn-outline"
+        >
+          Registrar lote
+        </RouterLink>
+      </div>
+    </section>
+
+    <section
+      v-if="animals.length && confirmedTurn"
       class="rounded-lg border border-brand-accent bg-brand-accentSoft p-6 text-brand-accentInk"
       role="status"
     >
@@ -268,13 +473,13 @@ watch([modality, preferredVetId, currentMonth], () => {
       <button type="button" class="btn-primary mt-5" @click="resetForm">Reservar otro turno</button>
     </section>
 
-    <div v-else class="space-y-6">
+    <div v-else-if="!loadingSetup && animals.length" class="space-y-6">
       <section class="rounded-lg border border-brand-line bg-brand-surface p-5 shadow-sm">
         <h2 class="text-base font-semibold text-brand-accentInk">1. Datos de la consulta</h2>
         <div v-if="loadingSetup" class="mt-4 text-sm text-brand-inkSoft">Cargando tus datos...</div>
         <div v-else class="mt-4 grid gap-4 sm:grid-cols-2">
           <label
-            v-if="!isUrbanClient && hasRuralLots"
+            v-if="!reschedulingTurn && !isUrbanClient && hasRuralLots"
             class="text-xs font-medium text-brand-inkSoft"
           >
             Modalidad de atención
@@ -293,7 +498,7 @@ watch([modality, preferredVetId, currentMonth], () => {
             Paciente
             <select
               v-model="animalId"
-              :disabled="!modality"
+              :disabled="!modality || Boolean(reschedulingTurn)"
               class="mt-1 w-full rounded border border-brand-line bg-brand-bg p-2.5 text-sm text-brand-ink outline-none focus:border-brand-accent"
               required
             >
@@ -312,7 +517,10 @@ watch([modality, preferredVetId, currentMonth], () => {
             </select>
           </label>
 
-          <label class="text-xs font-medium text-brand-inkSoft sm:col-span-2">
+          <label
+            v-if="!reschedulingTurn"
+            class="text-xs font-medium text-brand-inkSoft sm:col-span-2"
+          >
             Veterinario de preferencia
             <select
               v-model="preferredVetId"
@@ -339,21 +547,27 @@ watch([modality, preferredVetId, currentMonth], () => {
             </select>
           </label>
         </div>
-        <p
-          v-if="modality && !eligibleAnimals.length"
-          class="mt-3 text-sm text-brand-warnInk"
-        >
+        <p v-if="modality && !eligibleAnimals.length" class="mt-3 text-sm text-brand-warnInk">
           {{
             modality === 'RURAL'
               ? 'No tenés animales o lotes rurales registrados para reservar una visita a campo.'
               : 'No tenés pacientes urbanos registrados para reservar en consultorio.'
           }}
+          <button
+            v-if="modality === 'URBANO'"
+            type="button"
+            class="ml-1 font-semibold underline underline-offset-2"
+            @click="showMissingPetDialog = true"
+          >
+            Ver cómo registrar una mascota
+          </button>
         </p>
       </section>
 
       <section
-        v-if="modality"
-        class="rounded-lg border border-brand-line bg-brand-surface p-5 shadow-sm"
+        v-if="modality && eligibleAnimals.length && !reservedTurnForAnimal"
+        ref="availabilitySection"
+        class="scroll-mt-6 rounded-lg border border-brand-line bg-brand-surface p-5 shadow-sm"
       >
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -386,10 +600,12 @@ watch([modality, preferredVetId, currentMonth], () => {
           </div>
         </div>
 
-        <p v-if="loadingAvailability" class="mt-5 text-sm text-brand-inkSoft" role="status">
-          Consultando disponibilidad...
-        </p>
-        <div v-else class="mt-5">
+        <div class="mt-4 min-h-5" aria-live="polite">
+          <p v-if="loadingAvailability" class="text-sm text-brand-inkSoft" role="status">
+            Consultando disponibilidad...
+          </p>
+        </div>
+        <div :aria-busy="loadingAvailability" :inert="loadingAvailability" class="mt-1">
           <div class="grid grid-cols-7 gap-2 text-center text-xs text-brand-inkSoft">
             <span v-for="day in weekdays" :key="day" class="py-2">{{ day }}</span>
           </div>
@@ -399,7 +615,7 @@ watch([modality, preferredVetId, currentMonth], () => {
               <button
                 v-else
                 type="button"
-                :disabled="day.lleno || day.fecha < today"
+                :disabled="loadingAvailability || day.lleno || day.fecha < today"
                 :aria-pressed="selectedDate === day.fecha"
                 class="flex min-h-16 flex-col items-center justify-center rounded border p-1 transition"
                 :class="
@@ -413,7 +629,13 @@ watch([modality, preferredVetId, currentMonth], () => {
               >
                 <span class="text-sm font-semibold">{{ Number(day.fecha.slice(-2)) }}</span>
                 <span class="text-[10px]">
-                  {{ day.lleno ? 'Lleno' : `${day.horarios.length} horarios` }}
+                  {{
+                    loadingAvailability
+                      ? 'Consultando'
+                      : day.lleno
+                        ? 'Lleno'
+                        : `${day.horarios.length} horarios`
+                  }}
                 </span>
               </button>
             </template>
@@ -422,8 +644,9 @@ watch([modality, preferredVetId, currentMonth], () => {
       </section>
 
       <section
-        v-if="selectedDay"
-        class="rounded-lg border border-brand-line bg-brand-surface p-5 shadow-sm"
+        v-if="selectedDay && !reservedTurnForAnimal"
+        ref="slotsSection"
+        class="scroll-mt-6 rounded-lg border border-brand-line bg-brand-surface p-5 shadow-sm"
       >
         <h2 class="text-base font-semibold text-brand-accentInk">
           3. Horarios del {{ displayDate.format(new Date(`${selectedDay.fecha}T12:00:00-03:00`)) }}
@@ -450,31 +673,88 @@ watch([modality, preferredVetId, currentMonth], () => {
         <p v-if="!selectedDay.horarios.length" class="mt-3 text-sm text-brand-inkSoft">
           No quedan horarios para este día.
         </p>
+
+        <p
+          v-if="notice"
+          class="mt-5 rounded border border-brand-accent bg-brand-accentSoft p-3 text-sm text-brand-accentInk"
+          role="status"
+        >
+          {{ notice }}
+        </p>
+
+        <button
+          type="button"
+          :disabled="
+            loadingSetup ||
+            booking ||
+            !modality ||
+            !animalId ||
+            (!reschedulingTurn && !selectedReasonOption) ||
+            !selectedSlot
+          "
+          class="btn-primary mt-5 w-full disabled:cursor-not-allowed disabled:opacity-50"
+          @click="submitBooking"
+        >
+          {{
+            booking
+              ? reschedulingTurn
+                ? 'Guardando cambio...'
+                : 'Enviando solicitud...'
+              : reschedulingTurn
+                ? 'Confirmar nuevo horario'
+                : 'Solicitar turno'
+          }}
+        </button>
       </section>
-
-      <p
-        v-if="notice"
-        class="rounded border border-brand-accent bg-brand-accentSoft p-3 text-sm text-brand-accentInk"
-        role="status"
-      >
-        {{ notice }}
-      </p>
-
-      <button
-        type="button"
-        :disabled="
-          loadingSetup ||
-          booking ||
-          !modality ||
-          !animalId ||
-          !selectedReasonOption ||
-          !selectedSlot
-        "
-        class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
-        @click="submitBooking"
-      >
-        {{ booking ? 'Enviando solicitud...' : 'Solicitar turno' }}
-      </button>
     </div>
+
+    <BaseModal
+      v-if="showDuplicateDialog"
+      title="Mascota con turno reservado"
+      :subtitle="
+        duplicateTurn
+          ? `${duplicateTurn.animal.name} · ${displayDate.format(new Date(duplicateTurn.dateTime))}`
+          : undefined
+      "
+      @close="showDuplicateDialog = false"
+    >
+      <p class="text-sm text-brand-inkSoft">
+        Tu mascota ya tiene un turno reservado. Para evitar duplicados, primero cambiá la fecha y el
+        horario o cancelalo desde
+        <RouterLink
+          :to="{ name: 'panel-turnos' }"
+          class="font-semibold text-brand-accentInk underline underline-offset-2"
+          @click="showDuplicateDialog = false"
+        >
+          Mis turnos </RouterLink
+        >.
+      </p>
+    </BaseModal>
+
+    <BaseModal
+      v-if="showMissingPetDialog"
+      title="Registrá una mascota para reservar"
+      @close="showMissingPetDialog = false"
+    >
+      <p class="text-sm text-brand-inkSoft">
+        {{
+          session.isRuralClient
+            ? 'Todavía no tenés mascotas urbanas registradas. Para pedir un turno de consultorio, primero agregá tu mascota; tus lotes rurales siguen disponibles para visitas a campo.'
+            : 'Todavía no tenés mascotas registradas. Agregá los datos de tu mascota para poder elegirla al solicitar un turno.'
+        }}
+      </p>
+      <div class="mt-5 flex flex-wrap justify-end gap-3">
+        <button type="button" class="btn-outline" @click="showMissingPetDialog = false">
+          Ahora no
+        </button>
+        <RouterLink
+          :to="petRegistrationRoute"
+          class="btn-primary"
+          @click="showMissingPetDialog = false"
+        >
+          Registrar mascota
+        </RouterLink>
+      </div>
+    </BaseModal>
   </div>
 </template>

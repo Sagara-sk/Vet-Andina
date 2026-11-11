@@ -15,15 +15,18 @@ vi.mock("../src/models/turno.model", async (importOriginal) => ({
   listAgendaTurnos: vi.fn(),
   listHojaDeRutaRecords: vi.fn(),
   isAssignableVet: vi.fn(),
+  listTurnos: vi.fn(),
 }));
 
 const { app } = await import("../src/app");
-const { createSessionToken, SESSION_COOKIE_NAME } = await import("../src/services/auth.service");
+const { createSessionToken, SESSION_COOKIE_NAME } =
+  await import("../src/services/auth.service");
 const turnoModel = await import("../src/models/turno.model");
 
 const listAgendaTurnos = vi.mocked(turnoModel.listAgendaTurnos);
 const listHojaDeRutaRecords = vi.mocked(turnoModel.listHojaDeRutaRecords);
 const isAssignableVet = vi.mocked(turnoModel.isAssignableVet);
+const listTurnos = vi.mocked(turnoModel.listTurnos);
 
 const VET_ID = "11111111-1111-4111-8111-111111111111";
 const OTHER_VET_ID = "22222222-2222-4222-8222-222222222222";
@@ -83,11 +86,14 @@ beforeEach(() => {
   listAgendaTurnos.mockResolvedValue([turno]);
   listHojaDeRutaRecords.mockResolvedValue([hojaDeRuta]);
   isAssignableVet.mockResolvedValue(true);
+  listTurnos.mockResolvedValue([turno]);
 });
 
 describe("GET /api/veterinarios/me/agenda", () => {
   it("rechaza pedidos sin sesión", async () => {
-    const response = await request(app).get(`/api/veterinarios/me/agenda?${RANGE}`);
+    const response = await request(app).get(
+      `/api/veterinarios/me/agenda?${RANGE}`,
+    );
 
     expect(response.status).toBe(401);
     expect(listAgendaTurnos).not.toHaveBeenCalled();
@@ -148,12 +154,22 @@ describe("GET /api/veterinarios/me/agenda", () => {
       .set("Cookie", cookieFor(SUPERADMIN_ID));
 
     expect(response.status).toBe(200);
-    expect(listAgendaTurnos).toHaveBeenCalledWith(expect.any(Date), expect.any(Date), SUPERADMIN_ID);
+    expect(listAgendaTurnos).toHaveBeenCalledWith(
+      expect.any(Date),
+      expect.any(Date),
+      SUPERADMIN_ID,
+    );
   });
 
   it.each([
-    ["hasta anterior a desde", "desde=2026-11-16T00:00:00.000Z&hasta=2026-11-09T00:00:00.000Z"],
-    ["rango mayor a 92 días", "desde=2026-01-01T00:00:00.000Z&hasta=2026-06-01T00:00:00.000Z"],
+    [
+      "hasta anterior a desde",
+      "desde=2026-11-16T00:00:00.000Z&hasta=2026-11-09T00:00:00.000Z",
+    ],
+    [
+      "rango mayor a 92 días",
+      "desde=2026-01-01T00:00:00.000Z&hasta=2026-06-01T00:00:00.000Z",
+    ],
     ["fecha inválida", "desde=no-es-fecha"],
   ])("responde 400 ante %s", async (_case, query) => {
     const response = await request(app)
@@ -166,7 +182,9 @@ describe("GET /api/veterinarios/me/agenda", () => {
 
   it("responde 500 sin exponer detalles si falla la base", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    listAgendaTurnos.mockRejectedValue(new Error("connection refused 10.0.0.1"));
+    listAgendaTurnos.mockRejectedValue(
+      new Error("connection refused 10.0.0.1"),
+    );
 
     const response = await request(app)
       .get(`/api/veterinarios/me/agenda?${RANGE}`)
@@ -189,6 +207,33 @@ describe("GET /api/veterinarios/agenda", () => {
     expect(listAgendaTurnos).not.toHaveBeenCalled();
   });
 
+  describe("GET /api/turnos", () => {
+    it("limita al veterinario a sus turnos aunque solicite otro profesional", async () => {
+      const response = await request(app)
+        .get(`/api/turnos?${RANGE}&veterinario=${OTHER_VET_ID}`)
+        .set("Cookie", cookieFor(VET_ID));
+
+      expect(response.status).toBe(200);
+      expect(listTurnos).toHaveBeenCalledWith(
+        expect.objectContaining({ vetId: VET_ID }),
+      );
+    });
+
+    it.each([
+      ["ADMINISTRATIVO", ADMIN_ID],
+      ["SUPERADMIN", SUPERADMIN_ID],
+    ])("%s conserva el acceso a la agenda general", async (_role, userId) => {
+      const response = await request(app)
+        .get(`/api/turnos?${RANGE}`)
+        .set("Cookie", cookieFor(userId));
+
+      expect(response.status).toBe(200);
+      expect(listTurnos).toHaveBeenCalledWith(
+        expect.objectContaining({ vetId: null }),
+      );
+    });
+  });
+
   it.each([
     ["ADMINISTRATIVO", ADMIN_ID],
     ["SUPERADMIN", SUPERADMIN_ID],
@@ -201,8 +246,16 @@ describe("GET /api/veterinarios/agenda", () => {
     expect(response.body.agenda.veterinario).toBeNull();
     expect(response.body.agenda.turnos).toHaveLength(1);
     expect(response.body.agenda.hojasDeRuta).toHaveLength(1);
-    expect(listAgendaTurnos).toHaveBeenCalledWith(expect.any(Date), expect.any(Date), null);
-    expect(listHojaDeRutaRecords).toHaveBeenCalledWith(expect.any(Date), expect.any(Date), null);
+    expect(listAgendaTurnos).toHaveBeenCalledWith(
+      expect.any(Date),
+      expect.any(Date),
+      null,
+    );
+    expect(listHojaDeRutaRecords).toHaveBeenCalledWith(
+      expect.any(Date),
+      expect.any(Date),
+      null,
+    );
   });
 
   it("filtra por veterinario", async () => {
@@ -212,8 +265,16 @@ describe("GET /api/veterinarios/agenda", () => {
 
     expect(response.status).toBe(200);
     expect(isAssignableVet).toHaveBeenCalledWith(OTHER_VET_ID);
-    expect(listAgendaTurnos).toHaveBeenCalledWith(expect.any(Date), expect.any(Date), OTHER_VET_ID);
-    expect(listHojaDeRutaRecords).toHaveBeenCalledWith(expect.any(Date), expect.any(Date), OTHER_VET_ID);
+    expect(listAgendaTurnos).toHaveBeenCalledWith(
+      expect.any(Date),
+      expect.any(Date),
+      OTHER_VET_ID,
+    );
+    expect(listHojaDeRutaRecords).toHaveBeenCalledWith(
+      expect.any(Date),
+      expect.any(Date),
+      OTHER_VET_ID,
+    );
   });
 
   it("responde 404 si el veterinario no existe o no es asignable", async () => {

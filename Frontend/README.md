@@ -13,6 +13,8 @@ El servidor de desarrollo de Vite normalmente queda disponible en `http://localh
 
 El formulario de `/registro` envía nombre completo, email, teléfono, localidad y contraseña a `POST /api/auth/register`. El backend crea la cuenta, pero el registro no inicia sesión automáticamente; luego de un alta exitosa, la persona puede ingresar desde `/login`. Para que funcione, la API debe estar levantada y configurada con `DATABASE_URL`; el origen del frontend debe estar permitido en `FRONTEND_URL`.
 
+Después del login, los clientes nuevos completan su perfil, registran su primera mascota (urbano) o lote (rural) y continúan a `/panel/reservar`. Desde «Mis mascotas» pueden registrar animales adicionales. El alta de animales propios usa `POST /api/animales/mios`; el backend determina el tutor a partir de la sesión y valida la modalidad y propiedad del establecimiento rural.
+
 La vista offline del panel veterinario sigue siendo un prototipo local. No descarga fichas ni sincroniza datos con la API. No ingreses información clínica real en sus borradores.
 
 ## Verificaciones
