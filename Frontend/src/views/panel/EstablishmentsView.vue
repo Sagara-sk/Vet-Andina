@@ -38,7 +38,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="mx-auto max-w- [1210px]">
+  <div class="mx-auto max-w-[1210px]">
     <header>
       <h1 class="font-serif text-3xl text-brand-ink">Mis establecimientos</h1>
       <p class="mt-2 text-sm text-brand-inkSoft">
@@ -116,7 +116,7 @@ onMounted(load)
           </p>
 
           <div v-else class="mt-4 overflow-x-auto">
-            <table class="w-full min-w- [650px] text-left text-sm">
+            <table class="w-full min-w-[650px] text-left text-sm">
               <thead class="text-xs text-brand-inkSoft">
                 <tr>
                   <th class="px-3 py-2 font-normal">Lote</th>
@@ -141,7 +141,7 @@ onMounted(load)
                   <td class="px-3 py-3 text-center">
                     <RouterLink
                       :to="{
-                        name: 'panel-mascota-ficha',
+                        name: 'panel-lote-ficha',
                         params: { id: lot.id },
                       }"
                       class="font-medium text-brand-accentInk underline underline-offset-2 hover:opacity-75"

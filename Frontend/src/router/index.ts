@@ -125,9 +125,7 @@ const router = createRouter({
     // - INDIVIDUAL: cliente urbano.
     // - EMPRESA_PRODUCTOR: cliente rural.
     //
-    // IMPORTANTE:
-    // Las restricciones específicas por tipoPersona
-    // se incorporarán posteriormente en access.ts.
+    // Las rutas rurales también requieren tipoPersona EMPRESA_PRODUCTOR.
     // ==================================================
 
     {
@@ -166,6 +164,16 @@ const router = createRouter({
           name: 'panel-mascota-ficha',
           props: true,
           component: () => import('@/views/admin/FichaView.vue'),
+        },
+        {
+          path: 'establecimientos/lotes/:id/ficha',
+          name: 'panel-lote-ficha',
+          props: true,
+          component: () => import('@/views/admin/FichaView.vue'),
+          meta: {
+            title: 'Ficha de lote rural',
+            allowedTipoPersona: ['EMPRESA_PRODUCTOR'],
+          },
         },
         {
           path: 'establecimientos',
