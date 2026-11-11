@@ -108,6 +108,15 @@ export async function rescheduleTurno(
   ).turno
 }
 
+export async function rescheduleMyTurno(id: string, fechaHora: string): Promise<Turno> {
+  return (
+    await apiRequest<{ turno: Turno }>(`/api/turnos/${id}/reprogramar`, {
+      method: 'POST',
+      body: { fechaHora },
+    })
+  ).turno
+}
+
 export async function cancelTurno(id: string, motivo: string): Promise<Turno> {
   return (
     await apiRequest<{ turno: Turno }>(`/api/turnos/${id}/cancelar`, {

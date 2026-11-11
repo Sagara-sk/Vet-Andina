@@ -1,31 +1,29 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import BaseModal from '@/components/admin/BaseModal.vue'
 import { listMisTurnos } from '@/services/reservas'
-import { MODIFICABLE, rescheduleTurno, type Turno } from '@/services/turnos'
-import { toDateTimeInput } from '@/utils/format'
+import { MODIFICABLE, cancelTurno, type EstadoTurno, type Turno } from '@/services/turnos'
 
-const turns = ref<Turno[]>([])
+const turnos = ref<Turno[]>([])
+const route = useRoute()
 const loading = ref(true)
-const saving = ref(false)
 const error = ref('')
-const notice = ref('')
-const selectedTurn = ref<Turno | null>(null)
-const proposedDateTime = ref('')
-const minDateTime = toDateTimeInput(new Date())
+const canceling = ref(false)
+const cancelError = ref('')
+const turnoParaCancelar = ref<Turno | null>(null)
 
-const sortedTurns = computed(() =>
-  [...turns.value].sort((a, b) => b.dateTime.localeCompare(a.dateTime)),
+const sortedTurnos = computed(() =>
+  [...turnos.value].sort(
+    (first, second) => new Date(first.dateTime).getTime() - new Date(second.dateTime).getTime(),
+  ),
 )
 
-const dateFormat = new Intl.DateTimeFormat('es-AR', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-  timeZone: 'America/Argentina/Buenos_Aires',
-})
+function canManage(turno: Turno): boolean {
+  return MODIFICABLE.includes(turno.status) && new Date(turno.dateTime).getTime() > Date.now()
+}
 
-const statusLabels: Record<Turno['status'], string> = {
+const statusLabels: Record<EstadoTurno, string> = {
   PENDIENTE: 'Pendiente de aceptación',
   PENDIENTE_PAGO: 'Esperando seña',
   CONFIRMADO: 'Confirmado',
@@ -35,21 +33,23 @@ const statusLabels: Record<Turno['status'], string> = {
   AUSENTE: 'Ausente',
 }
 
-function canReschedule(turn: Turno): boolean {
-  return MODIFICABLE.includes(turn.status) && new Date(turn.dateTime).getTime() > Date.now()
+function statusLabel(status: EstadoTurno): string {
+  return statusLabels[status]
 }
 
-function openReschedule(turn: Turno) {
-  selectedTurn.value = turn
-  proposedDateTime.value = toDateTimeInput(new Date(turn.dateTime))
-  error.value = ''
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat('es-AR', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).format(new Date(value))
 }
 
-async function loadTurns() {
+async function load() {
   loading.value = true
   error.value = ''
   try {
-    turns.value = await listMisTurnos()
+    turnos.value = await listMisTurnos()
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : 'No fue posible obtener tus turnos.'
   } finally {
@@ -57,148 +57,165 @@ async function loadTurns() {
   }
 }
 
-async function saveReschedule() {
-  if (!selectedTurn.value || !proposedDateTime.value) return
-  saving.value = true
-  error.value = ''
+async function confirmCancel() {
+  if (!turnoParaCancelar.value) return
+
+  canceling.value = true
+  cancelError.value = ''
   try {
-    await rescheduleTurno(
-      selectedTurn.value.id,
-      new Date(proposedDateTime.value).toISOString(),
-      null,
-    )
-    notice.value =
-      selectedTurn.value.modality === 'RURAL'
-        ? 'La propuesta de fecha quedó actualizada. El personal coordinará la visita al organizar la hoja de ruta.'
-        : 'El cambio de fecha quedó pendiente de aceptación por el equipo.'
-    selectedTurn.value = null
-    await loadTurns()
+    const updated = await cancelTurno(turnoParaCancelar.value.id, '')
+    turnos.value = turnos.value.map((turno) => (turno.id === updated.id ? updated : turno))
+    turnoParaCancelar.value = null
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'No fue posible modificar el turno.'
+    cancelError.value = cause instanceof Error ? cause.message : 'No fue posible cancelar el turno.'
   } finally {
-    saving.value = false
+    canceling.value = false
   }
 }
 
-onMounted(loadTurns)
+onMounted(load)
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1210px]">
+  <div class="mx-auto max-w-[1210px] text-brand-ink">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="font-serif text-3xl text-brand-ink">Mis turnos</h1>
+        <h1 class="font-serif text-3xl">Mis turnos</h1>
         <p class="mt-2 text-sm text-brand-inkSoft">
-          Consultá tus solicitudes y modificá la fecha de un turno vigente.
+          Consultá tus turnos y gestioná la fecha o cancelación de los próximos.
         </p>
       </div>
       <RouterLink :to="{ name: 'panel-reservar' }" class="btn-primary"> Reservar turno </RouterLink>
     </header>
 
     <p
-      v-if="error && !selectedTurn"
-      class="mt-5 rounded border border-brand-dangerLine bg-brand-dangerSoft p-3 text-sm text-brand-dangerInk"
+      v-if="route.query.actualizado === 'reprogramado'"
+      class="mt-6 border border-brand-accent bg-brand-accentSoft px-4 py-3 text-sm text-brand-accentInk"
+      role="status"
+    >
+      El turno se reprogramó correctamente.
+    </p>
+
+    <p
+      v-if="error"
+      class="mt-6 border border-brand-dangerLine bg-brand-dangerSoft px-4 py-3 text-sm text-brand-dangerInk"
       role="alert"
     >
       {{ error }}
-    </p>
-    <p
-      v-if="notice"
-      class="mt-5 rounded border border-brand-accent bg-brand-accentSoft p-3 text-sm text-brand-accentInk"
-      role="status"
-    >
-      {{ notice }}
+      <button type="button" class="ml-2 underline" @click="load">Reintentar</button>
     </p>
 
-    <p v-if="loading" class="mt-8 text-sm text-brand-inkSoft" role="status">
+    <p v-else-if="loading" class="mt-8 text-sm text-brand-inkSoft" role="status">
       Cargando tus turnos...
     </p>
+
     <p
-      v-else-if="!turns.length && !error"
-      class="mt-8 rounded border border-brand-line bg-brand-surface p-5 text-sm text-brand-inkSoft"
+      v-else-if="!sortedTurnos.length"
+      class="mt-8 border border-brand-line bg-brand-surface p-6 text-sm text-brand-inkSoft"
     >
       Todavía no tenés turnos registrados.
     </p>
-    <div
-      v-else-if="turns.length"
-      class="mt-8 overflow-x-auto border border-brand-line bg-brand-surface"
-    >
-      <table class="w-full min-w-[760px] text-left text-sm">
-        <thead class="text-xs text-brand-inkSoft">
-          <tr>
-            <th class="px-4 py-3 font-normal">Paciente / lote</th>
-            <th class="px-4 py-3 font-normal">Modalidad</th>
-            <th class="px-4 py-3 font-normal">Fecha y hora</th>
-            <th class="px-4 py-3 font-normal">Veterinario</th>
-            <th class="px-4 py-3 font-normal">Estado</th>
-            <th class="px-4 py-3 font-normal"><span class="sr-only">Acciones</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="turn in sortedTurns"
-            :key="turn.id"
-            class="border-t border-brand-line text-brand-ink"
-          >
-            <td class="px-4 py-4">
-              <span class="font-medium">{{ turn.animal.name }}</span>
-              <span class="block text-xs text-brand-inkSoft">{{ turn.animal.species }}</span>
-            </td>
-            <td class="px-4 py-4">{{ turn.modality === 'RURAL' ? 'Rural' : 'Consultorio' }}</td>
-            <td class="px-4 py-4">{{ dateFormat.format(new Date(turn.dateTime)) }}</td>
-            <td class="px-4 py-4">{{ turn.vet?.fullName ?? 'A coordinar' }}</td>
-            <td class="px-4 py-4">{{ statusLabels[turn.status] }}</td>
-            <td class="px-4 py-4">
-              <button
-                v-if="canReschedule(turn)"
-                type="button"
-                class="btn-outline min-h-0! px-3! py-2!"
-                @click="openReschedule(turn)"
-              >
-                Modificar
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 
-  <BaseModal
-    v-if="selectedTurn"
-    title="Modificar turno"
-    :subtitle="`${selectedTurn.animal.name} · ${selectedTurn.modality === 'RURAL' ? 'Visita rural' : 'Consultorio'}`"
-    @close="selectedTurn = null"
-  >
-    <form class="space-y-4" @submit.prevent="saveReschedule">
+    <div v-else class="mt-8 space-y-4">
+      <article
+        v-for="turno in sortedTurnos"
+        :key="turno.id"
+        class="rounded-lg border border-brand-line bg-brand-surface p-5"
+      >
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-semibold">{{ turno.animal.name }}</h2>
+            <p class="mt-1 text-sm text-brand-inkSoft">
+              {{ turno.animal.species }} ·
+              {{ turno.modality === 'RURAL' ? 'Visita rural' : 'Consultorio' }}
+            </p>
+          </div>
+          <span class="rounded-full bg-brand-accentSoft px-3 py-1 text-xs text-brand-accentInk">
+            {{ statusLabel(turno.status) }}
+          </span>
+        </div>
+
+        <dl class="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="text-xs text-brand-inkSoft">
+              {{ turno.modality === 'RURAL' ? 'Fecha y horario propuestos' : 'Fecha y horario' }}
+            </dt>
+            <dd class="mt-1">{{ formatDate(turno.dateTime) }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-brand-inkSoft">Profesional</dt>
+            <dd class="mt-1">
+              {{
+                turno.vet?.fullName ?? (turno.modality === 'RURAL' ? 'A coordinar' : 'A confirmar')
+              }}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-brand-inkSoft">Motivo</dt>
+            <dd class="mt-1">{{ turno.reason ?? '—' }}</dd>
+          </div>
+          <div v-if="turno.status === 'CANCELADA' && turno.cancellationReason">
+            <dt class="text-xs text-brand-inkSoft">Motivo de cancelación</dt>
+            <dd class="mt-1">{{ turno.cancellationReason }}</dd>
+          </div>
+        </dl>
+
+        <p
+          v-if="turno.modality === 'RURAL' && canManage(turno)"
+          class="mt-4 text-xs text-brand-inkSoft"
+        >
+          La fecha y hora son tentativas: el personal coordinará la visita y el veterinario al
+          organizar la hoja de ruta.
+        </p>
+
+        <div v-if="canManage(turno)" class="mt-5 flex flex-wrap gap-3">
+          <RouterLink
+            :to="{ name: 'panel-reservar', query: { reprogramar: turno.id } }"
+            class="btn-outline"
+          >
+            Cambiar fecha y horario
+          </RouterLink>
+          <button type="button" class="btn-outline" @click="turnoParaCancelar = turno">
+            Cancelar turno
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <BaseModal
+      v-if="turnoParaCancelar"
+      title="Cancelar turno"
+      :subtitle="`${turnoParaCancelar.animal.name} · ${formatDate(turnoParaCancelar.dateTime)}`"
+      @close="turnoParaCancelar = null"
+    >
       <p class="text-sm text-brand-inkSoft">
-        {{
-          selectedTurn.modality === 'RURAL'
-            ? 'La fecha y hora son tentativas; el personal podrá coordinarlas al armar la hoja de ruta.'
-            : 'El cambio quedará pendiente de aceptación por el equipo veterinario.'
-        }}
+        ¿Querés cancelar este turno? Esta acción no se puede deshacer.
       </p>
-      <label for="mis-turnos-fecha" class="block text-sm text-brand-inkSoft">
-        Nueva fecha y hora
-        <input
-          id="mis-turnos-fecha"
-          v-model="proposedDateTime"
-          type="datetime-local"
-          :min="minDateTime"
-          required
-          class="field-input mt-1"
-        />
-      </label>
       <p
-        v-if="error"
-        class="rounded border border-brand-dangerLine bg-brand-dangerSoft p-3 text-sm text-brand-dangerInk"
+        v-if="cancelError"
+        class="mt-4 border border-brand-dangerLine bg-brand-dangerSoft p-3 text-sm text-brand-dangerInk"
         role="alert"
       >
-        {{ error }}
+        {{ cancelError }}
       </p>
-      <button type="submit" class="btn-primary w-full" :disabled="saving">
-        {{ saving ? 'Guardando...' : 'Guardar cambio' }}
-      </button>
-    </form>
-  </BaseModal>
+      <div class="mt-5 flex justify-end gap-3">
+        <button
+          type="button"
+          class="btn-outline"
+          :disabled="canceling"
+          @click="turnoParaCancelar = null"
+        >
+          Volver
+        </button>
+        <button
+          type="button"
+          class="rounded-[3px] bg-brand-danger px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          :disabled="canceling"
+          @click="confirmCancel"
+        >
+          {{ canceling ? 'Cancelando...' : 'Confirmar cancelación' }}
+        </button>
+      </div>
+    </BaseModal>
+  </div>
 </template>

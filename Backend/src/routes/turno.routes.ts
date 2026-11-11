@@ -58,6 +58,6 @@ turnoRouter.post("/", management, postTurno);
 turnoRouter.put("/:id/asignar", management, putTurnoAssignment);
 turnoRouter.post("/:id/confirmar", staff, postConfirm);
 turnoRouter.post("/:id/reprogramar", clientOrStaff, postReschedule);
-turnoRouter.post("/:id/cancelar", staff, postCancel);
+turnoRouter.post("/:id/cancelar", clientOrStaff, postCancel);
 
 export default turnoRouter;

@@ -122,7 +122,7 @@ describe("createClientBooking", () => {
         reasonDetail: null,
         durationMinutes: 120,
       }),
-    ).rejects.toThrow("Este paciente ya tiene un turno vigente");
+    ).rejects.toThrow("Este paciente ya tiene un turno reservado");
     expect(statements.some(({ sql }) => sql.includes("INSERT INTO turno"))).toBe(false);
     expect(client.query).toHaveBeenCalledWith("ROLLBACK");
   });

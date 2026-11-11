@@ -1,47 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  findOwnerIdForUser: vi.fn(),
+  findTurnoByIdForUser: vi.fn(),
   findTurnoById: vi.fn(),
-  isAssignableVet: vi.fn(),
   rescheduleTurno: vi.fn(),
-  updateTurnoStatus: vi.fn(),
-  vetHasTurnoAt: vi.fn(),
-}));
-
-vi.mock("../src/models/booking.model", () => ({
-  findOwnerIdForUser: mocks.findOwnerIdForUser,
+  getAvailability: vi.fn(),
 }));
 
 vi.mock("../src/models/turno.model", () => ({
+  findTurnoByIdForUser: mocks.findTurnoByIdForUser,
   findTurnoById: mocks.findTurnoById,
-  isAssignableVet: mocks.isAssignableVet,
   rescheduleTurno: mocks.rescheduleTurno,
-  updateTurnoStatus: mocks.updateTurnoStatus,
-  vetHasTurnoAt: mocks.vetHasTurnoAt,
 }));
 
-const { rescheduleTurnoFor } = await import("../src/services/turno.service");
+vi.mock("../src/services/booking.service", () => ({
+  getAvailability: mocks.getAvailability,
+}));
 
-interface TestUser {
-  userId: string;
-  fullName: string;
-  email: string;
-  role: "CLIENTE";
-  profileComplete: boolean;
-  personType: null;
-  careType: "RURAL";
-}
+const { rescheduleClientTurno } = await import("../src/services/turno.service");
 
 const clientUser = {
   userId: "client-user-id",
   fullName: "Tutor",
   email: "tutor@example.com",
-  role: "CLIENTE",
+  role: "CLIENTE" as const,
   profileComplete: true,
   personType: null,
-  careType: "RURAL",
-} satisfies TestUser;
+  careType: "RURAL" as const,
+};
 
 const ruralTurn = {
   id: "turn-id",
@@ -58,51 +44,104 @@ const ruralTurn = {
   vet: null,
 };
 
+const newDate = new Date("2030-03-05T12:00:00.000Z");
+const RESCHEDULABLE = ["PENDIENTE", "PENDIENTE_PAGO", "CONFIRMADO", "REPROGRAMADO"];
+
+function availabilityWith(dateTime: Date, durationMinutes: number) {
+  return [
+    {
+      fecha: "2030-03-05",
+      lleno: false,
+      horarios: [
+        {
+          fechaHora: dateTime.toISOString(),
+          idVeterinario: null,
+          nombreVeterinario: null,
+          duracionMinutos: durationMinutes,
+        },
+      ],
+    },
+  ];
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.findTurnoByIdForUser.mockResolvedValue(ruralTurn);
   mocks.findTurnoById.mockResolvedValue(ruralTurn);
-  mocks.findOwnerIdForUser.mockResolvedValue("owner-id");
   mocks.rescheduleTurno.mockResolvedValue(true);
+  mocks.getAvailability.mockResolvedValue(availabilityWith(newDate, 120));
 });
 
 describe("client turn rescheduling", () => {
-  it("allows a client to reschedule their own rural request without assigning a vet", async () => {
-    const newDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
+  it("allows a client to reschedule their own rural request without an assigned vet", async () => {
     await expect(
-      rescheduleTurnoFor(clientUser, "turn-id", newDate, null),
+      rescheduleClientTurno(clientUser, "turn-id", newDate),
     ).resolves.toEqual(ruralTurn);
+    expect(mocks.findTurnoByIdForUser).toHaveBeenCalledWith("turn-id", "client-user-id");
+    expect(mocks.getAvailability).toHaveBeenCalledWith(
+      expect.objectContaining({ modality: "RURAL", vetId: null }),
+    );
     expect(mocks.rescheduleTurno).toHaveBeenCalledWith(
       "turn-id",
-      ["PENDIENTE", "PENDIENTE_PAGO", "CONFIRMADO", "REPROGRAMADO"],
+      RESCHEDULABLE,
       newDate,
       null,
     );
   });
 
-  it("does not allow a client to change another owner's turn", async () => {
-    mocks.findOwnerIdForUser.mockResolvedValue("different-owner");
+  it("does not let a client change a turn that belongs to another owner", async () => {
+    mocks.findTurnoByIdForUser.mockResolvedValue(undefined);
 
     await expect(
-      rescheduleTurnoFor(
-        clientUser,
-        "turn-id",
-        new Date(Date.now() + 24 * 60 * 60 * 1000),
-        null,
-      ),
-    ).rejects.toThrow("Solo podés modificar turnos de tus propios pacientes");
+      rescheduleClientTurno(clientUser, "turn-id", newDate),
+    ).rejects.toThrow("El turno no existe");
     expect(mocks.rescheduleTurno).not.toHaveBeenCalled();
   });
 
-  it("does not allow clients to assign a veterinarian while rescheduling", async () => {
+  it("keeps the assigned vet when rescheduling an urban turn", async () => {
+    const urbanTurn = {
+      ...ruralTurn,
+      modality: "URBANO" as const,
+      durationMinutes: 30,
+      vet: { id: "vet-id", fullName: "Dra. Vet" },
+    };
+    mocks.findTurnoByIdForUser.mockResolvedValue(urbanTurn);
+    mocks.getAvailability.mockResolvedValue(availabilityWith(newDate, 30));
+
+    await rescheduleClientTurno(clientUser, "turn-id", newDate);
+
+    expect(mocks.getAvailability).toHaveBeenCalledWith(
+      expect.objectContaining({ modality: "URBANO", vetId: "vet-id" }),
+    );
+    expect(mocks.rescheduleTurno).toHaveBeenCalledWith(
+      "turn-id",
+      RESCHEDULABLE,
+      newDate,
+      "vet-id",
+    );
+  });
+
+  it("rejects an urban turn without an assigned vet", async () => {
+    mocks.findTurnoByIdForUser.mockResolvedValue({
+      ...ruralTurn,
+      modality: "URBANO" as const,
+      durationMinutes: 30,
+    });
+
     await expect(
-      rescheduleTurnoFor(
-        clientUser,
-        "turn-id",
-        new Date(Date.now() + 24 * 60 * 60 * 1000),
-        "vet-id",
-      ),
-    ).rejects.toThrow("No podés asignar un veterinario al turno");
+      rescheduleClientTurno(clientUser, "turn-id", newDate),
+    ).rejects.toThrow("sin veterinario asignado");
+    expect(mocks.rescheduleTurno).not.toHaveBeenCalled();
+  });
+
+  it("rejects a date that is not offered by the availability", async () => {
+    mocks.getAvailability.mockResolvedValue(
+      availabilityWith(new Date("2030-03-05T15:00:00.000Z"), 120),
+    );
+
+    await expect(
+      rescheduleClientTurno(clientUser, "turn-id", newDate),
+    ).rejects.toThrow("Ese horario ya no está disponible");
     expect(mocks.rescheduleTurno).not.toHaveBeenCalled();
   });
 });

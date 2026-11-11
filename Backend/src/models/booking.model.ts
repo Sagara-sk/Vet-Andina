@@ -15,6 +15,9 @@ export interface BookingAnimal {
   id: string;
   name: string;
   species: string;
+  breed: string | null;
+  herdSize: number;
+  birthDate: string | null;
   modality: "URBANO" | "RURAL";
   farmId: string | null;
 }
@@ -69,10 +72,14 @@ export async function listOwnerAnimals(
     id_animal: string;
     nombre_identificacion: string;
     especie: string;
+    raza: string | null;
+    cantidad_en_lote: number | null;
+    fecha_nacimiento: string | null;
     tipo_atencion: "URBANO" | "RURAL";
     id_finca: string | null;
   }>(
-    `SELECT a.id_animal, a.nombre_identificacion, a.especie, a.tipo_atencion, a.id_finca
+    `SELECT a.id_animal, a.nombre_identificacion, a.especie, a.raza,
+            a.cantidad_en_lote, a.fecha_nacimiento, a.tipo_atencion, a.id_finca
      FROM animal a
      JOIN duenio d ON d.id_duenio = a.id_duenio
      WHERE d.id_usuario = $1
@@ -84,6 +91,9 @@ export async function listOwnerAnimals(
     id: row.id_animal,
     name: row.nombre_identificacion,
     species: row.especie,
+    breed: row.raza,
+    herdSize: row.cantidad_en_lote ?? 1,
+    birthDate: row.fecha_nacimiento,
     modality: row.tipo_atencion,
     farmId: row.id_finca,
   }));
@@ -233,7 +243,8 @@ export async function createClientBooking(
        FROM duenio d
        JOIN animal a ON a.id_duenio = d.id_duenio
        WHERE d.id_usuario = $1 AND a.id_animal = $2
-       LIMIT 1`,
+       LIMIT 1
+       FOR UPDATE OF a`,
       [input.userId, input.animalId],
     );
     const ownerRow = owner.rows[0];
@@ -265,7 +276,7 @@ export async function createClientBooking(
     );
     if (existingBooking.rowCount) {
       throw new ConflictError(
-        "Este paciente ya tiene un turno vigente. Modificalo desde Mis turnos antes de solicitar otro.",
+        "Este paciente ya tiene un turno reservado. Podés cambiar la fecha y el horario o cancelarlo desde Mis turnos.",
       );
     }
 

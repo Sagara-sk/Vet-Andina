@@ -10,8 +10,10 @@ import {
 } from "../models/turno.model";
 import {
   cancelTurno,
+  cancelClientTurno,
   confirmTurno,
   createTurno,
+  rescheduleClientTurno,
   rescheduleTurnoFor,
 } from "../services/turno.service";
 import { isUuid, sendError, sendNotFound, sendValidationError } from "./respond";
@@ -76,11 +78,15 @@ export const getTurnos: RequestHandler = async (request, response) => {
   }
 
   try {
+    const user = request.user as AuthenticatedUserRecord;
     const turnos = await listTurnos({
       from,
       to,
       status: value.estado ?? null,
-      vetId: value.veterinario ?? null,
+      vetId:
+        user.role === "VETERINARIO"
+          ? user.userId
+          : value.veterinario ?? null,
     });
     response.json({ status: "ok", turnos });
   } catch (error) {
@@ -186,12 +192,18 @@ export const postReschedule: RequestHandler = async (request, response) => {
   if (error) return sendValidationError(response, error);
 
   try {
-    const turno = await rescheduleTurnoFor(
-      request.user as AuthenticatedUserRecord,
-      id,
-      value.fechaHora,
-      value.idVeterinario,
-    );
+    const user = request.user as AuthenticatedUserRecord;
+    if (user.role === "CLIENTE" && value.idVeterinario) {
+      response.status(403).json({
+        status: "error",
+        message: "No podés cambiar el veterinario asignado al turno.",
+      });
+      return;
+    }
+    const turno =
+      user.role === "CLIENTE"
+        ? await rescheduleClientTurno(user, id, value.fechaHora)
+        : await rescheduleTurnoFor(user, id, value.fechaHora, value.idVeterinario);
     response.json({ status: "ok", turno });
   } catch (error) {
     sendError(response, error, "Error al reprogramar un turno", "No fue posible reprogramar el turno.");
@@ -206,7 +218,11 @@ export const postCancel: RequestHandler = async (request, response) => {
   if (error) return sendValidationError(response, error);
 
   try {
-    const turno = await cancelTurno(request.user as AuthenticatedUserRecord, id, value.motivo);
+    const user = request.user as AuthenticatedUserRecord;
+    const turno =
+      user.role === "CLIENTE"
+        ? await cancelClientTurno(user, id)
+        : await cancelTurno(user, id, value.motivo);
     response.json({ status: "ok", turno });
   } catch (error) {
     sendError(response, error, "Error al cancelar un turno", "No fue posible cancelar el turno.");

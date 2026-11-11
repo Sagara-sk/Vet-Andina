@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { canAccess, homeRouteForRole } from '@/router/access'
 import { login } from '@/services/auth'
@@ -12,6 +12,12 @@ const isSubmitting = ref(false)
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
+
+onMounted(() => {
+  if (route.query.registro === 'exitoso') {
+    feedback.value = 'Tu cuenta se creó correctamente. Ya podés iniciar sesión.'
+  }
+})
 
 // Solo se respeta el redirect si es una ruta interna que el rol puede abrir.
 function destinationFor(rol: string) {
