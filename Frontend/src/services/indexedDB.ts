@@ -271,6 +271,29 @@ export async function obtenerBorradoresFicha(
   })
 }
 
+export async function eliminarBorradorFicha(id: string): Promise<void> {
+  const db = await abrirDB()
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_BORRADORES_FICHA, 'readwrite')
+    transaction.objectStore(STORE_BORRADORES_FICHA).delete(id)
+
+    transaction.oncomplete = () => {
+      db.close()
+      resolve()
+    }
+
+    transaction.onerror = () => {
+      db.close()
+      reject(transaction.error)
+    }
+  })
+}
+
+
+
+
+
 export async function guardarAnimal(animal: AnimalLocal): Promise<void> {
   const db = await abrirDB()
 

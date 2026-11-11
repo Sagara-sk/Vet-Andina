@@ -1,9 +1,9 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 
-// ======================================================
+
 // IMPORTACIONES
-// ======================================================
+
 
 // Layout general de las páginas públicas.
 import PublicLayout from '../layouts/PublicLayout.vue'
@@ -17,21 +17,21 @@ import RegistroView from '../views/RegistroView.vue'
 import { useSessionStore } from '@/stores/session'
 import { canAccess } from './access'
 
-// ======================================================
+
 // CONFIGURACIÓN DEL ROUTER
-// ======================================================
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
 
   routes: [
 
-    // ==================================================
+   
     // 1. RUTAS PÚBLICAS
-    // ==================================================
+
     // Accesibles sin iniciar sesión.
     // No requieren permisos ni validación de roles.
-    // ==================================================
+   
 
     {
       path: '/',
@@ -73,9 +73,9 @@ const router = createRouter({
     },
 
 
-    // ==================================================
+   
     // 2. DASHBOARD GENERAL
-    // ==================================================
+    
     // Punto de entrada común para todos los usuarios
     // autenticados.
     //
@@ -87,7 +87,7 @@ const router = createRouter({
     //
     // DashboardView determina qué módulos visualizar
     // según el perfil del usuario.
-    // ==================================================
+   
 
     {
       path: '/dashboard',
@@ -114,9 +114,9 @@ const router = createRouter({
     },
 
 
-    // ==================================================
+   
     // 3. PANEL DE CLIENTES
-    // ==================================================
+   
     // Accesible para usuarios con rol CLIENTE.
     //
     // La diferenciación entre clientes se realiza
@@ -126,7 +126,7 @@ const router = createRouter({
     // - EMPRESA_PRODUCTOR: cliente rural.
     //
     // Las rutas rurales también requieren tipoPersona EMPRESA_PRODUCTOR.
-    // ==================================================
+    
 
     {
       path: '/panel',
@@ -147,9 +147,9 @@ const router = createRouter({
           redirect: { name: 'dashboard' },
         },
 
-        // ----------------------------------------------
+       
         // FUNCIONALIDADES DEL CLIENTE
-        // ----------------------------------------------
+        
 
         // Gestión de mascotas (cliente urbano).
         {
@@ -222,16 +222,16 @@ const router = createRouter({
     },
 
 
-    // ==================================================
+    
     // 4. PANEL VETERINARIO
-    // ==================================================
+    
     // Accesible para:
     // - VETERINARIO
     // - SUPERADMIN
     //
     // Permite consultar tutores, agenda, turnos y
     // funcionalidades operativas veterinarias.
-    // ==================================================
+   
 
     {
       path: '/panel-veterinario',
@@ -254,9 +254,9 @@ const router = createRouter({
           redirect: { name: 'dashboard' },
         },
 
-        // ----------------------------------------------
+      
         // FUNCIONALIDADES VETERINARIAS
-        // ----------------------------------------------
+      
 
         // Consulta del padrón de tutores.
         {
@@ -329,16 +329,16 @@ const router = createRouter({
     },
 
 
-    // ==================================================
+
     // 5. PANEL ADMINISTRATIVO
-    // ==================================================
+    
     // Accesible para:
     // - ADMINISTRATIVO
     // - SUPERADMIN
     //
     // Permite gestionar turnos, tutores y consultar
     // las fichas correspondientes.
-    // ==================================================
+  
 
     {
       path: '/panel-administrativo',
@@ -355,9 +355,9 @@ const router = createRouter({
 
       children: [
 
-        // ----------------------------------------------
+    
         // GESTIÓN DE TURNOS
-        // ----------------------------------------------
+        
 
         {
           path: '',
@@ -365,9 +365,9 @@ const router = createRouter({
           component: () => import('@/views/admin/TurnosView.vue'),
         },
 
-        // ----------------------------------------------
+       
         // AGENDA GENERAL DE VETERINARIOS
-        // ----------------------------------------------
+     
 
         {
           path: 'agenda',
@@ -375,9 +375,9 @@ const router = createRouter({
           component: () => import('@/views/admin/AgendaView.vue'),
         },
 
-        // ----------------------------------------------
+
         // GESTIÓN DE TUTORES
-        // ----------------------------------------------
+        
 
         {
           path: 'tutores',
@@ -398,9 +398,9 @@ const router = createRouter({
           ],
         },
 
-        // ----------------------------------------------
+       
         // CONSULTA Y GESTIÓN DE FICHAS
-        // ----------------------------------------------
+      
 
         {
           path: 'fichas',
@@ -424,12 +424,12 @@ const router = createRouter({
     },
   ],
 
-  // ====================================================
+ 
   // COMPORTAMIENTO DE DESPLAZAMIENTO
-  // ====================================================
+  
   // Al navegar a un ancla, realiza un desplazamiento suave.
   // En cualquier otra navegación, vuelve al inicio.
-  // ====================================================
+
 
   scrollBehavior(to) {
     if (to.hash) {
@@ -444,18 +444,18 @@ const router = createRouter({
 })
 
 
-// ======================================================
+
 // 6. MIDDLEWARE GLOBAL DE AUTENTICACIÓN Y AUTORIZACIÓN
-// ======================================================
+
 // Se ejecuta antes de cada navegación.
-//
+
 // Responsabilidades:
 // 1. Permitir el acceso a rutas públicas.
 // 2. Recuperar y verificar la sesión.
 // 3. Redirigir usuarios no autenticados al login.
 // 4. Comprobar los permisos del rol.
 // 5. Exigir que los clientes completen su perfil.
-// ======================================================
+
 router.beforeEach(async (to) => {
   const requiresAuth = to.matched.some(
     (record) => record.meta.requiresAuth,
@@ -499,8 +499,7 @@ router.beforeEach(async (to) => {
 
   return true
 })
-// ======================================================
+
 // EXPORTACIÓN
-// ======================================================
 
 export default router

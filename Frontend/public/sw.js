@@ -1,11 +1,12 @@
-const CACHE_NAME = 'vet-andina-shell-v2'
+const CACHE_NAME = 'vet-andina-shell-v3'
 const APP_SHELL_URL = new URL('./', self.registration.scope).href
+const FAVICON_URL = new URL('/favicon.svg', self.registration.scope).href
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.add(APP_SHELL_URL))
+      .then((cache) => cache.addAll([APP_SHELL_URL, FAVICON_URL]))
       .then(() => self.skipWaiting()),
   )
 })
@@ -65,15 +66,37 @@ self.addEventListener('fetch', (event) => {
       try {
         const response = await fetch(event.request)
 
-        if (response.ok && response.type === 'basic') {
-          const cache = await caches.open(CACHE_NAME)
-          await cache.put(event.request, response.clone())
+        if (!response.ok) {
+          return (await caches.match(event.request, { ignoreVary: true })) ?? response
         }
+
+      const contentType = response.headers.get('content-type') || ''
+
+if (
+  response.ok &&
+  response.type === 'basic' &&
+  contentType.includes(
+    event.request.destination === 'script'
+      ? 'javascript'
+      : event.request.destination === 'style'
+        ? 'text/css'
+        : event.request.destination === 'image'
+          ? 'image/'
+          : 'font/',
+  )
+) {
+      try {
+        const cache = await caches.open(CACHE_NAME)
+        await cache.put(event.request, response.clone())
+      } catch {
+        return response
+      }
+    }
 
         return response
       } catch {
         return (
-          (await caches.match(event.request)) ??
+          (await caches.match(event.request, { ignoreVary: true })) ??
           new Response('Sin conexión', {
             status: 503,
             headers: { 'Content-Type': 'text/plain' },

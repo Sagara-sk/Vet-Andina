@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import {
+  guardarFichaOffline,
+  obtenerFichaOffline,
+   guardarBorradorFicha,
+} from '@/services/indexedDB'
+
 import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
@@ -71,7 +77,6 @@ function syncForm() {
   modality.value =
     ficha.value.animal.careType === 'RURAL' ? 'RURAL' : 'URBANO'
 }
-
 async function cargar() {
   loading.value = true
   error.value = ''
@@ -79,8 +84,45 @@ async function cargar() {
   ficha.value = null
 
   try {
-    ficha.value = await getMedicalRecord(props.id)
+    const userId = session.user?.id
+
+    if (!userId) {
+      error.value = 'No se pudo identificar al usuario de la sesión.'
+      return
+    }
+
+    // Si no hay conexión, recuperar la última copia local.
+    if (!navigator.onLine) {
+      const cache = await obtenerFichaOffline(userId, props.id)
+
+      if (!cache) {
+        error.value = 'No hay conexión y esta ficha no fue descargada previamente.'
+        return
+      }
+
+      ficha.value = cache.ficha
+      syncForm()
+
+      success.value = `Mostrando copia local guardada el ${fechaHora.format(
+        new Date(cache.descargadaEn),
+      )}.`
+
+      return
+    }
+
+    // Con conexión, consultar el servidor.
+    const fichaOnline = await getMedicalRecord(props.id)
+
+    ficha.value = fichaOnline
     syncForm()
+
+    // Guardar una copia local para futuras consultas offline.
+    try {
+      await guardarFichaOffline(userId, fichaOnline)
+    } catch (cacheError) {
+      console.error('No se pudo guardar la ficha', cacheError)
+     error.value = 'La ficha se consultó correctamente, pero no se pudo guardar para usarla sin conexión.'
+    }
   } catch (e) {
     error.value =
       e instanceof Error ? e.message : 'No fue posible obtener la ficha.'
@@ -88,7 +130,6 @@ async function cargar() {
     loading.value = false
   }
 }
-
 async function guardarFicha() {
   if (!ficha.value || !canManageRecord.value) return
 
@@ -130,20 +171,45 @@ async function guardarEvolucion() {
       .map((vacuna) => vacuna.trim())
       .filter(Boolean)
 
-    ficha.value = await addClinicalEntry(props.id, {
+    const payload = {
       modalidad: modality.value,
+      tipoRegistro: 'CONSULTA' as const,
+      fechaAtencion: null,
       motivoConsulta: reason.value.trim(),
       diagnostico: diagnosis.value.trim() || null,
       tratamiento: treatment.value.trim() || null,
       vacunasAplicadas,
-    })
+      detalles: {},
+    }
+
+    if (!navigator.onLine) {
+      const user = session.user
+
+      if (!user?.id) {
+        throw new Error('No se pudo identificar al usuario de la sesión.')
+      }
+
+      await guardarBorradorFicha({
+        id: crypto.randomUUID(),
+        userId: user.id,
+        animalId: props.id,
+        authorId: user.id,
+        authorName: user.nombreCompleto,
+        queuedAt: new Date().toISOString(),
+        payload,
+      })
+
+      success.value = 'Evolución guardada localmente. Se sincronizará cuando vuelva la conexión.'
+    } else {
+      ficha.value = await addClinicalEntry(props.id, payload)
+
+      success.value = 'La evolución clínica fue registrada correctamente.'
+    }
 
     reason.value = ''
     diagnosis.value = ''
     treatment.value = ''
     vaccines.value = ''
-
-    success.value = 'La evolución clínica fue registrada correctamente.'
   } catch (e) {
     error.value =
       e instanceof Error ? e.message : 'No fue posible registrar la evolución.'
@@ -151,7 +217,6 @@ async function guardarEvolucion() {
     savingEntry.value = false
   }
 }
-
 async function guardarFeErratas(evolutionId: string) {
   if (!ficha.value || !canManageRecord.value) return
 
