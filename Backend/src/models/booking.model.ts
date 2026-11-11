@@ -251,28 +251,25 @@ export async function createClientBooking(
       );
     }
 
-    await lockAgendaDate(client, argentinaDate(input.dateTime));
-
-    const vets = await client.query<{ id_usuario: string }>(
-      `SELECT id_usuario
-       FROM usuario
-       WHERE rol IN ('VETERINARIO', 'SUPERADMIN') AND matricula_profesional IS NOT NULL
-         AND ($1::uuid IS NULL OR id_usuario = $1)
-       ORDER BY id_usuario`,
-      [input.vetId],
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+      [`turno-animal:${input.animalId}`],
     );
-    if (vets.rowCount === 0)
-      throw new NotFoundError(
-        "No hay veterinarios disponibles para esta solicitud.",
+    const existingBooking = await client.query(
+      `SELECT 1 FROM turno
+       WHERE id_animal = $1
+         AND estado NOT IN ('CANCELADA', 'COMPLETADO', 'AUSENTE')
+         AND fecha_hora > CURRENT_TIMESTAMP
+       LIMIT 1`,
+      [input.animalId],
+    );
+    if (existingBooking.rowCount) {
+      throw new ConflictError(
+        "Este paciente ya tiene un turno vigente. Modificalo desde Mis turnos antes de solicitar otro.",
       );
+    }
 
-    for (const vet of vets.rows)
-      await lockVetInterval(
-        client,
-        vet.id_usuario,
-        input.dateTime,
-        input.durationMinutes,
-      );
+    await lockAgendaDate(client, argentinaDate(input.dateTime));
 
     const holiday = await client.query(
       `SELECT 1 FROM agenda_feriado
@@ -285,51 +282,63 @@ export async function createClientBooking(
       );
 
     let assignedVet: string | null = null;
-    let routeConflicts = 0;
-    for (const vet of vets.rows) {
-      if (
-        await vetHasHojaDeRutaOverlap(
-          client,
-          vet.id_usuario,
-          input.dateTime,
-          input.durationMinutes,
-        )
-      ) {
-        routeConflicts += 1;
-        continue;
-      }
-
-      if (input.modality === "RURAL") {
-        const routeSlot = await client.query(
-          `SELECT 1
-           FROM agenda_disponibilidad_rural
-           WHERE id_veterinario = $1 AND fecha_hora = $2 AND duracion_minutos = $3
-           FOR UPDATE`,
-          [vet.id_usuario, input.dateTime, input.durationMinutes],
-        );
-        if (!routeSlot.rowCount) continue;
-      }
-
-      if (
-        !(await overlapsExistingAppointment(
-          client,
-          vet.id_usuario,
-          input.dateTime,
-          input.durationMinutes,
-        ))
-      ) {
-        assignedVet = vet.id_usuario;
-        break;
-      }
-    }
-
-    if (!assignedVet && routeConflicts === vets.rowCount)
-      throw new ConflictError(
-        "El veterinario seleccionado tiene un bloque de trabajo externo en ese horario. Elegí otro horario o veterinario.",
+    if (input.modality === "URBANO") {
+      const vets = await client.query<{ id_usuario: string }>(
+        `SELECT id_usuario
+         FROM usuario
+         WHERE rol IN ('VETERINARIO', 'SUPERADMIN') AND matricula_profesional IS NOT NULL
+           AND ($1::uuid IS NULL OR id_usuario = $1)
+         ORDER BY id_usuario`,
+        [input.vetId],
       );
+      if (vets.rowCount === 0)
+        throw new NotFoundError(
+          "No hay veterinarios disponibles para esta solicitud.",
+        );
 
-    if (!assignedVet)
-      throw new ConflictError("Ese horario acaba de ocuparse. Elegí otro.");
+      for (const vet of vets.rows)
+        await lockVetInterval(
+          client,
+          vet.id_usuario,
+          input.dateTime,
+          input.durationMinutes,
+        );
+
+      let routeConflicts = 0;
+      for (const vet of vets.rows) {
+        if (
+          await vetHasHojaDeRutaOverlap(
+            client,
+            vet.id_usuario,
+            input.dateTime,
+            input.durationMinutes,
+          )
+        ) {
+          routeConflicts += 1;
+          continue;
+        }
+
+        if (
+          !(await overlapsExistingAppointment(
+            client,
+            vet.id_usuario,
+            input.dateTime,
+            input.durationMinutes,
+          ))
+        ) {
+          assignedVet = vet.id_usuario;
+          break;
+        }
+      }
+
+      if (!assignedVet && routeConflicts === vets.rowCount)
+        throw new ConflictError(
+          "El veterinario seleccionado tiene un bloque de trabajo externo en ese horario. Elegí otro horario o veterinario.",
+        );
+
+      if (!assignedVet)
+        throw new ConflictError("Ese horario acaba de ocuparse. Elegí otro.");
+    }
 
     const inserted = await client.query<{ id_turno: string }>(
       `INSERT INTO turno
@@ -625,20 +634,6 @@ export async function assignAppointmentToVet(
       throw new ConflictError(
         "El veterinario tiene un bloque de trabajo externo en ese horario.",
       );
-    }
-
-    if (row.modalidad === "RURAL") {
-      const routeSlot = await client.query(
-        `SELECT 1 FROM agenda_disponibilidad_rural
-         WHERE id_veterinario = $1 AND fecha_hora = $2 AND duracion_minutos = $3
-         FOR UPDATE`,
-        [vetId, row.fecha_hora, row.duracion_minutos],
-      );
-      if (!routeSlot.rowCount) {
-        throw new ConflictError(
-          "El veterinario no tiene una franja de ruta publicada para ese horario.",
-        );
-      }
     }
 
     if (

@@ -1,4 +1,5 @@
 import type { AuthenticatedUserRecord } from "../models/owner.model";
+import { findOwnerIdForUser } from "../models/booking.model";
 import {
   findAnimalOwner,
   findTurnoById,
@@ -49,6 +50,13 @@ async function loadManageable(
 ): Promise<TurnoRecord> {
   const turno = await findTurnoById(id);
   if (!turno) throw new NotFoundError("El turno no existe.");
+  if (user.role === "CLIENTE") {
+    const ownerId = await findOwnerIdForUser(user.userId);
+    if (!ownerId || turno.tutor.id !== ownerId) {
+      throw new ForbiddenError("Solo podés modificar turnos de tus propios pacientes.");
+    }
+    return turno;
+  }
   if (!canManage(user, turno)) {
     throw new ForbiddenError(
       "Solo podés modificar los turnos asignados a vos.",
@@ -129,6 +137,9 @@ export async function rescheduleTurnoFor(
 ): Promise<TurnoRecord> {
   const turno = await loadManageable(user, id);
 
+  if (user.role === "CLIENTE" && vetId !== null) {
+    throw new ForbiddenError("No podés asignar un veterinario al turno.");
+  }
   // Reasignar a otro profesional es tarea de la gestión de agenda, no del veterinario.
   if (vetId && vetId !== turno.vet?.id && user.role === "VETERINARIO") {
     throw new ForbiddenError("No podés reasignar el turno a otro profesional.");

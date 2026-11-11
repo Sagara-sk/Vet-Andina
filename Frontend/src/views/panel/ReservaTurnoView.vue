@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
+import BaseModal from '@/components/admin/BaseModal.vue'
 import { motivosTurno } from '@/data/motivosTurno'
 import {
   getDisponibilidad,
+  listMisTurnos,
   listVeterinariosParaReserva,
   solicitarTurno,
   type DiaDisponible,
@@ -17,6 +20,7 @@ const modality = ref<ModalidadTurno | ''>('')
 const animals = ref<AnimalPropio[]>([])
 const vets = ref<Veterinario[]>([])
 const availability = ref<DiaDisponible[]>([])
+const ownTurns = ref<Turno[]>([])
 const animalId = ref('')
 const preferredVetId = ref('')
 const selectedDate = ref('')
@@ -29,7 +33,10 @@ const loadingAvailability = ref(false)
 const error = ref('')
 const notice = ref('')
 const confirmedTurn = ref<Turno | null>(null)
+const existingTurnDialog = ref<Turno | null>(null)
 let availabilityRequest = 0
+
+const activeTurnStatuses = ['PENDIENTE', 'PENDIENTE_PAGO', 'CONFIRMADO', 'REPROGRAMADO']
 
 function firstOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1)
@@ -66,6 +73,15 @@ const eligibleAnimals = computed(() =>
       ? animal.modality === 'RURAL' && animal.farmId !== null
       : animal.modality === 'URBANO',
   ),
+)
+const bookingForSelectedAnimal = computed(
+  () =>
+    ownTurns.value.find(
+      (turn) =>
+        turn.animal.id === animalId.value &&
+        activeTurnStatuses.includes(turn.status) &&
+        new Date(turn.dateTime).getTime() > Date.now(),
+    ) ?? null,
 )
 const daysByDate = computed(() => new Map(availability.value.map((day) => [day.fecha, day])))
 const calendarDays = computed(() => {
@@ -126,7 +142,7 @@ async function loadAvailability() {
       desde: monthStart.value,
       hasta: nextMonthStart.value,
       modalidad: modality.value,
-      idVeterinario: preferredVetId.value,
+      idVeterinario: modality.value === 'URBANO' ? preferredVetId.value : '',
     })
     if (requestId === availabilityRequest) availability.value = days
   } catch (cause) {
@@ -158,6 +174,13 @@ function selectSlot(slot: HorarioDisponible) {
   error.value = ''
 }
 
+function onAnimalSelected() {
+  if (bookingForSelectedAnimal.value) {
+    existingTurnDialog.value = bookingForSelectedAnimal.value
+    animalId.value = ''
+  }
+}
+
 async function submitBooking() {
   if (!modality.value || !animalId.value || !selectedDay.value || !selectedSlot.value) {
     error.value = 'Seleccioná el paciente, el día y un horario disponible.'
@@ -173,7 +196,7 @@ async function submitBooking() {
   try {
     confirmedTurn.value = await solicitarTurno({
       id_animal: animalId.value,
-      id_veterinario: preferredVetId.value || null,
+      id_veterinario: modality.value === 'URBANO' ? preferredVetId.value || null : null,
       fecha_hora: selectedSlot.value.fechaHora,
       modalidad: modality.value,
       motivo_consulta: `${selectedReasonOption.value.id} - ${selectedReasonOption.value.label}`,
@@ -182,10 +205,25 @@ async function submitBooking() {
       duracion_minutos: selectedSlot.value.duracionMinutos,
     })
     notice.value = ''
+    ownTurns.value = await listMisTurnos()
     await loadAvailability()
   } catch (cause) {
-    error.value =
+    const message =
       cause instanceof Error ? cause.message : 'No fue posible enviar la solicitud de turno.'
+    if (message.includes('ya tiene un turno vigente')) {
+      try {
+        ownTurns.value = await listMisTurnos()
+        existingTurnDialog.value =
+          ownTurns.value.find(
+            (turn) => turn.animal.id === animalId.value && activeTurnStatuses.includes(turn.status),
+          ) ?? null
+      } catch {
+        error.value = message
+      }
+      if (!existingTurnDialog.value) error.value = message
+    } else {
+      error.value = message
+    }
     await loadAvailability()
   } finally {
     booking.value = false
@@ -206,12 +244,14 @@ onMounted(async () => {
   if (isUrbanClient.value) modality.value = 'URBANO'
 
   try {
-    const [ownAnimals, availableVets] = await Promise.all([
+    const [ownAnimals, availableVets, turns] = await Promise.all([
       listMisAnimales(),
       listVeterinariosParaReserva(),
+      listMisTurnos(),
     ])
     animals.value = ownAnimals
     vets.value = availableVets
+    ownTurns.value = turns
     if (isUrbanClient.value || !hasRuralLots.value) modality.value = 'URBANO'
   } catch (cause) {
     error.value =
@@ -263,6 +303,10 @@ watch([modality, preferredVetId, currentMonth], () => {
       <p class="mt-3 text-sm">
         La solicitud quedó pendiente de aceptación. El equipo veterinario o administrativo
         confirmará el turno.
+        <template v-if="confirmedTurn.modality === 'RURAL'">
+          La fecha y hora son tentativas: el personal organizará la hoja de ruta y podrá asignar
+          otro profesional o coordinar otro horario.
+        </template>
         <span v-if="confirmedTurn.vet"> Profesional: {{ confirmedTurn.vet.fullName }}.</span>
       </p>
       <button type="button" class="btn-primary mt-5" @click="resetForm">Reservar otro turno</button>
@@ -296,6 +340,7 @@ watch([modality, preferredVetId, currentMonth], () => {
               :disabled="!modality"
               class="mt-1 w-full rounded border border-brand-line bg-brand-bg p-2.5 text-sm text-brand-ink outline-none focus:border-brand-accent"
               required
+              @change="onAnimalSelected"
             >
               <option value="">
                 {{
@@ -312,7 +357,10 @@ watch([modality, preferredVetId, currentMonth], () => {
             </select>
           </label>
 
-          <label class="text-xs font-medium text-brand-inkSoft sm:col-span-2">
+          <label
+            v-if="modality === 'URBANO'"
+            class="text-xs font-medium text-brand-inkSoft sm:col-span-2"
+          >
             Veterinario de preferencia
             <select
               v-model="preferredVetId"
@@ -339,10 +387,7 @@ watch([modality, preferredVetId, currentMonth], () => {
             </select>
           </label>
         </div>
-        <p
-          v-if="modality && !eligibleAnimals.length"
-          class="mt-3 text-sm text-brand-warnInk"
-        >
+        <p v-if="modality && !eligibleAnimals.length" class="mt-3 text-sm text-brand-warnInk">
           {{
             modality === 'RURAL'
               ? 'No tenés animales o lotes rurales registrados para reservar una visita a campo.'
@@ -359,7 +404,11 @@ watch([modality, preferredVetId, currentMonth], () => {
           <div>
             <h2 class="text-base font-semibold text-brand-accentInk">2. Elegí un día disponible</h2>
             <p class="mt-1 text-xs text-brand-inkSoft">
-              Los días sin horarios libres no se pueden seleccionar.
+              {{
+                modality === 'RURAL'
+                  ? 'Elegí una fecha y hora tentativa; el personal coordinará la visita al armar la hoja de ruta.'
+                  : 'Los días sin horarios libres no se pueden seleccionar.'
+              }}
             </p>
           </div>
           <div class="flex items-center gap-2">
@@ -477,4 +526,22 @@ watch([modality, preferredVetId, currentMonth], () => {
       </button>
     </div>
   </div>
+  <BaseModal
+    v-if="existingTurnDialog"
+    title="Este paciente ya tiene un turno"
+    :subtitle="`${existingTurnDialog.animal.name} · ${displayDate.format(new Date(existingTurnDialog.dateTime))} · ${displayTime.format(new Date(existingTurnDialog.dateTime))}`"
+    @close="existingTurnDialog = null"
+  >
+    <p class="text-sm text-brand-inkSoft">
+      Para solicitar otro horario, primero modificá el turno vigente desde Mis turnos. No se puede
+      crear una segunda solicitud para el mismo paciente.
+    </p>
+    <RouterLink
+      :to="{ name: 'panel-turnos' }"
+      class="btn-primary mt-5 block text-center"
+      @click="existingTurnDialog = null"
+    >
+      Ir a Mis turnos
+    </RouterLink>
+  </BaseModal>
 </template>
