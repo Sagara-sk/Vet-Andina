@@ -6,9 +6,9 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 
-// ======================================================
+
 // INSPECCIÓN DE LA CACHÉ DE NAVEGACIÓN (BFCache)
-// ======================================================
+
 
 // Evita mostrar contenido privado mientras el navegador
 // conserva una página para recuperarla posteriormente.
@@ -28,9 +28,9 @@ window.addEventListener('pageshow', (event: PageTransitionEvent) => {
   document.documentElement.style.visibility = ''
 })
 
-// ======================================================
+
 // INICIALIZACIÓN DE LA APLICACIÓN
-// ======================================================
+
 
 const app = createApp(App)
 
@@ -39,9 +39,9 @@ app.use(router)
 
 app.mount('#app')
 
-// ======================================================
+
 // REGISTRO DEL SERVICE WORKER
-// ======================================================
+
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
